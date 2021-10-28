@@ -6,7 +6,7 @@
 -->
 <html>
 	<head>
-		<title>Dimension by HTML5 UP</title>
+		<title>Preet Patel</title>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 		<link rel="stylesheet" href="assets/css/main.css" />
@@ -20,13 +20,38 @@
 				<!-- Header -->
 					<header id="header">
 						<div class="logo">
-							<span class="icon fa-gem"></span>
+                        <style>
+                            .rotate {
+                                animation-name: rotate;
+                                animation-duration: 2s;
+                                animation-iteration-count: 1;
+                                animation-timing-function: ease;
+                                vertical-align: middle,
+                                horizontal-align: middle;
+                                border-radius: 100%;
+                                box-shadow:
+                                0 0 100px #fff,            /* outer white */
+                                -10px 0 100px #f0f,        /* outer left magenta */
+                                10px 0 100px #0ff;         /* outer right cyan */
+
+                            }
+                            @keyframes rotate {
+                                  from {
+                                          transform: rotate(0deg);
+                                          opacity: 0.0;
+                                          }
+                                          to {
+                                              transform: rotate(360deg);
+                                              opacity: 1;
+                                            }
+                                        }
+                        </style>
+							<img class = "rotate", src = "logo.png" width = "115", height = "115">
 						</div>
 						<div class="content">
-							<div class="inner">
-								<h1>Dimension</h1>
-								<p>A fully responsive site template designed by <a href="https://html5up.net">HTML5 UP</a> and released<br />
-								for free under the <a href="https://html5up.net/license">Creative Commons</a> license.</p>
+							<div class="inner", style = "text-shadow: 1px 1px 2px black;">
+								<h1>Preet B. Patel</h1>
+								<p>Graduate Student in Physics & Astronomy <br>  University of California - Davis </p>
 							</div>
 						</div>
 						<nav>
