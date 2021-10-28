@@ -23,24 +23,20 @@
                         <style>
                             .rotate {
                                 animation-name: rotate;
-                                animation-duration: 2s;
-                                animation-iteration-count: 1;
-                                animation-timing-function: ease;
+                                animation-duration: 45s;
+                                animation-iteration-count: infinite;
+                                animation-timing-function: linear;
                                 border-radius: 100%;
                                 box-shadow:
-                                0 0 100px rgb(0, 0, 0),            /* outer white */
-                                -10px 0 100px rgb(39, 39, 39),        /* outer left magenta */
-                                10px 0 100px rgb(0, 0, 0);         /* outer right cyan */
+                                0 0 100px rgb(0, 0, 0);            /* outer white */
 
                             }
                             @keyframes rotate {
                                   from {
                                           transform: rotate(0deg);
-                                          opacity: 0.0;
                                           }
                                           to {
                                               transform: rotate(360deg);
-                                              opacity: 1;
                                             }
                                         }
                         </style>
