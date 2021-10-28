@@ -100,7 +100,7 @@ body {
 
 body {
   background: #0b0a15;
-  font-family: "Martel", serif;
+  font-family: "Georgia", serif;
   font-size: 1.8rem;
   font-style: normal;
   font-weight: normal;
@@ -3480,3 +3480,4 @@ html.no-csstransitions .hero-content {
   }
 
 }
+
