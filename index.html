@@ -26,13 +26,11 @@
                                 animation-duration: 2s;
                                 animation-iteration-count: 1;
                                 animation-timing-function: ease;
-                                vertical-align: middle,
-                                horizontal-align: middle;
                                 border-radius: 100%;
                                 box-shadow:
-                                0 0 100px #fff,            /* outer white */
-                                -10px 0 100px #f0f,        /* outer left magenta */
-                                10px 0 100px #0ff;         /* outer right cyan */
+                                0 0 100px rgb(0, 0, 0),            /* outer white */
+                                -10px 0 100px rgb(39, 39, 39),        /* outer left magenta */
+                                10px 0 100px rgb(0, 0, 0);         /* outer right cyan */
 
                             }
                             @keyframes rotate {
@@ -46,7 +44,7 @@
                                             }
                                         }
                         </style>
-							<img class = "rotate", src = "logo.png" width = "115", height = "115">
+							<img class = "rotate", src = "logo.png" width = 100%, height = 100%>
 						</div>
 						<div class="content">
 							<div class="inner", style = "text-shadow: 1px 1px 2px black;">
