@@ -30,7 +30,7 @@ footer, header, hgroup, menu, nav, section {
 	display: block;}
 
 body {
-	line-height: 1;
+	line-height: 2;
 }
 
 ol, ul {
@@ -1160,7 +1160,7 @@ input, select, textarea {
 			transition: transform 0.325s ease-in-out, filter 0.325s ease-in-out;
 			background-image: url("../../images/bg.jpg");
 			background-position: center;
-			background-size: cover;
+			background-size: 100%;
 			background-repeat: no-repeat;
 			z-index: 1;
 		}
