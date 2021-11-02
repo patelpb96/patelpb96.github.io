@@ -23,13 +23,13 @@
 
 				<!-- Header -->
 					<header id="header">
-						<div class="logo">
+						<div class="logo">	
                         <style>
 							.image1 {
 								left: 0%;
 								position: absolute;
 								overflow: hidden;
-								animation-name: rotate;
+								animation-name: rotate1;
                                 animation-duration: 60s;
                                 animation-iteration-count: infinite;
                                 animation-timing-function: linear;
@@ -41,8 +41,8 @@
 							.image2 {
 								left: 0%;
 								position: absolute;
-								animation-name: rotate;
-                                animation-duration: 32s;
+								animation-name: rotate2;
+                                animation-duration: 60s;
                                 animation-iteration-count: infinite;
                                 animation-timing-function: linear;
                                 border-radius: 100%;
@@ -51,19 +51,35 @@
 							.image3 { /*Top image*/
 								left: 0%;
 								position: absolute;
-								animation-name: rotate;
-                                animation-duration: 8s;
+								animation-name: rotate3;
+                                animation-duration: 30s;
                                 animation-iteration-count: infinite;
                                 animation-timing-function: linear;
                                 border-radius: 100%;
 								z-index: 3;
 							}
-                            @keyframes rotate {
+                            @keyframes rotate1 {
                                   from {
                                           transform: rotate(0deg);
                                           }
                                           to {
-                                              transform: rotate(2700deg);
+                                              transform: rotate(1800deg);
+                                            }
+                                        }
+                            @keyframes rotate2 {
+                                  from {
+                                          transform: rotate(0deg);
+                                          }
+                                          to {
+                                              transform: rotate(3600deg);
+                                            }
+                                        }
+                            @keyframes rotate3 {
+                                  from {
+                                          transform: rotate(0deg);
+                                          }
+                                          to {
+                                              transform: rotate(7200deg);
                                             }
                                         }
                         </style>
