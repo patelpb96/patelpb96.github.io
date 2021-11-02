@@ -25,16 +25,39 @@
 					<header id="header">
 						<div class="logo">
                         <style>
-                            .rotate {
-                                animation-name: rotate;
+							.image1 {
+								left: 0%;
+								position: absolute;
+								overflow: hidden;
+								animation-name: rotate;
                                 animation-duration: 60s;
                                 animation-iteration-count: infinite;
                                 animation-timing-function: linear;
                                 border-radius: 100%;
                                 box-shadow:
-                                0 0px 40px rgba(255, 255, 255, 0.336);            /* outer white */
-
-                            }
+                                0 0px 40px rgba(255, 255, 255, 0.336);
+								z-index: 1;            /* outer white */
+							}
+							.image2 {
+								left: 0%;
+								position: absolute;
+								animation-name: rotate;
+                                animation-duration: 30s;
+                                animation-iteration-count: infinite;
+                                animation-timing-function: linear;
+                                border-radius: 100%;
+								z-index: 2;
+							}
+							.image3 { /*Top image*/
+								left: 0%;
+								position: absolute;
+								animation-name: rotate;
+                                animation-duration: 7s;
+                                animation-iteration-count: infinite;
+                                animation-timing-function: linear;
+                                border-radius: 100%;
+								z-index: 3;
+							}
                             @keyframes rotate {
                                   from {
                                           transform: rotate(0deg);
@@ -44,7 +67,9 @@
                                             }
                                         }
                         </style>
-							<img class = "rotate", src = "logo.png" width = 100%, height = 100%>
+							<img class = "image1", src = "logo_top.png" width = 100%, height = 100%>
+							<img class = "image2", src = "logo_bot.png" width = 100%, height = 100%>
+							<img class = "image3", src = "core.png", width = 100%, height = 100%>
 						</div>
 						<div class="content">
 							<div class="inner", style = "text-shadow: 1px 1px 2px black;">
