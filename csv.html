@@ -101,6 +101,23 @@
         });
 
         /**
+         * Updates a button's appearance based on the guest's assignment status.
+         * @param {HTMLButtonElement} button The button element to update.
+         * @param {string} guestId The unique ID for the guest.
+         */
+        function updateButtonState(button, guestId) {
+            const isAssigned = localStorage.getItem(guestId) === 'assigned';
+            
+            if (isAssigned) {
+                button.textContent = 'Assigned to Table';
+                button.className = 'px-3 py-2 text-xs font-semibold text-green-800 bg-green-100 hover:bg-green-200 rounded-full transition-colors w-full';
+            } else {
+                button.textContent = 'Unassigned';
+                button.className = 'px-3 py-2 text-xs font-semibold text-red-800 bg-red-100 hover:bg-red-200 rounded-full transition-colors w-full';
+            }
+        }
+
+        /**
          * Parses CSV text and displays it as an HTML table.
          * @param {string} csvText The raw text content of the CSV file.
          */
@@ -109,15 +126,15 @@
             tableContainer.style.opacity = 0;
             if (placeholder) placeholder.style.display = 'none';
 
-            const allRows = csvText.trim().split('\n').map(line => line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g).map(cell => cell.replace(/^"|"$/g, '')));
-            if (allRows.length === 0) {
+            const allRowsRaw = csvText.trim().split('\n').map(line => line.split(','));
+            if (allRowsRaw.length === 0) {
                 tableContainer.innerHTML = '<p class="text-center text-red-500">CSV file is empty.</p>';
-                tableContainer.style.opacity = 1;
                 return;
             }
 
-            // Clean headers by removing any empty columns caused by trailing commas
-            const cleanedHeaders = allRows[0].filter(h => h.trim() !== '');
+            // Determine column count from the header row, ignoring any empty columns from trailing commas.
+            const cleanedHeaders = allRowsRaw[0].map(h => h.replace(/^"|"$/g, '').trim()).filter(h => h);
+            const columnCount = cleanedHeaders.length;
             const finalHeaders = [...cleanedHeaders, 'Status'];
 
             const table = document.createElement('table');
@@ -131,9 +148,8 @@
                 const th = document.createElement('th');
                 th.scope = 'col';
                 th.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
-                th.textContent = headerText.trim();
-                // Make all but the last column ('Status') sortable
-                if (index < cleanedHeaders.length) {
+                th.textContent = headerText;
+                if (index < columnCount) { // Only make data columns sortable
                     th.classList.add('sortable-header');
                     th.dataset.columnIndex = index;
                     th.addEventListener('click', () => sortTable(index));
@@ -145,43 +161,46 @@
 
             const tbody = document.createElement('tbody');
             tbody.className = 'bg-white divide-y divide-gray-200';
-            const dataRows = allRows.slice(1);
-            dataRows.forEach(fullRowData => {
-                if (fullRowData.every(cell => cell.trim() === '')) return;
-                
-                // Use only the data that corresponds to a cleaned header
-                const rowData = fullRowData.slice(0, cleanedHeaders.length);
+            const dataRowsRaw = allRowsRaw.slice(1);
+
+            dataRowsRaw.forEach(rawRow => {
+                if (rawRow.every(cell => !cell || cell.trim() === '')) return;
+
+                // **THIS IS THE FIX**: Normalize every row to match the header column count.
+                let normalizedRow = rawRow.map(cell => cell.replace(/^"|"$/g, '').trim());
+                if (normalizedRow.length > columnCount) {
+                    normalizedRow = normalizedRow.slice(0, columnCount); // Truncate extra columns
+                } else {
+                    while (normalizedRow.length < columnCount) {
+                        normalizedRow.push(''); // Pad missing columns
+                    }
+                }
 
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 transition-colors';
-                rowData.forEach(cellData => {
+                normalizedRow.forEach(cellData => {
                     const td = document.createElement('td');
                     td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700';
-                    td.textContent = cellData.trim();
+                    td.textContent = cellData;
                     tr.appendChild(td);
                 });
 
-                // Add the action button cell
+                // This will now always be in the correct final column.
                 const actionTd = document.createElement('td');
                 actionTd.className = 'px-6 py-4 whitespace-nowrap text-sm font-medium';
                 const button = document.createElement('button');
-                // Create a unique ID from first and last name for storage
-                const guestId = `${rowData[0]}-${rowData[1]}`.toLowerCase().replace(/\s+/g, '-');
+                const guestId = `${normalizedRow[0]}-${normalizedRow[1]}`.toLowerCase().replace(/\s+/g, '-');
                 
-                if (localStorage.getItem(guestId) === 'added') {
-                    button.textContent = 'Added';
-                    button.disabled = true;
-                    button.className = 'px-4 py-2 text-xs font-semibold text-green-800 bg-green-200 rounded-full cursor-not-allowed';
-                } else {
-                    button.textContent = 'Add to Table';
-                    button.className = 'px-4 py-2 text-xs font-semibold text-indigo-800 bg-indigo-100 hover:bg-indigo-200 rounded-full transition-colors';
-                    button.onclick = () => {
-                        localStorage.setItem(guestId, 'added');
-                        button.textContent = 'Added';
-                        button.disabled = true;
-                        button.className = 'px-4 py-2 text-xs font-semibold text-green-800 bg-green-200 rounded-full cursor-not-allowed';
-                    };
-                }
+                updateButtonState(button, guestId);
+                button.onclick = () => {
+                    if (localStorage.getItem(guestId) === 'assigned') {
+                        localStorage.removeItem(guestId);
+                    } else {
+                        localStorage.setItem(guestId, 'assigned');
+                    }
+                    updateButtonState(button, guestId);
+                };
+
                 actionTd.appendChild(button);
                 tr.appendChild(actionTd);
                 tbody.appendChild(tr);
@@ -201,7 +220,6 @@
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
             
-            // Determine sort direction
             if (sortState.column === columnIndex) {
                 sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
             } else {
@@ -209,21 +227,15 @@
                 sortState.direction = 'asc';
             }
 
-            // Sort the rows
             rows.sort((a, b) => {
                 const cellA = a.cells[columnIndex].textContent.trim().toLowerCase();
                 const cellB = b.cells[columnIndex].textContent.trim().toLowerCase();
                 
-                if (cellA < cellB) {
-                    return sortState.direction === 'asc' ? -1 : 1;
-                }
-                if (cellA > cellB) {
-                    return sortState.direction === 'asc' ? 1 : -1;
-                }
+                if (cellA < cellB) return sortState.direction === 'asc' ? -1 : 1;
+                if (cellA > cellB) return sortState.direction === 'asc' ? 1 : -1;
                 return 0;
             });
 
-            // Re-append rows and update header styles
             rows.forEach(row => tbody.appendChild(row));
             document.querySelectorAll('.sortable-header').forEach(th => {
                 th.classList.remove('asc', 'desc');
