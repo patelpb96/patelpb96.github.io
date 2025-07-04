@@ -64,7 +64,7 @@
 </head>
 <body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
 
-    <div class="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl shadow-indigo-100/50 overflow-hidden">
+    <div class="w-[95%] max-w-screen-2xl mx-auto bg-white rounded-2xl shadow-2xl shadow-indigo-100/50 overflow-hidden">
         <header class="p-6 sm:p-8 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
             <h1 class="text-2xl sm:text-3xl font-bold">Wedding Guest List</h1>
             <p class="mt-2 text-indigo-100">Click on column headers to sort. Guest statuses are saved locally.</p>
@@ -109,28 +109,31 @@
             tableContainer.style.opacity = 0;
             if (placeholder) placeholder.style.display = 'none';
 
-            const rows = csvText.trim().split('\n').map(line => line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g).map(cell => cell.replace(/^"|"$/g, '')));
-            if (rows.length === 0) {
+            const allRows = csvText.trim().split('\n').map(line => line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g).map(cell => cell.replace(/^"|"$/g, '')));
+            if (allRows.length === 0) {
                 tableContainer.innerHTML = '<p class="text-center text-red-500">CSV file is empty.</p>';
                 tableContainer.style.opacity = 1;
                 return;
             }
 
+            // Clean headers by removing any empty columns caused by trailing commas
+            const cleanedHeaders = allRows[0].filter(h => h.trim() !== '');
+            const finalHeaders = [...cleanedHeaders, 'Status'];
+
             const table = document.createElement('table');
             table.className = 'min-w-full divide-y divide-gray-200';
             table.id = 'guest-table';
-
-            const headers = [...rows[0], 'Status']; // Add new header
+            
             const thead = document.createElement('thead');
             thead.className = 'bg-gray-100';
             const headerRow = document.createElement('tr');
-            headers.forEach((headerText, index) => {
+            finalHeaders.forEach((headerText, index) => {
                 const th = document.createElement('th');
                 th.scope = 'col';
                 th.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
                 th.textContent = headerText.trim();
-                // Make all but the last column sortable
-                if (index < headers.length - 1) {
+                // Make all but the last column ('Status') sortable
+                if (index < cleanedHeaders.length) {
                     th.classList.add('sortable-header');
                     th.dataset.columnIndex = index;
                     th.addEventListener('click', () => sortTable(index));
@@ -142,9 +145,13 @@
 
             const tbody = document.createElement('tbody');
             tbody.className = 'bg-white divide-y divide-gray-200';
-            const dataRows = rows.slice(1);
-            dataRows.forEach(rowData => {
-                if (rowData.every(cell => cell.trim() === '')) return;
+            const dataRows = allRows.slice(1);
+            dataRows.forEach(fullRowData => {
+                if (fullRowData.every(cell => cell.trim() === '')) return;
+                
+                // Use only the data that corresponds to a cleaned header
+                const rowData = fullRowData.slice(0, cleanedHeaders.length);
+
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 transition-colors';
                 rowData.forEach(cellData => {
@@ -164,7 +171,7 @@
                 if (localStorage.getItem(guestId) === 'added') {
                     button.textContent = 'Added';
                     button.disabled = true;
-                    button.className = 'px-4 py-2 text-xs font-semibold text-green-800 bg-green-200 rounded-full';
+                    button.className = 'px-4 py-2 text-xs font-semibold text-green-800 bg-green-200 rounded-full cursor-not-allowed';
                 } else {
                     button.textContent = 'Add to Table';
                     button.className = 'px-4 py-2 text-xs font-semibold text-indigo-800 bg-indigo-100 hover:bg-indigo-200 rounded-full transition-colors';
@@ -172,7 +179,7 @@
                         localStorage.setItem(guestId, 'added');
                         button.textContent = 'Added';
                         button.disabled = true;
-                        button.className = 'px-4 py-2 text-xs font-semibold text-green-800 bg-green-200 rounded-full';
+                        button.className = 'px-4 py-2 text-xs font-semibold text-green-800 bg-green-200 rounded-full cursor-not-allowed';
                     };
                 }
                 actionTd.appendChild(button);
