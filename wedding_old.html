@@ -48,11 +48,7 @@
       text-align: left;
       border-bottom: 1px solid #ddd;
     }
-    th {
-      background-color: #9caf88;
-      color: white;
-      cursor: pointer;
-    }
+    th { background-color: #9caf88; color: white; }
   </style>
 </head>
 <body>
@@ -63,7 +59,7 @@
   <div class="container">
     <input type="text" id="searchInput" placeholder="Search your name..." onkeyup="filterTable()" />
     <table id="dataTable">
-      <thead><tr><th onclick="sortByName()">Name &#x25B2;&#x25BC;</th><th>Group/Table</th></tr></thead>
+      <thead><tr><th>Name</th><th>Group/Table</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
@@ -76,7 +72,6 @@
     const utcHour = now.getUTCHours();
     const isAfter4pmEST = utcHour >= 20; // 4 PM EST = 20 UTC
     let currentCSV = isAfter4pmEST ? seatingUrl : photoUrl;
-    let currentData = [];
 
     function setActive(tabId) {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
@@ -92,43 +87,20 @@
         const headers = rows[0];
         const tableBody = document.querySelector('#dataTable tbody');
         tableBody.innerHTML = '';
-        currentData = [];
 
         for (let i = 1; i < rows.length; i++) {
           for (let j = 0; j < headers.length; j++) {
             const name = rows[i][j]?.trim();
             if (name) {
-              currentData.push({ name, group: headers[j] });
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td>${name}</td><td>${headers[j]}</td>`;
+              tableBody.appendChild(tr);
             }
           }
         }
-        renderTable(currentData);
       } catch (e) {
         console.error("Failed to load CSV:", e);
       }
-    }
-
-    function renderTable(data) {
-      const tableBody = document.querySelector('#dataTable tbody');
-      tableBody.innerHTML = '';
-      data.forEach(entry => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${entry.name}</td><td>${entry.group}</td>`;
-        tableBody.appendChild(tr);
-      });
-    }
-
-    function stripPrefix(name) {
-      return name.replace(/^Dr\.\s*/i, '').trim();
-    }
-
-    function sortByName() {
-      currentData.sort((a, b) => {
-        const nameA = stripPrefix(a.name).toLowerCase();
-        const nameB = stripPrefix(b.name).toLowerCase();
-        return nameA.localeCompare(nameB);
-      });
-      renderTable(currentData);
     }
 
     function filterTable() {
@@ -140,6 +112,7 @@
       });
     }
 
+    // Setup tab switching
     photoTab.addEventListener('click', () => {
       currentCSV = photoUrl;
       setActive('photoTab');
@@ -151,6 +124,7 @@
       fetchCSV(currentCSV);
     });
 
+    // Load initial view
     window.onload = () => {
       setActive(isAfter4pmEST ? 'seatingTab' : 'photoTab');
       fetchCSV(currentCSV);
