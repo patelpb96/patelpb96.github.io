@@ -119,8 +119,9 @@
       const tableBody = document.querySelector('#dataTable tbody');
       tableBody.innerHTML = '';
       data.forEach(entry => {
+        const groupLabel = (currentCSV === photoUrl) ? `Photogroup ${entry.group.match(/\d+/)?.[0] || entry.group}` : entry.group;
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${entry.name}</td><td>${entry.group}</td>`;
+        tr.innerHTML = `<td>${entry.name}</td><td>${groupLabel}</td>`;
         tableBody.appendChild(tr);
       });
     }
