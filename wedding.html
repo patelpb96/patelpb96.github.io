@@ -65,8 +65,8 @@
     <table id="dataTable">
       <thead>
         <tr>
-          <th onclick="sortByName()">Name &#x25B2;&#x25BC;</th>
-          <th onclick="sortByGroup()">Group/Table &#x25B2;&#x25BC;</th>
+          <th onclick="toggleSortByName()">Name &#x25B2;&#x25BC;</th>
+          <th onclick="toggleSortByGroup()">Group/Table &#x25B2;&#x25BC;</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -109,7 +109,7 @@
             }
           }
         }
-        sortByName(true); // default sort
+        sortByName(true); // force default ascending name sort
       } catch (e) {
         console.error("Failed to load CSV:", e);
       }
@@ -135,8 +135,12 @@
         const nameB = stripPrefix(b.name).toLowerCase();
         return (nameSortAsc || forceAsc) ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
       });
-      nameSortAsc = forceAsc ? true : !nameSortAsc;
       renderTable(currentData);
+    }
+
+    function toggleSortByName() {
+      nameSortAsc = !nameSortAsc;
+      sortByName();
     }
 
     function sortByGroup() {
@@ -145,8 +149,12 @@
         const groupB = parseInt(b.group.match(/\d+/));
         return groupSortAsc ? groupA - groupB : groupB - groupA;
       });
-      groupSortAsc = !groupSortAsc;
       renderTable(currentData);
+    }
+
+    function toggleSortByGroup() {
+      groupSortAsc = !groupSortAsc;
+      sortByGroup();
     }
 
     function filterTable() {
