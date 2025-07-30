@@ -63,7 +63,12 @@
   <div class="container">
     <input type="text" id="searchInput" placeholder="Search your name..." onkeyup="filterTable()" />
     <table id="dataTable">
-      <thead><tr><th onclick="sortByName()">Name &#x25B2;&#x25BC;</th><th>Group/Table</th></tr></thead>
+      <thead>
+        <tr>
+          <th onclick="sortByName()">Name &#x25B2;&#x25BC;</th>
+          <th onclick="sortByGroup()">Group/Table &#x25B2;&#x25BC;</th>
+        </tr>
+      </thead>
       <tbody></tbody>
     </table>
   </div>
@@ -77,6 +82,8 @@
     const isAfter4pmEST = utcHour >= 20; // 4 PM EST = 20 UTC
     let currentCSV = isAfter4pmEST ? seatingUrl : photoUrl;
     let currentData = [];
+    let nameSortAsc = true;
+    let groupSortAsc = true;
 
     function setActive(tabId) {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
@@ -102,7 +109,7 @@
             }
           }
         }
-        renderTable(currentData);
+        sortByName(true); // default sort
       } catch (e) {
         console.error("Failed to load CSV:", e);
       }
@@ -119,15 +126,26 @@
     }
 
     function stripPrefix(name) {
-      return name.replace(/^Dr\.\s*/i, '').trim();
+      return name.replace(/^Dr\.?\s*/i, '').trim();
     }
 
-    function sortByName() {
+    function sortByName(forceAsc = false) {
       currentData.sort((a, b) => {
         const nameA = stripPrefix(a.name).toLowerCase();
         const nameB = stripPrefix(b.name).toLowerCase();
-        return nameA.localeCompare(nameB);
+        return (nameSortAsc || forceAsc) ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
       });
+      nameSortAsc = forceAsc ? true : !nameSortAsc;
+      renderTable(currentData);
+    }
+
+    function sortByGroup() {
+      currentData.sort((a, b) => {
+        const groupA = parseInt(a.group.match(/\d+/));
+        const groupB = parseInt(b.group.match(/\d+/));
+        return groupSortAsc ? groupA - groupB : groupB - groupA;
+      });
+      groupSortAsc = !groupSortAsc;
       renderTable(currentData);
     }
 
