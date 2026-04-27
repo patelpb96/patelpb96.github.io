@@ -177,7 +177,6 @@ Error generating stack: `+e.message+`
         grid-template-columns: 1fr 1fr;
         gap: 16px;
         width: 100%;
-        height: clamp(360px, 48vh, 500px);
         align-items: stretch;
       }
       .hero::before { content: none; }
@@ -188,8 +187,18 @@ Error generating stack: `+e.message+`
         overflow: hidden;
         height: 100%;
       }
-      .image-card { display: flex; align-items: stretch; height: 100%; }
-      .hero-image { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
+      .image-card {
+        display: flex;
+        align-items: stretch;
+        height: 100%;
+      }
+      .hero-image {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        object-fit: cover;
+        object-position: 30% 50%;
+      }
       .content-card {
         padding: clamp(24px, 4vw, 44px);
         background: rgba(30, 14, 8, 0.82);
