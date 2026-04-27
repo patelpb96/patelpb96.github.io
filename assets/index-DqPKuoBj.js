@@ -189,6 +189,19 @@ Error generating stack: `+e.message+`
         height: clamp(360px, 48vh, 500px);
         align-items: stretch;
       }
+
+      /* ADD THIS DIRECTLY BELOW */
+      @media (max-width: 860px) {
+        .hero-cards {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+
+        .image-card,
+        .content-card {
+          min-height: 360px;
+        }
+      }
       .hero::before {
         content: none;
       }
