@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RuneScape alchemy & price explorer</title>
+    <meta
+      name="description"
+      content="Grand Exchange price history and high-alchemy profit for every RuneScape item, filterable and multi-sortable."
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%94%A5%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <h1>RuneScape alchemy &amp; price explorer</h1>
+        <span class="sub" id="meta">loading …</span>
+        <span class="spacer"></span>
+        <button id="theme" title="Toggle light / dark">◐</button>
+      </header>
+
+      <div id="status"></div>
+
+      <nav class="tabs" id="tabs" role="tablist"></nav>
+
+      <section class="panel">
+        <div class="row">
+          <input id="search" type="search" placeholder="Search item name …" aria-label="Search item name" />
+          <label class="field">
+            Members
+            <select id="members">
+              <option value="any">any</option>
+              <option value="members">members only</option>
+              <option value="f2p">free-to-play only</option>
+            </select>
+          </label>
+          <label class="field">
+            <input type="checkbox" id="profitable" />
+            profitable only
+          </label>
+          <span class="spacer" style="flex: 1"></span>
+          <button id="csv">Download CSV of this view</button>
+          <button id="clear">Clear filters</button>
+        </div>
+
+        <div class="row">
+          <label class="field">
+            Filter
+            <select id="filter-col"></select>
+          </label>
+          <label class="field">min <input type="number" id="filter-min" placeholder="—" /></label>
+          <label class="field">max <input type="number" id="filter-max" placeholder="—" /></label>
+          <button id="add-filter" class="primary">Add filter</button>
+          <span class="chips" id="filter-chips"></span>
+        </div>
+
+        <div class="row">
+          <span class="hint">Sort order:</span>
+          <span class="chips" id="sort-chips"></span>
+        </div>
+
+        <div class="row">
+          <span class="hint">
+            Click a column to sort by it. <strong>Shift-click</strong> a second column to break
+            ties with it — e.g. profit ↓ then volume ↓ finds the most profitable items that
+            actually trade. Reorder or flip any key with the chips above.
+          </span>
+        </div>
+      </section>
+
+      <div class="table-wrap">
+        <table id="table"></table>
+      </div>
+
+      <div class="pager">
+        <span id="count"></span>
+        <span class="spacer"></span>
+        <label class="field">
+          rows
+          <select id="page-size">
+            <option>50</option>
+            <option selected>100</option>
+            <option>250</option>
+            <option>1000</option>
+          </select>
+        </label>
+        <button id="prev">‹ prev</button>
+        <span id="page-label"></span>
+        <button id="next">next ›</button>
+      </div>
+
+      <footer class="foot">
+        Data scraped from
+        <a href="https://prices.runescape.wiki/rs/alchemy">prices.runescape.wiki</a> (Grand Exchange
+        history via the Weird Gloop exchange API). Profit per cast = high alch value − item price −
+        nature rune price on the same day. Scraper source:
+        <a href="https://github.com/patelpb96/random_programs/tree/main/rs_alchemy">rs_alchemy</a>.
+      </footer>
+    </div>
+
+    <div class="backdrop" id="backdrop"></div>
+    <aside class="drawer" id="drawer" aria-label="Item detail">
+      <button class="close" id="close-drawer">✕</button>
+      <h2 id="drawer-title"></h2>
+      <div class="sub hint" id="drawer-sub"></div>
+      <div class="stat-grid" id="drawer-stats"></div>
+      <div id="drawer-charts"></div>
+    </aside>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
