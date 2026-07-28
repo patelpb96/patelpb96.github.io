@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import AlchemyDashboard from "./Alchemy.jsx";
 
 const base = "https://patelpb96.github.io";
 
@@ -21,7 +22,9 @@ const assets = {
   ],
 };
 
-const sections = ["Intro", "Research", "Resume", "Contact", "Graphics"];
+// Home lives on one scrolling page; Graphics + Alchemy live on the /projects page.
+const sections = ["Intro", "Research", "Resume", "Contact"];
+const projectSections = ["Alchemy", "Graphics"];
 
 const contactCards = [
   { label: "Email", value: "patelpb96@gmail.com", href: "mailto:patelpb96@gmail.com", icon: "mail" },
@@ -91,10 +94,12 @@ function LazyGraphic({ src, alt }) {
 function assertSiteData() {
   if (typeof console === "undefined" || typeof console.assert !== "function") return;
   console.assert(Array.isArray(sections), "sections should be an array");
-  console.assert(sections.length === 5, "expected five navigation sections");
+  console.assert(sections.length === 4, "expected four home navigation sections");
+  console.assert(projectSections.length === 2, "expected Graphics and Alchemy on the projects page");
   console.assert(base.startsWith("https://"), "base URL should be absolute HTTPS");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
-  console.assert(assets.pfp === `${base}/pfp.jpg`, "intro and hero image should use pfp.jpg");
+  console.assert(assets.pfp === `${base}/pfp.jpg`, "hero image should use pfp.jpg");
+  console.assert(assets.introImg === `${base}/images/pic01.png`, "intro image should use images/pic01.png");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
   console.assert(contactCards.some((card) => card.href?.startsWith("mailto:")), "contact cards should include a mailto link");
   console.assert(contactCards.every((card) => card.label && card.icon), "each contact card should have a label and icon key");
@@ -102,6 +107,8 @@ function assertSiteData() {
   console.assert(`${base}/assets/Resume_public.pdf`.endsWith("assets/Resume_public.pdf"), "resume link should point to the hosted PDF");
   console.assert(!starFields.back.includes('join("'), "back star field should be a finalized CSS string");
   console.assert(starFields.farBack.includes("radial-gradient"), "far-back star field should contain gradients");
+  console.assert(starFields.midBack.includes("radial-gradient"), "mid-back star field should contain gradients");
+  console.assert(starFields.mid.includes("radial-gradient"), "mid star field should contain gradients");
   console.assert(starFields.back.includes("radial-gradient"), "back star field should contain gradients");
   console.assert(starFields.front.includes("radial-gradient"), "front star field should contain gradients");
   console.assert(starFields.ultraFront.includes("radial-gradient"), "ultra-front star field should contain gradients");
@@ -262,9 +269,6 @@ function Css() {
         90% { opacity: 0.77; filter: brightness(1.05) drop-shadow(0 0 3px rgba(255,210,170,0.31)); }
         100% { opacity: 0.70; filter: brightness(0.92) drop-shadow(0 0 2px rgba(255,210,170,0.25)); }
       }
-        35% { opacity: 0.88; filter: brightness(1.28) drop-shadow(0 0 4px rgba(255,210,170,0.42)); }
-        65% { opacity: 0.70; filter: brightness(0.92) drop-shadow(0 0 3px rgba(255,210,170,0.32)); }
-      }
       @keyframes pageStarTwinkleBright {
         0% { opacity: 0.45; filter: brightness(0.95) drop-shadow(0 0 6px rgba(255,235,215,0.45)); }
         15% { opacity: 0.52; filter: brightness(1.10) drop-shadow(0 0 7px rgba(255,235,215,0.55)); }
@@ -274,8 +278,6 @@ function Css() {
         75% { opacity: 0.54; filter: brightness(1.15) drop-shadow(0 0 8px rgba(255,235,215,0.62)); }
         90% { opacity: 0.49; filter: brightness(1.03) drop-shadow(0 0 6px rgba(255,235,215,0.50)); }
         100% { opacity: 0.45; filter: brightness(0.95) drop-shadow(0 0 6px rgba(255,235,215,0.45)); }
-      }
-        45% { opacity: 0.72; filter: brightness(1.55) drop-shadow(0 0 10px rgba(255,235,215,0.75)); }
       }
       @keyframes starTwinkleBgStrong {
         0%, 100% { filter: brightness(0.8) blur(0px); }
@@ -289,14 +291,8 @@ function Css() {
         0%, 100% { filter: brightness(1.0); }
         50% { filter: brightness(1.35); }
       }
-      @keyframes orbitCarrierA {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      @keyframes orbitCarrierB {
-        from { transform: rotate(180deg); }
-        to { transform: rotate(540deg); }
-      }
+      @keyframes orbitCarrierA { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes orbitCarrierB { from { transform: rotate(180deg); } to { transform: rotate(540deg); } }
       @keyframes riseIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes navDrop { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -324,6 +320,8 @@ function Css() {
         height: 54px;
         border-radius: 0;
         object-fit: cover;
+        object-position: 52% 34%;
+        transform: scale(1.05);
         box-shadow: 0 0 16px rgba(255,170,100,0.22);
         transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
         -webkit-box-reflect: below 3px linear-gradient(transparent 58%, rgba(255,255,255,0.18));
@@ -333,13 +331,18 @@ function Css() {
       .brand-subtitle { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
       .nav { display: flex; gap: 6px; }
       .nav-link { color: var(--muted); text-decoration: none; padding: 9px 13px; border-radius: 0; font-size: 0.86rem; transition: 180ms ease; }
+      button.nav-link { font-family: inherit; background: transparent; border: 0; cursor: pointer; line-height: 1.4; }
       .nav-link:hover { color: #2a1208; background: var(--accent-soft); box-shadow: 0 0 22px rgba(255,170,100,0.35); }
+
+      .projects-intro { text-align: center; padding: 40px 0 6px; }
+      .page-title { color: #fff2e6; font-size: clamp(2.6rem, 6vw, 4.4rem); line-height: 0.95; letter-spacing: -0.05em; margin: 0; text-shadow: 0 0 44px rgba(255,170,100,0.25); }
+      .page-lead { max-width: 640px; margin: 16px auto 0; text-align: center; }
 
       .hero {
         position: relative;
         z-index: 1;
         width: min(1120px, calc(100% - 32px));
-        min-height: 72vh;
+        min-height: 52vh;
         margin: 0 auto;
         display: flex;
         align-items: center;
@@ -350,21 +353,29 @@ function Css() {
         grid-template-columns: 1fr 1fr;
         gap: 16px;
         width: 100%;
-        height: clamp(360px, 48vh, 500px);
+        height: 400px;
         align-items: stretch;
       }
-      .hero::before {
-        content: none;
-      }
+      .hero::before { content: none; }
       .hero-card {
         position: relative;
-        padding: 0;
+        padding: 10;
         border: 1px solid rgba(255,180,120,0.22);
         overflow: hidden;
         height: 100%;
       }
-      .image-card { display: flex; align-items: stretch; height: 100%; }
-      .hero-image { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
+      .image-card {
+        display: flex;
+        align-items: stretch;
+        height: 100%;
+      }
+      .hero-image {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        object-fit: cover;
+        object-position: 30% 50%;
+      }
       .content-card {
         padding: clamp(24px, 4vw, 44px);
         background: rgba(30, 14, 8, 0.82);
@@ -433,7 +444,6 @@ function Css() {
         opacity: 1;
         mix-blend-mode: screen;
         transform: translate3d(calc(var(--star-x, 0px) * 140), calc(var(--star-y, 0px) * 140), 0) scale(1.22);
-        /* stronger, tighter glow */
         filter: drop-shadow(0 0 18px rgba(255,255,255,1)) drop-shadow(0 0 8px rgba(255,255,255,0.95));
         background-image: ${starFields.ultraFront};
         background-size: 100% 100%;
@@ -472,7 +482,7 @@ function Css() {
         transform-origin: 50% 50%;
         transition: transform 180ms ease-out, filter 180ms ease-out;
         will-change: transform;
-        filter: drop-shadow(calc(var(--plane-shadow-x, 0px) * -0.18) calc(var(--plane-shadow-y, 0px) * -0.18) 10px rgba(3,12,24,0.55));
+        filter: drop-shadow(calc(var(--plane-shadow-x, 0px) * -0.18) calc(var(--plane-shadow-y, 0px) * -0.18) 10px rgba(30,14,8,0.55));
       }
       .content-foreground > * {
         position: relative;
@@ -578,7 +588,20 @@ function Css() {
       .profile-image { width: 100%; height: auto; display: block; object-fit: contain; object-position: center; filter: contrast(1.05) saturate(0.98); }
       .galaxy-gif { width: 100%; display: block; background: #160a06; }
       .button-link {
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: inline-flex; align-items: center; gap: 9px; color: #000000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); text-decoration: none; border-radius: 0; padding: 12px 18px; font-size: 0.9rem; font-weight: 800; box-shadow: 0 10px 28px rgba(255,140,70,0.32); transition: 180ms ease; }
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        color: #000000;
+        background: linear-gradient(180deg, #ffe2c2, var(--blue));
+        text-decoration: none;
+        border-radius: 0;
+        padding: 12px 18px;
+        font-size: 0.9rem;
+        font-weight: 800;
+        box-shadow: 0 10px 28px rgba(255,140,70,0.32);
+        transition: 180ms ease;
+      }
       .button-link:hover { transform: translateY(-2px); filter: brightness(1.06); }
 
       .resume-card { display: grid; gap: 18px; }
@@ -615,24 +638,56 @@ function Css() {
       @media (max-width: 860px) {
         .nav { display: none; }
         .hero { min-height: auto; padding-top: 54px; }
-        .hero-cards { grid-template-columns: 1fr; height: auto; }
-        .image-card, .content-card { min-height: 360px; }
+        .hero-cards {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+        .image-card,
+        .content-card {
+          min-height: 360px;
+          height: 40px;
+        }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
+
+        .content-foreground {
+          transform: perspective(900px) rotateX(calc(var(--tilt-y, 0deg) * -0.55)) rotateY(calc(var(--tilt-x, 0deg) * 0.55));
+        }
+
+        .starfield-farback,
+        .starfield-midback {
+          opacity: 0.42;
+        }
+
+        .starfield-mid,
+        .starfield-back {
+          opacity: 0.58;
+        }
+
+        .starfield-front,
+        .starfield-ultrafront {
+          opacity: 0.66;
+        }
+
+        .button-link {
+          padding: 14px 22px;
+          font-size: 1rem;
+        }
+
+        .nav-link {
+          padding: 12px 16px;
+        }
       }
       @media (max-width: 620px) {
         .nav { display: none; }
         .hero { min-height: auto; padding-top: 54px; }
-        .hero-cards { grid-template-columns: 1fr; height: auto; }
+        .hero-cards { grid-template-columns: 1fr; height: 400px; }
         .image-card, .content-card { min-height: 360px; }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
         .contact-grid, .graphics-grid, .graphics-grid.old { grid-template-columns: 1fr; }
         .brand-subtitle { display: none; }
-        .orbiter {
-          width: 56px;
-          height: 56px;
-        }
+        .orbiter { width: 56px; height: 56px; }
         .orbit-dot { transform: translateX(150px) scaleY(0.72); }
         .orbiter-b .orbit-dot { transform: translateX(150px) scaleY(0.72) rotateZ(25deg); }
         .hero-title { font-size: clamp(3rem, 16vw, 5rem); }
@@ -642,7 +697,7 @@ function Css() {
   );
 }
 
-export default function PreetPatelSite() {
+function HomePage() {
   const [starParallax, setStarParallax] = useState({ x: 0, y: 0 });
 
   const handleStarParallax = (event) => {
@@ -671,25 +726,7 @@ export default function PreetPatelSite() {
   );
 
   return (
-    <main className="site-root">
-      <Css />
-      <div className="bg-scroll-layer" />
-
-      <header className="topbar">
-        <div className="topbar-inner">
-          <a href="#intro" className="brand">
-            <img src={assets.pfp} alt="Preet Patel profile" className="brand-mark" />
-            <div>
-              <div className="brand-title">Preet Patel</div>
-              <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
-            </div>
-          </a>
-          <nav className="nav" aria-label="Primary navigation">
-            {sections.map((section) => <NavLink key={section} section={section} />)}
-          </nav>
-        </div>
-      </header>
-
+    <>
       <section className="hero">
         <div className="hero-cards">
           <motion.div className="hero-card image-card" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
@@ -708,6 +745,8 @@ export default function PreetPatelSite() {
             }}
             onMouseMove={handleStarParallax}
             onMouseLeave={resetStarParallax}
+            onTouchMove={(event) => handleStarParallax(event.touches[0])}
+            onTouchEnd={resetStarParallax}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9 }}
@@ -758,7 +797,7 @@ export default function PreetPatelSite() {
               <h3 className="subheading">Elemental Abundances of Simulated Low-Mass Galaxies</h3>
               <p>For research, I previously focused on the elemental abundances of stars in low-mass dwarf galaxies simulated using <a href="https://fire.northwestern.edu/" target="_blank" rel="noreferrer">FIRE-2</a>.</p>
               <p>In my most recent project, I identified elemental abundance trends, measured in [Mg/Fe] versus [Fe/H], of several galaxies. I found imprints of bursty star formation and satellite accretion in the present-day elemental abundance distributions.</p>
-              <p>This work culminated in a first-author publication, accepted by <a href="https://academic.oup.com/mnras" target="_blank" rel="noreferrer">MNRAS</a> in March 2022. The paper can be found on <a href="https://arxiv.org/" target="_blank" rel="noreferrer">ArXiv</a> or downloaded below.</p>
+              <p>This work culminated in a first-author publication, accepted by <a href="https://academic.oup.com/mnras" target="_blank" rel="noreferrer">MNRAS</a> in March 2022. The paper can be found on <a href="https://academic.oup.com/mnras/article/512/4/5671/6554259" target="_blank" rel="noreferrer">here</a>.</p>
               <p>My final project involved the new age-tracer module in FIRE-2 and FIRE-3, which allows one to retroactively test multiple models in rates for core-collapse supernovae, type Ia supernovae, and stellar winds without needing to re-run a simulation with altered models.</p>
             </div>
           </div>
@@ -788,31 +827,116 @@ export default function PreetPatelSite() {
             </div>
           </div>
         </Section>
+      </div>
+    </>
+  );
+}
 
-        <Section id="graphics" title="Graphics">
-          <div className="panel panel-body prose">
-            <h3 className="subheading">Animations</h3>
-            <p>Here are some of my recent forum signatures. They are web-safe and transparent.</p>
-            <div className="graphics-grid">
-              {assets.graphics.slice(0, 2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Recent transparent animation" /></div>)}
-            </div>
-
-            <div className="divider" />
-            <h3 className="subheading">Older Animations</h3>
-            <div className="graphics-grid old">
-              {assets.graphics.slice(2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Older animation sample" /></div>)}
-            </div>
-
-            <div className="divider" />
-            <h3 className="subheading">Links</h3>
-            <p>Not too many of these, but feel free to check out my <a href="https://www.deviantart.com/" target="_blank" rel="noreferrer">DeviantArt</a> for some of my older space art. More in progress as we speak.</p>
-            <h4 className="subheading">About Me</h4>
-            <p>Former Astrophysicist with a long-time passion in graphic design. I spent years trying to figure out how to make GIFs transparent, as it typically looks clunky and lacks smoothness when you try.</p>
-            <p>Recently, I figured out that WebP has been adopted by all major browsers as a modern alternative to the GIF format. It works on phones, Mac, and PC, provided the browser is not extremely old.</p>
-          </div>
-        </Section>
+function ProjectsPage() {
+  return (
+    <div className="content">
+      <div className="projects-intro">
+        <h1 className="page-title">Projects</h1>
+        <p className="page-lead prose">
+          Interactive things I have built — a live Grand Exchange data dashboard and some graphics — floating on the same star field.
+        </p>
       </div>
 
+      <Section id="alchemy" title="Alchemy">
+        <div className="panel panel-body">
+          <AlchemyDashboard />
+        </div>
+      </Section>
+
+      <Section id="graphics" title="Graphics">
+        <div className="panel panel-body prose">
+          <h3 className="subheading">Animations</h3>
+          <p>Here are some of my recent forum signatures. They are web-safe and transparent.</p>
+          <div className="graphics-grid">
+            {assets.graphics.slice(0, 2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Recent transparent animation" /></div>)}
+          </div>
+
+          <div className="divider" />
+          <h3 className="subheading">Older Animations</h3>
+          <div className="graphics-grid old">
+            {assets.graphics.slice(2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Older animation sample" /></div>)}
+          </div>
+
+          <div className="divider" />
+          <h3 className="subheading">Links</h3>
+          <p>Not too many of these, but feel free to check out my <a href="https://www.deviantart.com/" target="_blank" rel="noreferrer">DeviantArt</a> for some of my older space art. More in progress as we speak.</p>
+          <h4 className="subheading">About Me</h4>
+          <p>Former Astrophysicist with a long-time passion in graphic design. I spent years trying to figure out how to make GIFs transparent, as it typically looks clunky and lacks smoothness when you try.</p>
+          <p>Recently, I figured out that WebP has been adopted by all major browsers as a modern alternative to the GIF format. It works on phones, Mac, and PC, provided the browser is not extremely old.</p>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// Minimal hash router: only "#/projects" is a route, so Home's own "#section"
+// scroll anchors keep working untouched. No server rewrite needed on GitHub Pages.
+function useHashRoute() {
+  const [route, setRoute] = useState(() =>
+    typeof window !== "undefined" && window.location.hash.startsWith("#/projects") ? "projects" : "home"
+  );
+  useEffect(() => {
+    const onHash = () => setRoute(window.location.hash.startsWith("#/projects") ? "projects" : "home");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0); // a fresh page starts at the top
+  }, [route]);
+  return route;
+}
+
+function scrollToId(id) {
+  const el = typeof document !== "undefined" ? document.getElementById(id) : null;
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function Topbar({ route }) {
+  return (
+    <header className="topbar">
+      <div className="topbar-inner">
+        <a href="#/" className="brand">
+          <img src={assets.pfp} alt="Preet Patel profile" className="brand-mark" />
+          <div>
+            <div className="brand-title">Preet Patel</div>
+            <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
+          </div>
+        </a>
+        <nav className="nav" aria-label="Primary navigation">
+          {route === "projects" ? (
+            <>
+              <a href="#/" className="nav-link">Home</a>
+              {projectSections.map((section) => (
+                <button key={section} type="button" className="nav-link" onClick={() => scrollToId(section.toLowerCase())}>
+                  {section}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              {sections.map((section) => <NavLink key={section} section={section} />)}
+              <a href="#/projects" className="nav-link">Projects</a>
+            </>
+          )}
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+export default function PreetPatelSite() {
+  const route = useHashRoute();
+  return (
+    <main className="site-root">
+      <Css />
+      <div className="bg-scroll-layer" />
+      <Topbar route={route} />
+      {route === "projects" ? <ProjectsPage /> : <HomePage />}
       <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React.</footer>
     </main>
   );
