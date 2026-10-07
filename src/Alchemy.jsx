@@ -9,13 +9,60 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *
  *   latest.json            newest row per item, ranked by alch profit (~1.9 MB)
  *   meta.json              run provenance (tiny)
- *   history/<id>.json      one item's daily {t, price, volume, profit, roi}
+ *   history/part-NNN.parquet  all items' daily prices as one table, sharded by
+ *                             item_id % 256 (~200 kB each; see tools/rs_alchemy_table.py)
  *
- * Everything renders from that data with plain SVG charts, so the page adds no
- * new dependencies to the site.
+ * Charts are plain SVG. The only dependency is hyparquet, loaded on demand the
+ * first time an item's history is opened.
  */
 
 const DATA_BASE = "/rs-alchemy/data";
+const HISTORY_SHARDS = 256; // must match SHARDS in tools/rs_alchemy_table.py
+const DAY_MS = 86400000;
+
+// One shard holds ~30 items' full histories. Fetch + decode it once, keep every
+// item in it, so opening a neighbour is instant. Failures are dropped from the
+// cache so a retry can succeed.
+const shardCache = new Map(); // shard -> Promise<Map<item_id, points[]>>
+function loadShard(k) {
+  if (!shardCache.has(k)) {
+    const p = Promise.all([
+      import("hyparquet"),
+      fetch(`${DATA_BASE}/history/part-${String(k).padStart(3, "0")}.parquet`).then((res) => {
+        if (!res.ok) throw new Error(`history shard ${res.status}`);
+        return res.arrayBuffer();
+      }),
+    ])
+      .then(([{ parquetReadObjects }, file]) =>
+        parquetReadObjects({ file, columns: ["item_id", "day", "price", "volume", "adj"] })
+      )
+      .then((rows) => {
+        const byItem = new Map();
+        for (const r of rows) {
+          // int64 columns arrive as BigInt
+          const id = Number(r.item_id);
+          const price = r.price == null ? null : Number(r.price);
+          const adj = r.adj == null ? null : Number(r.adj);
+          let list = byItem.get(id);
+          if (!list) byItem.set(id, (list = []));
+          list.push({
+            t: new Date(Number(r.day) * DAY_MS).toISOString().slice(0, 10),
+            price,
+            volume: r.volume == null ? null : Number(r.volume),
+            profit: adj == null || price == null ? null : -(price + adj), // adj = -(price + profit)
+          });
+        }
+        return byItem;
+      });
+    p.catch(() => shardCache.delete(k));
+    shardCache.set(k, p);
+  }
+  return shardCache.get(k);
+}
+
+function loadHistory(itemId) {
+  return loadShard(itemId % HISTORY_SHARDS).then((byItem) => byItem.get(itemId) || []);
+}
 const PAGE = 50; // rows revealed per "show more"
 const CHART_MAX_POINTS = 900; // downsample threshold for the SVG line charts
 
@@ -199,12 +246,9 @@ function ItemDetail({ item, cache }) {
     // Cache hit is already reflected by the lazy initializer above; nothing to fetch.
     if (cache.current.has(item.item_id)) return undefined;
     let active = true;
-    fetch(`${DATA_BASE}/history/${item.item_id}.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`history ${res.status}`);
-        return res.json();
-      })
+    loadHistory(item.item_id)
       .then((points) => {
+        if (!points.length) throw new Error("no history");
         // Cache the completed download even if we unmounted mid-flight (the
         // cache is a ref, so this is safe) — reopening the row is then instant.
         cache.current.set(item.item_id, points);
