@@ -121,6 +121,13 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .legend .tag:hover { border-color: var(--ink-3); }
 .legend .tag[data-open] { border-color: var(--accent); background: var(--accent-soft); }
 .legend .tag-btn { user-select: none; }
+.legend { position: relative; }
+.legend .grip { flex: none; cursor: grab; color: var(--ink-3); font-size: 13px; line-height: 1; letter-spacing: -3px; padding: 2px 5px 2px 0; margin-left: -4px; user-select: none; touch-action: none; }
+.legend .grip:hover, .legend .grip:focus-visible { color: var(--ink); outline: none; }
+.legend .grip:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+body.reordering, body.reordering * { cursor: grabbing !important; }
+.legend .tag.dragging { opacity: .4; }
+.legend .drop-line { position: absolute; background: var(--accent); pointer-events: none; z-index: 2; }
 .linepop .pop-sub { color: var(--ink-2); font-size: 12px; margin-top: -6px; }
 .linepop .pop-hint { color: var(--ink-3); font-size: 11px; }
 .others { display: flex; align-items: center; gap: 10px; }
@@ -349,7 +356,7 @@ h1 span { color: var(--accent); }
 
   <aside class="panel side legendbox" aria-label="Selected players">
     <div class="side-head"><span class="lbl">Selected <span id="selcount"></span></span><button type="button" class="chip-btn" id="clear" hidden>Clear</button></div>
-    <div class="side-sub">By career high, then weeks at No. 1. Click for line settings; Ctrl+click to edit several.</div>
+    <div class="side-sub"><span id="legend-sub">By career high, then weeks at No. 1.</span> Click for line settings; Ctrl+click to edit several; drag ⋮⋮ to reorder.</div>
     <div class="legend" id="legend"></div>
   </aside>
 
@@ -628,7 +635,7 @@ function drawChart() {
     g.setLineDash(dashFor(st.dash, lw)); g.strokeStyle = colorOf(id); g.lineWidth = lw; g.stroke();
     g.setLineDash([]); g.globalAlpha = 1;
   };
-  for (const id of selected) { if (!byId.get(id) || id === hoverId) continue; strokeSel(id, false); }
+  for (const id of drawOrder()) { if (!byId.get(id) || id === hoverId) continue; strokeSel(id, false); }
   if (hoverId) {
     if (slotOf.has(hoverId)) strokeSel(hoverId, true);
     else { const p = byId.get(hoverId); pathFor(p); if (outline) { g.strokeStyle = surf; g.lineWidth = 6; g.stroke(); } g.strokeStyle = css('--idle-hi'); g.lineWidth = 2.75; g.stroke(); }
@@ -638,7 +645,7 @@ function drawChart() {
   // moving average + momentum: own clip that is open at the top, so overshoots past No. 1 run off the plot instead of being cut
   if (trend.on) {
     g.save(); g.beginPath(); g.rect(M.l, 0, w - M.l - M.r, h - M.b + 2); g.clip();
-    for (const id of selected) {
+    for (const id of drawOrder()) {
       const p = byId.get(id); if (!p) continue;
       const tr = trendSeries(p), st = styleOf(id);
       const k0 = Math.max(0, Math.floor((win.a - tr.t0) / WEEK) - 1), k1 = Math.min(tr.v.length - 1, Math.ceil((win.b - tr.t0) / WEEK) + 1);
@@ -1153,28 +1160,83 @@ function tagHtml(id) {
   const p = byId.get(id), on = slotOf.has(id);
   const meta = p.isGroup ? `${gShort(p.gd)} · ${p.dyn ? 'top 10' : p.gd.members.length}` : `#${p.hi}${p.w1 ? ` · ${Math.round(p.w1)}w` : ''}`;
   const metaTitle = p.isGroup ? (p.dyn ? `${gDescribe(p.gd)}. ${t10m(p.gd).desc}` : `${gDescribe(p.gd)}. Members: ${p.gd.members.map(m => byId.get(m)?.n || m).join(', ')}`) : `Career high${p.w1 ? ', weeks at No. 1' : ''}`;
-  if (!on) return `<span class="tag grp off"><button type="button" class="tag-btn" data-id="${esc(id)}" data-off title="Show ${esc(p.n)}"><svg class="sw" viewBox="0 0 24 12" aria-hidden="true"><line x1="2" y1="6" x2="22" y2="6" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3"/></svg><span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">hidden</span></button></span>`;
-  return `<span class="tag${p.isGroup ? ' grp' : ''}"${popIds.includes(id) ? ' data-open' : ''}><button type="button" class="tag-btn" data-id="${esc(id)}" aria-haspopup="dialog" title="Line settings for ${esc(p.n)} (Ctrl+click to edit several)">${swatchSvg(id)}<span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">${esc(meta)}</span></button><button class="x" data-id="${esc(id)}" aria-label="${p.isGroup ? 'Hide' : 'Remove'} ${esc(p.n)}">×</button></span>`;
+  const grip = `<span class="grip" role="button" tabindex="0" data-id="${esc(id)}" aria-label="Reorder ${esc(p.n)}: drag, or use the up and down arrow keys" title="Drag to reorder (higher = drawn on top)">⋮⋮</span>`;
+  const sec = p.isGroup ? 'g' : 'p';
+  if (!on) return `<span class="tag grp off" data-id="${esc(id)}" data-sec="g">${grip}<button type="button" class="tag-btn" data-id="${esc(id)}" data-off title="Show ${esc(p.n)}"><svg class="sw" viewBox="0 0 24 12" aria-hidden="true"><line x1="2" y1="6" x2="22" y2="6" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3"/></svg><span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">hidden</span></button></span>`;
+  return `<span class="tag${p.isGroup ? ' grp' : ''}" data-id="${esc(id)}" data-sec="${sec}"${popIds.includes(id) ? ' data-open' : ''}>${grip}<button type="button" class="tag-btn" data-id="${esc(id)}" aria-haspopup="dialog" title="Line settings for ${esc(p.n)} (Ctrl+click to edit several)">${swatchSvg(id)}<span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">${esc(meta)}</span></button><button class="x" data-id="${esc(id)}" aria-label="${p.isGroup ? 'Hide' : 'Remove'} ${esc(p.n)}">×</button></span>`;
 }
 function renderLegend() {
   const L = $('legend'), keep = L.scrollTop;
   $('selcount').textContent = selected.length ? `(${selected.length})` : '';
   $('clear').hidden = selected.length < 2;
   renderSaveScope();
-  const players = selected.filter(id => !byId.get(id)?.isGroup).sort(bySeniority);
+  const players = playersInOrder();
   L.innerHTML = `<div class="lg-sec"><span>Groups</span><button type="button" class="chip-btn" id="newgroup">+ New group</button></div>` +
     (groups.length ? groups.map(g => tagHtml(g.id)).join('') : '<span class="hint">No groups. A group draws one line from several players.</span>') +
-    `<div class="lg-sec"><span>Players</span></div>` +
+    `<div class="lg-sec"><span>Players</span>${playerOrder ? '<button type="button" class="chip-btn" id="autoorder" title="Back to career high, then weeks at No. 1">Auto order</button>' : ''}</div>` +
     (players.length ? players.map(tagHtml).join('') : '<span class="hint">Click a line or a row to highlight a player, or pick a player group above.</span>');
   L.scrollTop = keep;
   $('newgroup').onclick = e => { e.stopPropagation(); openGroupEditor(null); };
+  const ao = $('autoorder'); if (ao) ao.onclick = e => { e.stopPropagation(); playerOrder = null; renderLegend(); drawChart(); };
+  L.querySelectorAll('.grip').forEach(g => { g.onpointerdown = startReorder; g.onkeydown = keyReorder; g.onclick = e => e.stopPropagation(); });
+  $('legend-sub').textContent = playerOrder ? 'Custom order. Higher in the list is drawn on top.' : 'By career high, then weeks at No. 1. Higher in the list is drawn on top.';
   L.querySelectorAll('.x').forEach(b => b.onclick = () => toggle(b.dataset.id));
   L.querySelectorAll('.tag-btn').forEach(b => {
     b.onmousedown = e => { if (e.shiftKey) e.preventDefault(); };
     b.onclick = e => { e.stopPropagation(); if (b.hasAttribute('data-off')) toggle(b.dataset.id, true); else legendClick(b.dataset.id, e); };
   });
 }
-function clearSelection() { selected = []; slotOf.clear(); closePop(); renderLegend(); renderTable(); drawChart(); }
+// ---------- reorder legend entries (= line stacking order)
+function sectionIds(sec) { return sec === 'g' ? groups.map(g => g.id) : playersInOrder(); }
+function applyOrder(sec, ids) {
+  if (sec === 'g') { const by = new Map(groups.map(g => [g.id, g])); groups = ids.map(id => by.get(id)); saveGroups(); }
+  else playerOrder = ids;
+  renderLegend(); drawChart();
+}
+function moveTo(sec, id, index) { // index in the list without `id`
+  const ids = sectionIds(sec).filter(x => x !== id);
+  ids.splice(Math.max(0, Math.min(ids.length, index)), 0, id);
+  applyOrder(sec, ids);
+}
+function keyReorder(e) {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault(); e.stopPropagation();
+  const tag = e.currentTarget.closest('.tag'), sec = tag.dataset.sec, id = tag.dataset.id;
+  const i = sectionIds(sec).indexOf(id);
+  moveTo(sec, id, i + (e.key === 'ArrowUp' ? -1 : 1));
+  $('legend').querySelector(`.tag[data-id="${CSS.escape(id)}"] .grip`)?.focus();
+}
+function startReorder(e) {
+  if (e.button !== 0) return;
+  e.preventDefault(); e.stopPropagation(); closePop();
+  const L = $('legend'), grip = e.currentTarget, tag = grip.closest('.tag'), sec = tag.dataset.sec, id = tag.dataset.id;
+  const column = getComputedStyle(L).flexDirection === 'column';
+  const line = document.createElement('div'); line.className = 'drop-line'; L.appendChild(line);
+  tag.classList.add('dragging'); document.body.classList.add('reordering');
+  try { grip.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer: events still reach the grip */ }
+  let target = null;
+  const others = () => [...L.querySelectorAll(`.tag[data-sec="${sec}"]`)].filter(t => t !== tag);
+  const onMove = ev => {
+    const lr = L.getBoundingClientRect();
+    if (column) { if (ev.clientY < lr.top + 24) L.scrollTop -= 10; else if (ev.clientY > lr.bottom - 24) L.scrollTop += 10; } // auto-scroll long lists
+    const list = others();
+    if (!list.length) { target = 0; line.style.display = 'none'; return; }
+    let best = 0, bestD = Infinity;
+    list.forEach((t, k) => { const r = t.getBoundingClientRect(); const d = Math.hypot(ev.clientX - (r.left + r.width / 2), ev.clientY - (r.top + r.height / 2)); if (d < bestD) { bestD = d; best = k; } });
+    const r = list[best].getBoundingClientRect(), after = column ? ev.clientY > r.top + r.height / 2 : ev.clientX > r.left + r.width / 2;
+    target = best + (after ? 1 : 0);
+    const off = (v, o) => v - o; line.style.display = '';
+    if (column) Object.assign(line.style, { left: off(r.left, lr.left) + 'px', width: r.width + 'px', height: '2px', top: off(after ? r.bottom + 2 : r.top - 4, lr.top) + L.scrollTop + 'px' });
+    else Object.assign(line.style, { top: off(r.top, lr.top) + L.scrollTop + 'px', height: r.height + 'px', width: '2px', left: off(after ? r.right + 2 : r.left - 4, lr.left) + 'px' });
+  };
+  const end = () => {
+    grip.removeEventListener('pointermove', onMove); grip.removeEventListener('pointerup', end); grip.removeEventListener('pointercancel', end);
+    document.body.classList.remove('reordering'); tag.classList.remove('dragging'); line.remove();
+    if (target != null) moveTo(sec, id, target);
+  };
+  grip.addEventListener('pointermove', onMove); grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
+}
+function clearSelection() { selected = []; slotOf.clear(); playerOrder = null; closePop(); renderLegend(); renderTable(); drawChart(); }
 $('clear').onclick = () => { $('ppreset').value = ''; clearSelection(); };
 
 const hexCtx = document.createElement('canvas').getContext('2d');
@@ -1194,6 +1256,7 @@ function applyGroup(key) {
   const g = GROUPS[key]; if (!g) return;
   const ids = g.ids().filter(id => byId.has(id)).sort(bySeniority).slice(0, MAXSEL);
   const keep = selected.filter(id => byId.get(id)?.isGroup); // group lines stay on
+  playerOrder = null;
   selected = []; slotOf.clear(); closePop();
   [...keep, ...ids].slice(0, MAXSEL).forEach((id, k) => { slotOf.set(id, k + 1); selected.push(id); });
   // fit the window to the group: from the January before the earliest member's first top-20 week, to the latest list
@@ -1272,7 +1335,19 @@ document.querySelectorAll('[data-save]').forEach(b => b.onclick = () => save(b.d
 
 // ---------- line settings popover: one player, or several (Ctrl/Cmd+click to add, Shift+click for a range)
 let popIds = [], popEl = null, popAnchor = null;
-const legendOrder = () => [...selected].sort(bySeniority); // groups first, then players: the order shown
+// Legend order = drawing order: groups (in their saved order), then players. The higher an entry
+// sits in the legend, the later it is drawn, so it lands on top where lines cross.
+let playerOrder = null; // null: automatic (career high, then weeks at No. 1); array once dragged
+function playersInOrder() {
+  const sel = selected.filter(id => !byId.get(id)?.isGroup);
+  if (!playerOrder) return sel.sort(bySeniority);
+  const known = playerOrder.filter(id => sel.includes(id));
+  const fresh = sel.filter(id => !playerOrder.includes(id)).sort(bySeniority); // newly picked: on top, so they're visible
+  playerOrder = [...fresh, ...known];
+  return playerOrder;
+}
+const legendOrder = () => [...groups.map(g => g.id).filter(id => slotOf.has(id)), ...playersInOrder()];
+const drawOrder = () => legendOrder().reverse(); // bottom of the legend first, top of the legend last (on top)
 const patchAll = patch => popIds.forEach(id => lineStyle.set(id, { ...lineStyle.get(id), ...patch }));
 function setStyle(patch) { patchAll(patch); renderLegend(); renderTable(); drawChart(); renderPop(); }
 function closePop() { if (popEl) popEl.remove(); popEl = null; const had = popIds.length; popIds = []; if (had) renderLegend(); }
