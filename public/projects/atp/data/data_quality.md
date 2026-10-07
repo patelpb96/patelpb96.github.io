@@ -14,15 +14,15 @@
 | error | Implausible weight in kg (ranked players) | 2 | Set to missing |
 | error | [weekly reconstruction] Career weeks at No. 1 vs official totals (±1.5 wk) | 2 | 24/26 players match |
 | warning | [weekly] Names with no matching bio | 847 | Kept with 'X:<name>' id; no bio fields |
-| warning | [weekly] Isolated 0-point entries on lists that otherwise have points | 120,739 | Set to missing (a ranked player cannot hold 0 points) |
+| warning | [weekly] Isolated 0-point entries on lists that otherwise have points | 120,742 | Set to missing (a ranked player cannot hold 0 points) |
 | warning | [official] Isolated 0-point entries on lists that otherwise have points | 1,409 | Set to missing (a ranked player cannot hold 0 points) |
 | warning | [canonical] Lists not dated on a Monday, 1985 on | 1 | Flag only |
-| warning | [canonical] In-season gaps longer than a week | 3 | Flag only; plot lines bridge the gap |
+| warning | [canonical] In-season gaps longer than a week | 12 | Flag only; plot lines bridge the gap |
 | warning | [canonical] Top-100 player with more points than the player ranked above | 1 | Flag only (rank order is official) |
 | warning | Ranked players with no date of birth | 716 | Left blank |
 | info | [weekly] Lists with every points value 0 | 306 | Points set to missing (not published for those lists) |
-| info | [weekly] Same player id spelled differently across lists | 9 | Bio name used everywhere |
-| info | [weekly] Rows kept | 4,003,231 | 4,005,491 raw -> 4,003,231 clean |
+| info | [weekly] Same player id spelled differently across lists | 13 | Bio name used everywhere |
+| info | [weekly] Rows kept | 4,066,564 | 4,068,824 raw -> 4,066,564 clean |
 | info | [official] Lists with every points value 0 | 927 | Points set to missing (not published for those lists) |
 | info | [official] Rows kept | 3,344,991 | 3,347,247 raw -> 3,344,991 clean |
 | info | Canonical history: source by era | 3 | Official ATP lists before 1985; TML weekly lists from 1985 |
@@ -124,15 +124,15 @@
 
 ## [weekly] Isolated 0-point entries on lists that otherwise have points
 - ['1995-06-05', '1', 'Andre Agassi']
-- ['1990-02-05', '1', 'Ivan Lendl']
 - ['1993-05-31', '1', 'Pete Sampras']
-- ['1995-06-05', '2', 'Pete Sampras']
+- ['1990-02-05', '1', 'Ivan Lendl']
 - ['1990-02-05', '2', 'Boris Becker']
 - ['1993-05-31', '2', 'Jim Courier']
-- ['1990-02-05', '3', 'Stefan Edberg']
+- ['1995-06-05', '2', 'Pete Sampras']
 - ['1995-06-05', '3', 'Boris Becker']
 - ['1993-05-31', '3', 'Stefan Edberg']
-- ['1993-05-31', '4', 'Boris Becker']
+- ['1990-02-05', '3', 'Stefan Edberg']
+- ['1990-02-05', '4', 'Brad Gilbert']
 
 ## [official] Isolated 0-point entries on lists that otherwise have points
 - ['1990-05-21', '1', 'Ivan Lendl']
@@ -153,6 +153,13 @@
 - 2025-08-04 -> 2025-08-18 (14 days)
 - 2025-08-25 -> 2025-09-08 (14 days)
 - 2025-09-22 -> 2025-10-13 (21 days)
+- 2026-01-19 -> 2026-02-02 (14 days)
+- 2026-03-02 -> 2026-03-16 (14 days)
+- 2026-03-16 -> 2026-03-30 (14 days)
+- 2026-04-20 -> 2026-05-04 (14 days)
+- 2026-05-04 -> 2026-05-18 (14 days)
+- 2026-05-25 -> 2026-06-08 (14 days)
+- 2026-06-29 -> 2026-07-13 (14 days)
 
 ## [canonical] Top-100 player with more points than the player ranked above
 - ['1995-11-13', 65, 'Carlos Moya', 695.0, 673.0]
@@ -172,17 +179,18 @@
 ## [weekly] Same player id spelled differently across lists
 - A0M2: ['Yannick Theodor Alexandrescou', 'Yannick Theodor Alexandrescu']
 - D008: ['Horacio De La Pena', 'Horacio de la Pena']
+- D0LJ: ['Diego Dedura', 'Diego Dedura-Palomero']
 - E007: ['Constantinos Efremoglou', 'Konstantinos Effraimoglou']
 - H0JL: ['Jay Dylan Hara Friend', 'Jay Friend']
 - L024: ['Chris Lewis', 'Chris Lewis (NZL)']
 - L0CK: ['Younes Lalami', 'Younes Lalami Laaroussi']
+- M0C2: ['Dan  Martin', 'Dan Martin']
+- M1D0: ['Oliver Majdandzic', 'Oliver Majdanzic']
 - R102: ['Saleem Rana', 'Selim Rana']
-- S1DH: ['Donald Nikolas Stoot', 'Nikolas Stoot']
-- Z011: ['Aziz Zouhir', 'Rolando Zalameda']
 
 ## Canonical history: source by era
 - 381 official lists 1973-08-23 -> 1984-12-24
-- 2117 weekly lists 1985-01-02 -> 2026-01-19
+- 2145 weekly lists 1985-01-02 -> 2026-10-05
 - 0 official lists added where the weekly set has no list
 
 ## [canonical] Lists not dated on a Monday, before 1985
@@ -237,4 +245,4 @@
 - ['H267', 'Unknown Unknown', nan]
 
 ## Year-end list notes
-- 2026: season in progress; latest list 2026-01-19 is provisional
+- 2026: season in progress; latest list 2026-10-05 is provisional
