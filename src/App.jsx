@@ -5,9 +5,6 @@ import AlchemyDashboard from "./Alchemy.jsx";
 const base = "https://patelpb96.github.io";
 
 const assets = {
-  logoTop: `${base}/logo_top.png`,
-  logoBot: `${base}/logo_bot.png`,
-  core: `${base}/core.png`,
   bg: `${base}/bg.jpg`,
   bgGif: `${base}/assets/bg.gif`,
   introImg: `${base}/images/pic01.png`,
@@ -22,9 +19,35 @@ const assets = {
   ],
 };
 
-// Home lives on one scrolling page; Graphics + Alchemy live on the /projects page.
+// Home lives on one scrolling page; #/projects is a portal of cards, each project has its own page.
 const sections = ["Intro", "Research", "Resume", "Contact"];
-const projectSections = ["Alchemy", "Graphics"];
+const projects = [
+  {
+    key: "atp",
+    title: "ATP Top 20 Explorer",
+    href: "/projects/atp/",
+    external: true,
+    blurb: "Every player who held a top-20 ATP ranking since 1973, on one chart. Pick a time window, compare rivals, build groups like the Big 3, and overlay moving averages with momentum.",
+    tags: ["Tennis", "Data viz", "Python · polars"],
+    art: "lines",
+  },
+  {
+    key: "alchemy",
+    title: "Alchemy",
+    href: "#/projects/alchemy",
+    blurb: "A live RuneScape Grand Exchange dashboard: high-alchemy profit for 7,000+ items, with price history back to 2008.",
+    tags: ["Dashboard", "Live data"],
+    art: "coins",
+  },
+  {
+    key: "graphics",
+    title: "Graphics",
+    href: "#/projects/graphics",
+    blurb: "Transparent animated forum signatures and older space art, made web-safe with WebP.",
+    tags: ["Animation", "Design"],
+    art: "spark",
+  },
+];
 
 const contactCards = [
   { label: "Email", value: "patelpb96@gmail.com", href: "mailto:patelpb96@gmail.com", icon: "mail" },
@@ -95,7 +118,7 @@ function assertSiteData() {
   if (typeof console === "undefined" || typeof console.assert !== "function") return;
   console.assert(Array.isArray(sections), "sections should be an array");
   console.assert(sections.length === 4, "expected four home navigation sections");
-  console.assert(projectSections.length === 2, "expected Graphics and Alchemy on the projects page");
+  console.assert(projects.length === 3 && projects.every((p) => p.title && p.href), "projects portal should list three linked projects");
   console.assert(base.startsWith("https://"), "base URL should be absolute HTTPS");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
   console.assert(assets.pfp === `${base}/pfp.jpg`, "hero image should use pfp.jpg");
@@ -237,21 +260,6 @@ function Css() {
         animation: pageStarTwinkleBright 1.2s linear infinite;
       }
 
-      @keyframes rotate1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      @keyframes rotate2 { from { transform: rotate(0deg); } to { transform: rotate(720deg); } }
-      @keyframes rotate3 { from { transform: rotate(0deg); } to { transform: rotate(1440deg); } }
-      @keyframes orbitFrameA {
-        0% { transform: rotate(-7deg) scaleX(1.0) scaleY(1.0); }
-        20% { transform: rotate(6deg) scaleX(1.08) scaleY(0.86); }
-        40% { transform: rotate(16deg) scaleX(0.95) scaleY(1.14); }
-        60% { transform: rotate(10deg) scaleX(1.10) scaleY(0.84); }
-        80% { transform: rotate(-2deg) scaleX(0.94) scaleY(1.16); }
-        100% { transform: rotate(-7deg) scaleX(1.0) scaleY(1.0); }
-      }
-      @keyframes galaxyPulse {
-        0%, 100% { filter: brightness(1.00) drop-shadow(0 0 10px rgba(255,170,100,0.36)); }
-        50% { filter: brightness(1.08) drop-shadow(0 0 14px rgba(255,170,100,0.48)); }
-      }
       @keyframes starTwinkleA {
         0%, 100% { filter: brightness(0.9); }
         50% { filter: brightness(1.25); }
@@ -291,8 +299,6 @@ function Css() {
         0%, 100% { filter: brightness(1.0); }
         50% { filter: brightness(1.35); }
       }
-      @keyframes orbitCarrierA { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      @keyframes orbitCarrierB { from { transform: rotate(180deg); } to { transform: rotate(540deg); } }
       @keyframes riseIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes navDrop { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -337,6 +343,21 @@ function Css() {
       .projects-intro { text-align: center; padding: 40px 0 6px; }
       .page-title { color: #fff2e6; font-size: clamp(2.6rem, 6vw, 4.4rem); line-height: 0.95; letter-spacing: -0.05em; margin: 0; text-shadow: 0 0 44px rgba(255,170,100,0.25); }
       .page-lead { max-width: 640px; margin: 16px auto 0; text-align: center; }
+      .project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; padding: 34px 0 10px; }
+      .project-card { display: flex; flex-direction: column; color: inherit; text-decoration: none; transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; animation: riseIn 0.8s ease both; }
+      .project-card:hover, .project-card:focus-visible { transform: translateY(-4px); border-color: rgba(255,180,120,0.55); box-shadow: 0 26px 70px var(--shadow), 0 0 32px rgba(255,170,100,0.16); outline: none; }
+      .project-art-wrap { border-bottom: 1px solid var(--line); background: radial-gradient(120% 90% at 50% 0%, rgba(255,154,77,0.14), rgba(20,10,6,0.6)); padding: 16px 18px 10px; }
+      .project-art { display: block; width: 100%; height: auto; }
+      .project-card-body { display: flex; flex-direction: column; gap: 12px; padding: 20px 22px 22px; flex: 1; }
+      .project-title { margin: 0; color: #fff2e6; font-size: 1.45rem; letter-spacing: -0.02em; }
+      .project-blurb { margin: 0; color: var(--muted); font-size: 0.97rem; line-height: 1.7; flex: 1; }
+      .project-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+      .project-tags span { border: 1px solid var(--line); color: var(--dim); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; }
+      .project-open { align-self: flex-start; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 700; font-size: 0.86rem; color: #000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); padding: 10px 16px; box-shadow: 0 0 22px rgba(255,154,77,0.28); }
+      .project-card:hover .project-open { filter: brightness(1.06); }
+      .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
+      .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
+      .nav-link.active { color: #fff2e6; box-shadow: inset 0 -2px 0 var(--accent); }
 
       .hero {
         position: relative;
@@ -449,24 +470,6 @@ function Css() {
         background-size: 100% 100%;
         background-position: center;
       }
-      .galaxy-bg,
-      .galaxy-fg {
-        position: absolute;
-        inset: 0;
-        opacity: 1;
-        display: grid;
-        place-items: center;
-        pointer-events: none;
-        transition: transform 320ms ease-out;
-      }
-      .galaxy-bg {
-        z-index: 2;
-        transform: translate3d(calc(var(--star-x, 0px) * 6), calc(var(--star-y, 0px) * 6 + 4px), 0) scale(1.01);
-      }
-      .galaxy-fg {
-        z-index: 4;
-        transform: translate3d(calc(var(--star-x, 0px) * 6), calc(var(--star-y, 0px) * 6 + 4px), 0) scale(1.01);
-      }
       .content-foreground {
         position: relative;
         z-index: 3;
@@ -504,58 +507,6 @@ function Css() {
       .hero-subtitle { margin: 18px 0 0; width: 100%; color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.35rem); }
       .hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 26px; }
 
-      .orbit-system {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        display: grid;
-        place-items: center;
-        perspective: 900px;
-        transform-origin: 50% 50%;
-        will-change: transform;
-        animation: orbitFrameA 18s ease-in-out infinite;
-      }
-      .orbiter {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 80px;
-        height: 80px;
-        transform-origin: center;
-        will-change: transform, opacity, filter;
-      }
-      .orbiter-a { transform: rotate(0deg); animation: orbitCarrierA 10.5s linear infinite; }
-      .orbiter-b { transform: rotate(180deg); animation: orbitCarrierB 10.5s linear infinite; }
-      .orbit-dot {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        transform: translateX(220px) scaleY(0.72);
-        transform-origin: center;
-      }
-      .orbiter-b .orbit-dot { transform: translateX(220px) scaleY(0.72) rotateZ(25deg); }
-      .galaxy-bg .orbit-dot { opacity: 0.42; }
-      .galaxy-fg .orbit-dot { opacity: 0.92; }
-      .galaxy-bg .original-galaxy,
-      .galaxy-fg .original-galaxy { animation: galaxyPulse 6.8s ease-in-out infinite; }
-      .galaxy-fg .original-galaxy { filter: brightness(1.08) drop-shadow(0 0 14px rgba(255,170,100,0.48)); }
-      .galaxy-bg .original-galaxy { filter: brightness(0.92) drop-shadow(0 0 8px rgba(255,170,100,0.25)); }
-      .orbiter-b .original-galaxy { transform: scaleY(0.82); }
-      .original-galaxy { position: relative; width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
-      .original-galaxy .image1,
-      .original-galaxy .image2,
-      .original-galaxy .image3 {
-        position: absolute;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: 0;
-      }
-      .original-galaxy .image1 { position: relative; overflow: hidden; animation: rotate1 6s linear infinite; z-index: 1; }
-      .original-galaxy .image2 { animation: rotate2 6s linear infinite; z-index: 2; }
-      .original-galaxy .image3 { animation: rotate3 6s linear infinite; z-index: 3; }
       .lazy-graphic {
         width: 100%;
         min-height: 160px;
@@ -687,9 +638,6 @@ function Css() {
         .resume-card { align-items: flex-start; flex-direction: column; }
         .contact-grid, .graphics-grid, .graphics-grid.old { grid-template-columns: 1fr; }
         .brand-subtitle { display: none; }
-        .orbiter { width: 56px; height: 56px; }
-        .orbit-dot { transform: translateX(150px) scaleY(0.72); }
-        .orbiter-b .orbit-dot { transform: translateX(150px) scaleY(0.72) rotateZ(25deg); }
         .hero-title { font-size: clamp(3rem, 16vw, 5rem); }
         .content-card { padding: 24px; }
       }
@@ -708,22 +656,6 @@ function HomePage() {
   };
 
   const resetStarParallax = () => setStarParallax({ x: 0, y: 0 });
-
-  const renderGalaxyOrbit = (prefix) => (
-    <div className="orbit-system" aria-hidden="true">
-      {["orbiter-a", "orbiter-b"].map((orbiter) => (
-        <div className={`orbiter ${orbiter}`} key={`${prefix}-${orbiter}`}>
-          <div className="orbit-dot">
-            <div className="original-galaxy">
-              <img className="image1" src={assets.logoTop} alt="" />
-              <img className="image2" src={assets.logoBot} alt="" />
-              <img className="image3" src={assets.core} alt="" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <>
@@ -755,8 +687,6 @@ function HomePage() {
             <div className="starfield starfield-midback" />
             <div className="starfield starfield-mid" />
             <div className="starfield starfield-back" />
-            <div className="galaxy-bg">{renderGalaxyOrbit("back")}</div>
-
             <div className="content-foreground">
               <p className="eyebrow">M.Sc. in Physics & Astronomy</p>
               <h1 className="hero-title">Preet<br />Patel</h1>
@@ -769,7 +699,6 @@ function HomePage() {
               </div>
             </div>
 
-            <div className="galaxy-fg">{renderGalaxyOrbit("front")}</div>
             <div className="starfield starfield-front" />
             <div className="starfield starfield-ultrafront" />
           </motion.div>
@@ -832,22 +761,92 @@ function HomePage() {
   );
 }
 
-function ProjectsPage() {
+function ProjectArt({ kind }) {
+  // small line drawings in the site's palette, one per card
+  if (kind === "lines") {
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        {[24, 48, 72, 96].map((y) => <line key={y} x1="0" x2="240" y1={y} y2={y} stroke="rgba(255,180,120,0.12)" />)}
+        <polyline fill="none" stroke="rgba(255,242,230,0.22)" strokeWidth="1.5" points="0,92 30,80 60,86 90,60 120,70 150,52 180,64 210,40 240,48" />
+        <polyline fill="none" stroke="#ff9a4d" strokeWidth="2.5" strokeLinejoin="round" points="0,104 24,70 48,44 72,30 96,22 120,18 150,18 180,26 210,52 240,96" />
+        <polyline fill="none" stroke="#ffd4a3" strokeWidth="2.5" strokeLinejoin="round" points="0,110 40,100 70,62 100,30 130,20 160,22 190,18 220,24 240,30" />
+        <polyline fill="none" stroke="#ffb36b" strokeWidth="2" strokeDasharray="6 5" points="0,88 50,58 100,34 150,26 200,30 240,44" />
+      </svg>
+    );
+  }
+  if (kind === "coins") {
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <polyline fill="none" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" points="0,96 40,90 80,94 120,70 160,76 200,48 240,40" />
+        {[[70, 74], [100, 62], [130, 74]].map(([x, y], k) => (
+          <g key={k}>
+            <ellipse cx={x} cy={y + 8} rx="26" ry="9" fill="#5a2d14" />
+            <ellipse cx={x} cy={y} rx="26" ry="9" fill="#ffb36b" stroke="#ffd9b3" strokeWidth="1.5" />
+          </g>
+        ))}
+        <circle cx="186" cy="40" r="3" fill="#ffd4a3" /><circle cx="204" cy="28" r="2" fill="#ffd4a3" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+      {[[120, 60, 30], [64, 34, 12], [186, 86, 16], [178, 30, 7], [52, 92, 8]].map(([x, y, r], k) => (
+        <path key={k} fill={k ? "#ffd4a3" : "#ff9a4d"} opacity={k ? 0.75 : 1}
+          d={`M${x} ${y - r} Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y} Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r} Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y} Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z`} />
+      ))}
+    </svg>
+  );
+}
+
+function ProjectsPortal() {
   return (
     <div className="content">
       <div className="projects-intro">
         <h1 className="page-title">Projects</h1>
-        <p className="page-lead prose">
-          Interactive things I have built — a live Grand Exchange data dashboard and some graphics — floating on the same star field.
-        </p>
+        <p className="page-lead prose">Things I have built: data tools, dashboards and graphics. Pick one to open it.</p>
       </div>
+      <div className="project-grid">
+        {projects.map((p) => (
+          <a key={p.key} href={p.href} className="project-card panel">
+            <div className="project-art-wrap"><ProjectArt kind={p.art} /></div>
+            <div className="project-card-body">
+              <h2 className="project-title">{p.title}</h2>
+              <p className="project-blurb">{p.blurb}</p>
+              <div className="project-tags">{p.tags.map((t) => <span key={t}>{t}</span>)}</div>
+              <span className="project-open">{p.external ? "Open explorer" : "Open"} <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function ProjectPage({ children }) {
+  return (
+    <div className="content">
+      <a href="#/projects" className="back-link"><span aria-hidden="true">←</span> All projects</a>
+{children}
+    </div>
+  );
+}
+
+function AlchemyPage() {
+  return (
+    <ProjectPage>
       <Section id="alchemy" title="Alchemy">
         <div className="panel panel-body">
           <AlchemyDashboard />
         </div>
       </Section>
 
+    </ProjectPage>
+  );
+}
+
+function GraphicsPage() {
+  return (
+    <ProjectPage>
       <Section id="graphics" title="Graphics">
         <div className="panel panel-body prose">
           <h3 className="subheading">Animations</h3>
@@ -870,18 +869,20 @@ function ProjectsPage() {
           <p>Recently, I figured out that WebP has been adopted by all major browsers as a modern alternative to the GIF format. It works on phones, Mac, and PC, provided the browser is not extremely old.</p>
         </div>
       </Section>
-    </div>
+    </ProjectPage>
   );
 }
 
-// Minimal hash router: only "#/projects" is a route, so Home's own "#section"
+// Minimal hash router: only "#/projects..." paths are routes, so Home's own "#section"
 // scroll anchors keep working untouched. No server rewrite needed on GitHub Pages.
+const routeOf = (hash) => {
+  const m = /^#\/projects(?:\/(alchemy|graphics))?\/?$/.exec(hash || "");
+  return m ? (m[1] ? `projects/${m[1]}` : "projects") : "home";
+};
 function useHashRoute() {
-  const [route, setRoute] = useState(() =>
-    typeof window !== "undefined" && window.location.hash.startsWith("#/projects") ? "projects" : "home"
-  );
+  const [route, setRoute] = useState(() => (typeof window !== "undefined" ? routeOf(window.location.hash) : "home"));
   useEffect(() => {
-    const onHash = () => setRoute(window.location.hash.startsWith("#/projects") ? "projects" : "home");
+    const onHash = () => setRoute(routeOf(window.location.hash));
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -889,11 +890,6 @@ function useHashRoute() {
     window.scrollTo(0, 0); // a fresh page starts at the top
   }, [route]);
   return route;
-}
-
-function scrollToId(id) {
-  const el = typeof document !== "undefined" ? document.getElementById(id) : null;
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function Topbar({ route }) {
@@ -908,13 +904,12 @@ function Topbar({ route }) {
           </div>
         </a>
         <nav className="nav" aria-label="Primary navigation">
-          {route === "projects" ? (
+          {route.startsWith("projects") ? (
             <>
               <a href="#/" className="nav-link">Home</a>
-              {projectSections.map((section) => (
-                <button key={section} type="button" className="nav-link" onClick={() => scrollToId(section.toLowerCase())}>
-                  {section}
-                </button>
+              <a href="#/projects" className={`nav-link${route === "projects" ? " active" : ""}`}>Projects</a>
+              {projects.map((p) => (
+                <a key={p.key} href={p.href} className={`nav-link${route === `projects/${p.key}` ? " active" : ""}`}>{p.key === "atp" ? "Tennis" : p.title}</a>
               ))}
             </>
           ) : (
@@ -936,7 +931,7 @@ export default function PreetPatelSite() {
       <Css />
       <div className="bg-scroll-layer" />
       <Topbar route={route} />
-      {route === "projects" ? <ProjectsPage /> : <HomePage />}
+      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <AlchemyPage /> : route === "projects/graphics" ? <GraphicsPage /> : <HomePage />}
       <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React.</footer>
     </main>
   );

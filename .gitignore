@@ -23,3 +23,6 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# rs-alchemy updater scratch file
+public/rs-alchemy/data/_update_points_cache.json

@@ -1,0 +1,1442 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATP Top 20 Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: control bar → chart with time brush beneath → players table beside a profile card. Scoreboard type, court-green accent. */
+:root {
+  --bg: #f6f7f4;
+  --panel: #ffffff;
+  --ink: #141815;
+  --ink-2: #4c544e;
+  --ink-3: #7b847d;
+  --line: #dde2dc;
+  --grid: #e9ece7;
+  --accent: #1d6a4a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2efe7;
+  --idle: rgba(76, 84, 78, .22);
+  --idle-hi: #141815;
+  --brush: rgba(29, 106, 74, .14);
+  --warn: #a35b00;
+  --err: #b4322f;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111412; --panel: #181c19; --ink: #f1f4f0; --ink-2: #b9c2bb; --ink-3: #848e86;
+    --line: #2b322d; --grid: #222823; --accent: #5cbf8f; --accent-ink: #0d1a13; --accent-soft: #1e3328;
+    --idle: rgba(185, 194, 187, .26); --idle-hi: #ffffff; --brush: rgba(92, 191, 143, .16);
+    --warn: #e0a24a; --err: #ef7a72;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111412; --panel: #181c19; --ink: #f1f4f0; --ink-2: #b9c2bb; --ink-3: #848e86;
+  --line: #2b322d; --grid: #222823; --accent: #5cbf8f; --accent-ink: #0d1a13; --accent-soft: #1e3328;
+  --idle: rgba(185, 194, 187, .26); --idle-hi: #ffffff; --brush: rgba(92, 191, 143, .16);
+  --warn: #e0a24a; --err: #ef7a72;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--body); }
+.wrap { max-width: 1780px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: grid; gap: 16px;
+  grid-template-columns: 270px minmax(0, 1fr); }
+.wrap > * { grid-column: 2; }
+/* legend lives in the left gutter, level with the chart, and follows you down the page */
+.wrap > .legendbox { grid-column: 1; grid-row: 3 / span 3; align-self: start; position: sticky; top: 16px; padding: 12px 12px 10px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+h1 { font: 700 2.1rem/1 var(--display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.sub { color: var(--ink-2); margin: 4px 0 0; }
+.stamp { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; padding: 12px 14px; }
+.field { display: grid; gap: 4px; }
+.lbl { font: 600 11px/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+input[type=date], input[type=search], input[type=number], select {
+  font: 500 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 0; padding: 7px 9px; min-height: 36px; font-variant-numeric: tabular-nums;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 0; overflow: hidden; }
+.seg button { font: 500 13px var(--body); color: var(--ink-2); background: var(--bg); border: 0; padding: 8px 11px; cursor: pointer; min-height: 36px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { font: 500 12px var(--body); color: var(--ink-2); background: transparent; border: 1px dashed var(--line); border-radius: 0; padding: 6px 10px; cursor: pointer; }
+.chip-btn:hover { color: var(--ink); border-color: var(--ink-3); }
+
+.chartbox { padding: 12px 14px 10px; display: grid; gap: 10px; }
+.chart-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.count { font: 600 1.35rem/1 var(--display); }
+.count small { font: 400 13px var(--body); color: var(--ink-2); margin-left: 6px; }
+.chart-body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 14px; align-items: start; }
+.chart-main { display: grid; gap: 10px; min-width: 0; }
+.side { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.side-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 28px; }
+.side-head .lbl #selcount { color: var(--ink-3); }
+.side-sub { color: var(--ink-3); font-size: 11.5px; margin-top: -4px; }
+.legendbox .legend { flex-direction: column; flex-wrap: nowrap; max-height: calc(100vh - 130px); overflow-y: auto; padding-right: 2px; }
+.legendbox .legend .tag { justify-content: space-between; border-radius: 0; }
+.legendbox .legend .tag-btn { min-width: 0; flex: 1; text-align: left; }
+.legendbox .legend .tag-btn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend .meta { color: var(--ink-3); font-size: 11px; font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
+.savebox { border-left: 1px solid var(--line); padding-left: 14px; }
+.save-group { display: grid; gap: 6px; }
+.save-btn { display: grid; gap: 1px; text-align: left; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 0; padding: 7px 10px; cursor: pointer; }
+.save-btn b { font-weight: 600; font-size: 13px; }
+.save-btn span { color: var(--ink-3); font-size: 11.5px; }
+.save-btn:hover:not(:disabled) { border-color: var(--accent); }
+.save-btn:disabled { opacity: .45; cursor: not-allowed; }
+.save-opt { display: flex; gap: 6px; align-items: flex-start; color: var(--ink-2); font-size: 12px; }
+@media (max-width: 1250px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); }
+  .wrap > *, .wrap > .legendbox { grid-column: 1; grid-row: auto; position: static; }
+  .legendbox .legend { flex-direction: row; flex-wrap: wrap; max-height: 160px; }
+}
+@media (max-width: 1100px) {
+  .chart-body { grid-template-columns: minmax(0, 1fr); }
+  .savebox { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 10px; }
+  .save-group { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .save-group .lbl { grid-column: 1 / -1; }
+}
+.legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.legend .tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px; border: 1px solid var(--line); border-radius: 0; font-size: 12.5px; color: var(--ink); background: var(--bg); }
+.legend .sw { width: 24px; height: 12px; flex: none; overflow: visible; }
+.legend .x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 5px; border-radius: 0; }
+.legend .x:hover { color: var(--ink); background: var(--grid); }
+.legend .hint { color: var(--ink-3); font-size: 12.5px; }
+.legend .tag-btn { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.legend .tag:hover { border-color: var(--ink-3); }
+.legend .tag[data-open] { border-color: var(--accent); background: var(--accent-soft); }
+.legend .tag-btn { user-select: none; }
+.linepop .pop-sub { color: var(--ink-2); font-size: 12px; margin-top: -6px; }
+.linepop .pop-hint { color: var(--ink-3); font-size: 11px; }
+.others { display: flex; align-items: center; gap: 10px; }
+.field.wide { flex-basis: 100%; }
+.trend { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.trend select, .trend input[type=number] { min-height: 32px; padding: 5px 6px; }
+.trend input[type=number] { width: 64px; font: 500 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.trend :disabled { opacity: .4; }
+.lg-sec { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-basis: 100%; margin-top: 4px;
+  font: 600 11px/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+.lg-sec .chip-btn { padding: 4px 8px; text-transform: none; letter-spacing: 0; }
+.legend .tag.grp { border-left: 3px solid var(--ink-3); }
+.legend .tag.off { opacity: .55; border-style: dashed; }
+.legend .tag.off:hover { opacity: .9; }
+.groupedit { width: 330px; }
+.groupedit .row2 { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
+.groupedit input[type=text], .groupedit input[list] { width: 100%; font: 500 13px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 6px 8px; min-height: 32px; }
+.groupedit .ge-note, .linepop .ge-note { color: var(--ink-3); font-size: 11.5px; }
+.groupedit select, .linepop label.row select { width: 100%; min-height: 32px; padding: 5px 6px; }
+.groupedit input[type=number], .linepop label.row input[type=number] { width: 80px; font: 500 13px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 5px 6px; min-height: 30px; }
+.groupedit .ge-members { display: flex; flex-wrap: wrap; gap: 4px; max-height: 150px; overflow-y: auto; }
+.groupedit .ge-members span { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); background: var(--bg); padding: 2px 2px 2px 7px; font-size: 12px; }
+.groupedit .err { color: var(--err); font-size: 12px; }
+.tip .row b i { font-style: normal; font-weight: 400; color: var(--ink-3); margin-left: 5px; }
+.tip .tsub { color: var(--ink-3); font-size: 11.5px; margin: -1px 0 3px 18px; white-space: normal; }
+.yaxis { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.yaxis .yr { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12.5px; }
+.yaxis input[type=number] { width: 70px; font: 500 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 7px 6px; min-height: 36px; font-variant-numeric: tabular-nums; }
+.chart-note { color: var(--ink-3); font-size: 12px; }
+.others input[type=range] { width: 110px; accent-color: var(--accent); }
+.others input:disabled { opacity: .4; }
+.linepop { position: fixed; z-index: 10; width: 280px; background: var(--panel); border: 1px solid var(--line); border-radius: 0;
+  box-shadow: 0 12px 32px rgba(0,0,0,.2); padding: 12px 14px; display: grid; gap: 10px; font-size: 13px; }
+.linepop h3 { margin: 0; font: 600 1.05rem var(--display); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.linepop .row { display: grid; grid-template-columns: 62px 1fr 42px; align-items: center; gap: 8px; }
+.linepop .row output { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.linepop input[type=range] { width: 100%; accent-color: var(--accent); }
+.linepop .swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.linepop .swatches button { width: 20px; height: 20px; border-radius: 0; border: 2px solid var(--panel); outline: 1px solid var(--line); cursor: pointer; padding: 0; }
+.linepop .swatches button[aria-pressed=true] { outline: 2px solid var(--ink); }
+.linepop input[type=color] { width: 26px; height: 22px; border: 0; padding: 0; background: none; cursor: pointer; }
+.linepop .seg button { min-height: 30px; padding: 4px 9px; }
+.linepop .foot { display: flex; justify-content: space-between; }
+.linepop .preview { height: 22px; }
+.canvas-wrap { position: relative; }
+canvas { display: block; width: 100%; touch-action: none; }
+#chart { height: 440px; cursor: crosshair; }
+#brush { height: 64px; cursor: default; }
+.brush-note { color: var(--ink-3); font-size: 12px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 0;
+  padding: 8px 10px; font-size: 12.5px; box-shadow: 0 6px 20px rgba(0,0,0,.12); min-width: 170px; max-width: 260px; z-index: 3; }
+.tip .d { color: var(--ink-3); font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+.tip .row { display: grid; grid-template-columns: 12px 1fr auto; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
+.tip .row b { font-weight: 600; }
+.tip .k { width: 10px; height: 3px; border-radius: 0; }
+
+.lower { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 820px) { .lower { grid-template-columns: minmax(0, 1fr); } #chart { height: 360px; } }
+.listbox { padding: 12px 0 4px; display: grid; gap: 10px; min-width: 0; }
+.list-head { padding-inline: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; }
+.combo { position: relative; flex: 1 1 240px; }
+.combo input { width: 100%; }
+.combo ul { position: absolute; left: 0; right: 0; top: calc(100% + 4px); max-height: 300px; overflow-y: auto; margin: 0; padding: 4px;
+  list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 0; box-shadow: 0 10px 28px rgba(0,0,0,.14); z-index: 5; }
+.combo li { padding: 6px 8px; border-radius: 0; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.combo li .m { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.combo li[aria-selected=true] { background: var(--accent-soft); }
+.combo li.out .n { color: var(--ink-3); }
+.letter { position: sticky; top: -4px; background: var(--panel); font: 700 12px var(--display); letter-spacing: .1em; color: var(--accent); padding: 4px 8px 2px; }
+.tablewrap { overflow-x: auto; max-height: 460px; overflow-y: auto; border-top: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 10px; text-align: left; white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--panel); font: 600 11px var(--body); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; }
+th.num, td.num { text-align: right; }
+th[aria-sort] { color: var(--ink); }
+tbody tr { border-bottom: 1px solid var(--grid); cursor: pointer; }
+tbody tr:hover { background: var(--accent-soft); }
+tbody tr.focus { box-shadow: inset 3px 0 0 var(--accent); }
+td .sel { display: inline-block; width: 12px; height: 12px; border-radius: 0; border: 1.5px solid var(--ink-3); vertical-align: -1px; margin-right: 8px; }
+td .country { color: var(--ink-3); font-size: 12px; margin-left: 6px; }
+
+.profile { padding: 14px 16px 16px; display: grid; gap: 12px; min-width: 0; }
+.profile h2 { font: 700 1.7rem/1.05 var(--display); margin: 0; }
+.profile .meta { color: var(--ink-2); }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { border: 1px solid var(--line); border-radius: 0; padding: 8px 10px; background: var(--bg); }
+.stat b { display: block; font: 600 1.5rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--ink-3); font-size: 11.5px; }
+.ye { display: flex; flex-wrap: wrap; gap: 4px; }
+.ye span { font: 600 12px var(--display); letter-spacing: .02em; padding: 3px 6px; border-radius: 0; background: var(--grid); font-variant-numeric: tabular-nums; }
+.ye span i { font-style: normal; color: var(--ink-3); font-weight: 500; margin-left: 3px; }
+dl.attrs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 13px; }
+dl.attrs dt { color: var(--ink-3); }
+dl.attrs dd { margin: 0; overflow-wrap: anywhere; }
+.empty { color: var(--ink-3); }
+details.dq { padding: 12px 14px; }
+details.dq summary { cursor: pointer; font: 600 1.15rem var(--display); letter-spacing: .02em; }
+.dq table td { white-space: normal; vertical-align: top; }
+.sev { font: 600 11px var(--body); text-transform: uppercase; letter-spacing: .06em; padding: 2px 6px; border-radius: 0; }
+.sev.error { color: var(--err); border: 1px solid currentColor; }
+.sev.warning { color: var(--warn); border: 1px solid currentColor; }
+.sev.info { color: var(--ink-3); border: 1px solid var(--line); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>ATP <span>Top 20</span> Explorer</h1>
+      <p class="sub">Pick a time window. Everyone who held a top-20 ranking in it is plotted; select players to highlight them.</p>
+    </div>
+    <div class="stamp" id="stamp"></div>
+  </header>
+
+  <section class="panel controls" aria-label="Time window">
+    <div class="field"><label class="lbl" for="from">From</label><input type="date" id="from"></div>
+    <div class="field"><label class="lbl" for="to">To</label><input type="date" id="to"></div>
+    <div class="field"><span class="lbl">Who counts</span>
+      <div class="seg" role="group" aria-label="Who counts">
+        <button type="button" id="mode-week" aria-pressed="true" title="Ranked 1-20 on any list in force during the window">Top 20 any week</button>
+        <button type="button" id="mode-ye" aria-pressed="false" title="Finished a season in the year-end top 20, for seasons that end inside the window">Year-end top 20</button>
+      </div>
+    </div>
+    <div class="field"><span class="lbl">Rank axis</span>
+      <div class="yaxis">
+        <div class="seg" role="group" aria-label="Rank axis scale">
+          <button type="button" id="y-top" aria-pressed="true">Linear</button>
+          <button type="button" id="y-log" aria-pressed="false">Log</button>
+        </div>
+        <label class="yr"><span>Ranks</span><input type="number" id="y-lo" min="-60" max="1999" step="any" value="1" aria-label="Best rank shown"></label>
+        <label class="yr"><span>to</span><input type="number" id="y-hi" min="2" max="2000" step="any" value="30" aria-label="Worst rank shown"></label>
+      </div>
+      <div class="presets" style="margin-top:6px">
+        <button type="button" class="chip-btn" data-yr="1,10">Top 10</button>
+        <button type="button" class="chip-btn" data-yr="1,20">Top 20</button>
+        <button type="button" class="chip-btn" data-yr="1,30">Top 30</button>
+        <button type="button" class="chip-btn" data-yr="1,100">Top 100</button>
+        <button type="button" class="chip-btn" data-yr="1,2000,log">All (log)</button>
+      </div>
+    </div>
+    <div class="field"><span class="lbl">Line outline</span>
+      <div class="seg" role="group" aria-label="Line outline">
+        <button type="button" id="ol-off" aria-pressed="true">Off</button>
+        <button type="button" id="ol-on" aria-pressed="false">On</button>
+      </div>
+    </div>
+    <div class="field"><span class="lbl">Other players</span>
+      <div class="others">
+        <div class="seg" role="group" aria-label="Other players">
+          <button type="button" id="oth-show" aria-pressed="true">Show</button>
+          <button type="button" id="oth-hide" aria-pressed="false">Hide</button>
+        </div>
+        <input type="range" id="oth-alpha" min="0.05" max="1" step="0.05" value="1" aria-label="Opacity of unselected players' lines" title="Opacity of unselected lines">
+      </div>
+    </div>
+    <div class="field"><label class="lbl" for="ppreset">Player groups</label>
+      <select id="ppreset">
+        <option value="">Choose a group…</option>
+        <option value="big3">Big 3 (players)</option>
+        <option value="big4">Big 4 (players)</option>
+        <option value="no1">World No. 1 (ever)</option>
+        <option value="no1-2000">World No. 1 since 2000</option>
+        <option value="top10">Current top 10</option>
+        <option value="ye1">Year-end No. 1s</option>
+      </select>
+    </div>
+    <div class="field wide"><span class="lbl">Moving average with momentum</span>
+      <div class="trend">
+        <div class="seg" role="group" aria-label="Trend line">
+          <button type="button" id="tr-off" aria-pressed="true">Off</button>
+          <button type="button" id="tr-on" aria-pressed="false">On</button>
+        </div>
+        <label class="yr"><span>Average</span><select id="tr-ma">
+          <option value="sma">Simple</option><option value="ema">Exponential</option><option value="wma">Weighted (linear)</option></select></label>
+        <label class="yr"><span>over</span><input type="number" id="tr-n" min="2" max="520" step="1" value="26"><span>weeks</span></label>
+        <label class="yr"><span>Momentum</span><select id="tr-mom">
+          <option value="none">None (plain average)</option>
+          <option value="slope" selected>Slope projection</option>
+          <option value="accel">Velocity + acceleration</option>
+          <option value="holt">Holt trend (double exponential)</option>
+          <option value="zerolag">Zero-lag (2 × fast − slow)</option></select></label>
+        <label class="yr"><span>lead</span><input type="number" id="tr-lead" min="0" max="260" step="1" value="13"><span>weeks</span></label>
+        <label class="yr"><span>Raw lines</span><select id="tr-raw">
+          <option value="normal">Normal</option><option value="faded" selected>Faded</option><option value="hidden">Hidden</option></select></label>
+      </div>
+    </div>
+    <div class="field"><span class="lbl">Jump to</span>
+      <div class="presets">
+        <button type="button" class="chip-btn" data-preset="2000">2000 → latest</button>
+        <button type="button" class="chip-btn" data-preset="all">1973 → latest</button>
+        <button type="button" class="chip-btn" data-preset="1y">Last 12 months</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel side legendbox" aria-label="Selected players">
+    <div class="side-head"><span class="lbl">Selected <span id="selcount"></span></span><button type="button" class="chip-btn" id="clear" hidden>Clear</button></div>
+    <div class="side-sub">By career high, then weeks at No. 1. Click for line settings; Ctrl+click to edit several.</div>
+    <div class="legend" id="legend"></div>
+  </aside>
+
+  <section class="panel chartbox" aria-label="Rankings chart">
+    <div class="chart-head">
+      <div class="count" id="count"></div>
+    </div>
+    <div class="chart-body">
+      <div class="chart-main">
+        <div class="canvas-wrap">
+          <canvas id="chart" aria-label="Ranking lines for every player in the window"></canvas>
+          <div class="tip" id="tip" hidden></div>
+        </div>
+        <canvas id="brush" aria-label="Time window. Drag a handle inward to narrow; drag it past the edge to extend, faster the further out you pull. Drag the shaded band to move the window."></canvas>
+        <div class="brush-note">Rank axis: scroll over the rank numbers to zoom, drag them to pan, double-click to reset. Time: drag a handle inward to narrow. Pull it past the edge of the strip to extend: the further out you hold it, the faster it grows. Drag the shaded band to slide the window.</div>
+      </div>
+      <aside class="side savebox" aria-label="Save">
+        <div class="side-head"><span class="lbl">Save</span></div>
+        <div class="side-sub" id="save-scope"></div>
+        <div class="save-group">
+          <span class="lbl">Data</span>
+          <button type="button" class="save-btn" data-save="wide"><b>Weekly ranks</b><span>CSV · one column per player</span></button>
+          <button type="button" class="save-btn" data-save="long"><b>Weekly ranks, long</b><span>CSV · date, player, rank</span></button>
+          <button type="button" class="save-btn" data-save="summary"><b>Player summary</b><span>CSV · career and in-window stats</span></button>
+          <button type="button" class="save-btn" data-save="json"><b>Everything</b><span>JSON · window, players, ranks, line styles</span></button>
+        </div>
+        <div class="save-group">
+          <span class="lbl">Image</span>
+          <button type="button" class="save-btn" data-save="png"><b>Chart</b><span>PNG · as shown, with legend</span></button>
+        </div>
+        <label class="save-opt"><input type="checkbox" id="save-ranked" checked> Only lists where a selected player is ranked</label>
+      </aside>
+    </div>
+  </section>
+
+  <div class="lower">
+    <section class="panel listbox" aria-label="Players in window">
+      <div class="list-head">
+        <div class="field combo">
+          <label class="lbl" for="find">Find a player (A–Z by first name)</label>
+          <input type="search" id="find" placeholder="Type a name or open the list" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="find-list">
+          <ul id="find-list" role="listbox" hidden></ul>
+        </div>
+        <div class="field">
+          <label class="lbl" for="pick">Or choose</label>
+          <select id="pick"></select>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th data-k="name" aria-sort="ascending">Player</th>
+            <th data-k="best" class="num">Best in window</th>
+            <th data-k="w20" class="num">Weeks top 20</th>
+            <th data-k="hi" class="num">Career high</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel profile" id="profile" aria-live="polite"></section>
+  </div>
+
+  <details class="panel dq">
+    <summary>Data source and quality checks</summary>
+    <p class="sub" id="dq-intro"></p>
+    <div class="tablewrap" style="max-height:none"><table><thead><tr><th>Severity</th><th>Check</th><th class="num">Count</th><th>What was done</th></tr></thead><tbody id="dq"></tbody></table></div>
+  </details>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const TOP10 = /*__TOP10__*/null; // derived metrics for the Top 10 group (top10_metrics.py); null when not built
+(() => {
+const $ = id => document.getElementById(id);
+const DAY = 864e5;
+const toTime = n => Date.UTC(Math.floor(n / 1e4), Math.floor(n / 100) % 100 - 1, n % 100);
+const T = DATA.dates.map(toTime);
+const N = T.length, T0 = T[0], TL = T[N - 1];
+const END = TL + DATA.dur[N - 1] * DAY; // last list is in force for its duration
+const iso = t => new Date(t).toISOString().slice(0, 10);
+const fmt = t => new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const P = DATA.players;
+const firstKey = p => p.n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+P.forEach(p => { p.key = firstKey(p); p.e = p.s + p.r.length - 1; });
+const ALPHA = [...P].sort((a, b) => a.key.localeCompare(b.key));
+const byId = new Map(P.map(p => [p.id, p]));
+
+// year-end list index for each finished season (last list of that year)
+const yearEndIdx = {};
+for (let i = 0; i < N; i++) yearEndIdx[new Date(T[i]).getUTCFullYear()] = i;
+const FINAL = new Set(DATA.finalSeasons);
+
+// ---------- state
+let win = { a: Date.UTC(2000, 0, 1), b: END };
+let mode = 'week', ylog = false, sortK = 'name', sortDir = 1;
+let outline = false;            // halo behind selected lines; off by default so lines read cleaner
+const trend = { on: false, ma: 'sma', n: 26, mom: 'slope', lead: 13, raw: 'faded' };
+const YMIN = { lin: -60, log: 0.05 }; // the axis may run past No. 1 so momentum lines can overshoot the top
+let groups = [];                // { id, name, members: [player ids], agg: peak|avg|median|worst }
+let groupSeq = 0;
+let yr = { lo: 1, hi: 30 };      // visible rank window (floats while zooming; inputs show rounded values)
+const RMAX = 2000;
+let selected = [];              // ids, in selection order
+const slotOf = new Map();       // id -> colour slot 1..8, follows the player
+let focusId = null, hoverId = null, crossI = null;
+let inWin = [];                 // players in current window (objects with stats)
+const MAXSEL = 40;              // slots 1-8 use the palette; beyond that colours are generated
+const MAXLABELS = 12;           // direct line-end labels get unreadable past this; the legend covers the rest
+const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+const slotColor = s => s <= 8 ? css('--s' + s) : `hsl(${Math.round((s * 137.508) % 360)} 62% ${isDark() ? 64 : 40}%)`;
+// legend / export order: best career high first, ties broken by more weeks at No. 1
+const gIndex = id => groups.findIndex(g => g.id === id);
+const bySeniority = (a, b) => {
+  const A = byId.get(a), B = byId.get(b);
+  if (A.isGroup || B.isGroup) return A.isGroup && B.isGroup ? gIndex(a) - gIndex(b) : A.isGroup ? -1 : 1; // groups first, in the order made
+  return A.hi - B.hi || B.w1 - A.w1 || A.key.localeCompare(B.key);
+};
+const EPS = 1e-6;              // a true zero in a group series (0 itself means "no value this week")
+const fmtR = r => r > 0 && r < 1e-3 ? '0' : Number.isInteger(r) ? String(r) : (Math.round(r * 10) / 10).toFixed(1);
+let showOthers = true, othersAlpha = 1;   // unselected lines: visibility, opacity multiplier
+const lineStyle = new Map();    // id -> { alpha, width, dash, color }; kept if a player is deselected and picked again
+const DEF_STYLE = { alpha: 1, width: 2.25, dash: 'solid', color: null };
+const styleOf = id => ({ ...DEF_STYLE, ...lineStyle.get(id) });
+const dashFor = (dash, w) => dash === 'dashed' ? [w * 3.5, w * 2.5] : dash === 'dotted' ? [0.1, w * 2.4] : [];
+
+// ---------- the core: interval -> players
+function lastIdxAtOrBefore(t) { let lo = 0, hi = N - 1, ans = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (T[m] <= t) { ans = m; lo = m + 1; } else hi = m - 1; } return ans; }
+function windowIdx() { return [lastIdxAtOrBefore(win.a), lastIdxAtOrBefore(win.b)]; }
+
+function aggregate() {
+  const [i0, i1] = windowIdx();
+  const out = [];
+  for (const p of P) {
+    let ok = false;
+    if (mode === 'week') {
+      // precomputed top-20 runs make this an interval-overlap test, not a scan of every week
+      ok = p.t20.some(([s, e]) => s <= i1 && e >= i0);
+    } else {
+      for (const y in p.ye) { const yi = yearEndIdx[y]; if (FINAL.has(+y) && T[yi] >= win.a && T[yi] <= win.b) { ok = true; break; } }
+    }
+    if (!ok) continue;
+    out.push({ p, ...statsFor(p, i0, i1) });
+  }
+  return out;
+}
+// best rank and weeks in the top 20 for one player inside the window
+function statsFor(p, i0, i1) {
+  let best = Infinity, days = 0;
+  for (let i = Math.max(i0, p.s); i <= Math.min(i1, p.e); i++) {
+    const r = p.r[i - p.s];
+    if (!r) continue;
+    if (r < best) best = r;
+    if (r <= 20) {
+      const from = Math.max(T[i], win.a), to = Math.min(T[i] + DATA.dur[i] * DAY, win.b);
+      if (to > from) days += (to - from) / DAY;
+    }
+  }
+  return { best: best === Infinity ? null : best, w20: days / 7 };
+}
+
+// ---------- canvas helpers
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function setup(cv) {
+  const dpr = window.devicePixelRatio || 1, r = cv.getBoundingClientRect();
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) {
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { g, w: r.width, h: r.height };
+}
+const colorOf = id => slotOf.has(id) ? (lineStyle.get(id)?.color || slotColor(slotOf.get(id))) : null;
+
+// ---------- main chart
+const chart = $('chart');
+const M = { l: 44, r: 112, t: 14, b: 26 };
+const LIN_MAX = 30;
+let geo = null;
+// rank <-> axis space: linear in rank, or log(rank)
+const toU = r => ylog ? Math.log(r) : r, fromU = u => ylog ? Math.exp(u) : u;
+function rankTicks(lo, hi) {
+  if (ylog) {
+    const t = [0.1, 0.2, 0.5, 1, 2, 3, 5, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000].filter(r => r >= lo - 1e-9 && r <= hi + 1e-9);
+    if (t.length >= 3) return t.length > 9 ? t.filter(r => /^(0\.)?[125]/.test(String(r))) : t;
+  }
+  const span = hi - lo, step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500].find(st => span / st <= 7) || 500;
+  const out = new Set(); if (lo <= 1 && hi >= 1) out.add(1);
+  for (let r = Math.ceil(lo / step) * step; r <= hi + 1e-9; r += step) if (r >= lo - 1e-9 && (r === 1 || Math.abs(r - 1) >= step / 2)) out.add(r);
+  if (!out.size) out.add(Math.round(lo));
+  return [...out].sort((a, b) => a - b);
+}
+function yScale(h) {
+  const top = M.t, bot = h - M.b, U0 = toU(yr.lo), U1 = toU(yr.hi), pad = (U1 - U0) * .04;
+  // ranks outside the window are pinned just past the edge, so lines leave the plot instead of vanishing mid-air
+  const f = r => top + (Math.min(U1 + pad, Math.max(U0 - pad, toU(r))) - U0) / (U1 - U0) * (bot - top);
+  // axis-space mapping for trend lines: free to run above the top (they may overshoot No. 1), pinned at the bottom
+  const fu = u => top + (Math.max(U0 - 4 * (U1 - U0), Math.min(U1 + pad, u)) - U0) / (U1 - U0) * (bot - top);
+  return { f, fu, inv: y => fromU(U0 + (y - top) / (bot - top) * (U1 - U0)), ticks: rankTicks(yr.lo, yr.hi), inView: r => r >= yr.lo - .5 && r <= yr.hi + .5 };
+}
+function setYr(lo, hi, opts = {}) {
+  const minSpan = ylog ? Math.log(1.5) : 3, floor = ylog ? YMIN.log : YMIN.lin;
+  let U0 = toU(Math.max(floor, lo)), U1 = toU(Math.min(RMAX, Math.max(floor + 1, hi)));
+  if (U1 - U0 < minSpan) { const c = (U0 + U1) / 2; U0 = c - minSpan / 2; U1 = c + minSpan / 2; }
+  const UMIN = toU(floor), UMAX = toU(RMAX);
+  if (U0 < UMIN) { U1 += UMIN - U0; U0 = UMIN; }
+  if (U1 > UMAX) { U0 -= U1 - UMAX; U1 = UMAX; }
+  yr = { lo: Math.max(floor, fromU(U0)), hi: Math.min(RMAX, fromU(U1)) };
+  const show = v => Math.abs(v) < 10 ? +v.toFixed(1) : Math.round(v);
+  if (!opts.keepInputs) { $('y-lo').value = show(yr.lo); $('y-hi').value = show(yr.hi); }
+  drawChart();
+}
+function niceTicks(a, b, w) {
+  const span = (b - a) / DAY / 365.25, target = Math.max(2, Math.floor(w / 90));
+  const steps = [1 / 12, 2 / 12, 3 / 12, 6 / 12, 1, 2, 5, 10, 20];
+  const step = steps.find(s => span / s <= target) || 20;
+  const ticks = [];
+  if (step >= 1) { for (let y = Math.ceil(new Date(a).getUTCFullYear() / step) * step; Date.UTC(y, 0, 1) <= b; y += step) { const t = Date.UTC(y, 0, 1); if (t >= a) ticks.push([t, String(y)]); } }
+  else { const mStep = Math.round(step * 12); const d = new Date(a); let y = d.getUTCFullYear(), m = Math.ceil(d.getUTCMonth() / mStep) * mStep; for (;;) { if (m >= 12) { y += Math.floor(m / 12); m %= 12; } const t = Date.UTC(y, m, 1); if (t > b) break; if (t >= a) ticks.push([t, m === 0 ? String(y) : new Date(t).toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' })]); m += mStep; } }
+  return ticks;
+}
+
+function drawChart() {
+  const { g, w, h } = setup(chart);
+  M.r = w < 600 ? 78 : 112;
+  const x = t => M.l + (t - win.a) / (win.b - win.a) * (w - M.l - M.r);
+  const Y = yScale(h);
+  geo = { x, Y, w, h };
+  g.clearRect(0, 0, w, h);
+  g.font = '12px ' + css('--body'); g.textBaseline = 'middle';
+  // grid
+  g.strokeStyle = css('--grid'); g.fillStyle = css('--ink-3'); g.lineWidth = 1;
+  for (const r of Y.ticks) { const y = Math.round(Y.f(r)) + .5; g.beginPath(); g.moveTo(M.l, y); g.lineTo(w - M.r, y); g.stroke(); g.textAlign = 'right'; g.fillText(r < 0 ? '−' + -r : r, M.l - 8, y); }
+  if (yr.lo < 20.5 && yr.hi > 20.5) { // emphasize the top-20 cut
+    const y = Math.round(Y.f(20.5)) + .5; g.save(); g.setLineDash([4, 4]); g.strokeStyle = css('--ink-3'); g.beginPath(); g.moveTo(M.l, y); g.lineTo(w - M.r, y); g.stroke(); g.restore();
+    g.textAlign = 'left'; g.fillText('top 20', w - M.r + 6, y);
+  }
+  if (yr.lo < 1) { // shade the band above No. 1 that only momentum lines can reach
+    const y1 = Math.round(Y.f(1)) + .5;
+    g.globalAlpha = .5; g.fillStyle = css('--grid'); g.fillRect(M.l, M.t, w - M.l - M.r, y1 - M.t); g.globalAlpha = 1;
+    g.strokeStyle = css('--ink-3'); g.beginPath(); g.moveTo(M.l, y1); g.lineTo(w - M.r, y1); g.stroke();
+    g.fillStyle = css('--ink-3'); g.textAlign = 'left'; if (y1 - M.t > 18) g.fillText('beyond No. 1', M.l + 8, M.t + 10);
+  }
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  for (const [t, lab] of niceTicks(win.a, win.b, w - M.l - M.r)) { const xx = Math.round(x(t)) + .5; g.strokeStyle = css('--grid'); g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, h - M.b); g.stroke(); g.fillText(lab, xx, h - M.b + 6); }
+  g.textAlign = 'left'; g.textBaseline = 'middle';
+  g.fillStyle = css('--ink-3'); g.save(); g.translate(12, (M.t + h - M.b) / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText('Rank', 0, 0); g.restore();
+
+  const [i0, i1] = windowIdx();
+  g.save(); g.beginPath(); g.rect(M.l, M.t - 2, w - M.l - M.r, h - M.t - M.b + 4); g.clip();
+  // idle lines break where a player drops out of the 1-30 view, so exits don't smear vertical streaks
+  const pathFor = (p, breakOut) => {
+    g.beginPath(); let pen = false;
+    const from = Math.max(p.s, i0), to = Math.min(p.e, i1 + 1 < N ? i1 + 1 : i1);
+    for (let i = from; i <= to; i++) {
+      const r = p.r[i - p.s];
+      if (!r || (breakOut && !Y.inView(r))) { pen = false; continue; }
+      const xx = x(T[i]), yy = Y.f(r);
+      if (!pen) { g.moveTo(xx, yy); pen = true; } else g.lineTo(xx, yy);
+    }
+  };
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  // idle lines first, then selected, then hovered on top
+  if (showOthers) {
+    g.strokeStyle = css('--idle'); g.lineWidth = 1.25; g.globalAlpha = othersAlpha;
+    for (const it of inWin) { if (slotOf.has(it.p.id) || it.p.id === hoverId) continue; pathFor(it.p, true); g.stroke(); }
+    g.globalAlpha = 1;
+  }
+  const surf = css('--panel');
+  const rawK = trend.on ? { normal: 1, faded: .28, hidden: 0 }[trend.raw] : 1; // raw lines step back while a trend line is shown
+  const strokeSel = (id, hover) => {
+    const st = styleOf(id), lw = st.width + (hover ? .5 : 0);
+    if (!hover && !rawK) return;
+    pathFor(byId.get(id));
+    g.globalAlpha = hover ? Math.max(rawK, .6) : st.alpha * rawK;
+    g.setLineDash([]); g.strokeStyle = surf; g.lineWidth = lw + 2.75; if (outline && st.dash === 'solid') g.stroke(); // halo only behind solid lines
+    g.setLineDash(dashFor(st.dash, lw)); g.strokeStyle = colorOf(id); g.lineWidth = lw; g.stroke();
+    g.setLineDash([]); g.globalAlpha = 1;
+  };
+  for (const id of selected) { if (!byId.get(id) || id === hoverId) continue; strokeSel(id, false); }
+  if (hoverId) {
+    if (slotOf.has(hoverId)) strokeSel(hoverId, true);
+    else { const p = byId.get(hoverId); pathFor(p); if (outline) { g.strokeStyle = surf; g.lineWidth = 6; g.stroke(); } g.strokeStyle = css('--idle-hi'); g.lineWidth = 2.75; g.stroke(); }
+  }
+  g.restore();
+
+  // moving average + momentum: own clip that is open at the top, so overshoots past No. 1 run off the plot instead of being cut
+  if (trend.on) {
+    g.save(); g.beginPath(); g.rect(M.l, 0, w - M.l - M.r, h - M.b + 2); g.clip();
+    for (const id of selected) {
+      const p = byId.get(id); if (!p) continue;
+      const tr = trendSeries(p), st = styleOf(id);
+      const k0 = Math.max(0, Math.floor((win.a - tr.t0) / WEEK) - 1), k1 = Math.min(tr.v.length - 1, Math.ceil((win.b - tr.t0) / WEEK) + 1);
+      g.beginPath(); let pen = false;
+      for (let k = k0; k <= k1; k++) {
+        const u = tr.v[k]; if (isNaN(u)) { pen = false; continue; }
+        const xx = x(tr.t0 + k * WEEK), yy = Y.fu(u);
+        if (!pen) { g.moveTo(xx, yy); pen = true; } else g.lineTo(xx, yy);
+      }
+      const lw = st.width + .75;
+      if (outline) { g.setLineDash([]); g.strokeStyle = surf; g.lineWidth = lw + 2.75; g.globalAlpha = st.alpha; g.stroke(); }
+      g.setLineDash(dashFor(st.dash, lw)); g.strokeStyle = colorOf(id); g.lineWidth = lw; g.globalAlpha = id === hoverId ? 1 : st.alpha; g.stroke();
+      g.setLineDash([]); g.globalAlpha = 1;
+    }
+    g.restore();
+  }
+
+  // direct labels for selected (and hovered) at their last visible point
+  const labels = [];
+  for (const id of new Set([...(selected.length <= MAXLABELS ? selected : []), ...(hoverId ? [hoverId] : [])])) {
+    const p = byId.get(id); if (!p) continue;
+    let li = -1; for (let i = Math.min(p.e, i1); i >= Math.max(p.s, i0); i--) if (p.r[i - p.s]) { li = i; break; }
+    if (li < 0) continue;
+    const r = p.r[li - p.s];
+    labels.push({ id, y: Math.max(M.t, Math.min(h - M.b, Y.f(r))), text: (p.isGroup ? p.n : p.n.split(' ').slice(-1)[0]) + ' ' + fmtR(r), c: colorOf(id) || css('--idle-hi') });
+  }
+  labels.sort((a, b) => a.y - b.y);
+  for (let k = 1; k < labels.length; k++) if (labels[k].y - labels[k - 1].y < 14) labels[k].y = labels[k - 1].y + 14;
+  for (let k = labels.length - 2; k >= 0; k--) if (labels[k].y > labels[k + 1].y - 14) labels[k].y = labels[k + 1].y - 14; // keep inside the bottom edge
+  const over = labels.length ? labels[labels.length - 1].y - (h - M.b) : 0;
+  if (over > 0) labels.forEach(L => L.y -= over);
+  g.font = '600 12px ' + css('--body');
+  for (const L of labels) { g.fillStyle = L.c; g.fillRect(w - M.r + 6, L.y - 1.5, 8, 3); g.fillStyle = css('--ink'); g.fillText(L.text, w - M.r + 18, L.y); }
+
+  // crosshair
+  if (crossI != null && crossI >= i0 && crossI <= i1) {
+    const xx = Math.round(x(Math.max(T[crossI], win.a))) + .5;
+    g.strokeStyle = css('--ink-3'); g.lineWidth = 1; g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, h - M.b); g.stroke();
+    for (const id of new Set([...selected, ...(hoverId ? [hoverId] : [])])) {
+      const p = byId.get(id); const r = p && crossI >= p.s && crossI <= p.e ? p.r[crossI - p.s] : 0; if (!r || !Y.inView(r)) continue;
+      g.beginPath(); g.arc(xx, Y.f(r), 4.5, 0, 7); g.fillStyle = colorOf(id) || css('--idle-hi'); g.fill(); g.lineWidth = 2; g.strokeStyle = surf; g.stroke();
+    }
+  }
+  if (!inWin.length) { g.fillStyle = css('--ink-3'); g.textAlign = 'center'; g.font = '14px ' + css('--body'); g.fillText('No player held a top-20 ranking in this window.', w / 2, h / 2); }
+}
+
+function chartPointer(ev) {
+  if (!geo || yDrag) return;
+  const rect = chart.getBoundingClientRect(), px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+  const { x, Y, w, h } = geo;
+  if (px < M.l || px > w - M.r + 4 || py < 0 || py > h) { leaveChart(); return; }
+  const t = win.a + (px - M.l) / (w - M.l - M.r) * (win.b - win.a);
+  const [i0, i1] = windowIdx();
+  let i = Math.min(i1, Math.max(i0, lastIdxAtOrBefore(t)));
+  crossI = i;
+  // nearest line, vertically, at this list
+  let bestD = 18, best = null;
+  const cands = [...inWin.map(it => it.p), ...selected.map(id => byId.get(id)).filter(p => p && p.isGroup)];
+  for (const p of cands) {
+    if (!showOthers && !slotOf.has(p.id)) continue; // hidden lines can't be pointed at
+    if (i < p.s || i > p.e) continue; const r = p.r[i - p.s]; if (!r || !Y.inView(r)) continue;
+    const d = Math.abs(Y.f(r) - py); if (d < bestD) { bestD = d; best = p.id; }
+  }
+  hoverId = best;
+  drawChart(); showTip(px, py, i);
+}
+function leaveChart() { crossI = null; hoverId = null; $('tip').hidden = true; drawChart(); }
+// ranks get a '#'; group values that are counts, ages or distances get their unit instead
+function valText(p, r) {
+  if (!p.isGroup) return '#' + fmtR(r);
+  if (p.dyn) { const m = t10m(p.gd); return m.unit === 'rank' ? '#' + fmtR(r) : `${fmtR(r)} ${m.unit}`; }
+  return AGGS[gNorm(p.gd).agg].spread ? `${fmtR(r)} places` : '#' + fmtR(r);
+}
+function showTip(px, py, i) {
+  const tip = $('tip');
+  const ids = [...new Set([...(hoverId ? [hoverId] : []), ...selected])];
+  let rows = ids.map(id => { const p = byId.get(id); const r = i >= p.s && i <= p.e ? p.r[i - p.s] : 0; return { p, r }; });
+  let more = 0;
+  if (rows.length > MAXLABELS) { // big selections: hovered first, then by rank on this list
+    const [h, ...rest] = hoverId ? rows : [null, ...rows];
+    rest.sort((a, b) => (a.r || 1e9) - (b.r || 1e9));
+    rows = [...(h ? [h] : []), ...rest.filter(x => x.r)];
+    more = rows.length - MAXLABELS; rows = rows.slice(0, MAXLABELS);
+  }
+  const until = i + 1 < N ? T[i + 1] : END;
+  tip.innerHTML = `<div class="d">List of ${fmt(T[i])}${(until - T[i]) / DAY > 8 ? ` (in force to ${fmt(until - DAY)})` : ''}</div>` +
+    (rows.length ? rows.map(({ p, r }) => { const tv = trend.on && slotOf.has(p.id) ? trendAt(p, T[i]) : null; return `<div class="row"><span class="k" style="background:${colorOf(p.id) || css('--idle-hi')}"></span><span>${esc(p.n)}</span><b>${r ? valText(p, r) : '—'}${tv != null ? `<i title="moving average with momentum">~${fmtR(tv)}</i>` : ''}</b></div>${p.dyn && r ? `<div class="tsub">${esc(top10Names(i).map(n => n.split(' ').slice(-1)[0]).join(', '))}</div>` : ''}`; }).join('')
+      : `<div class="empty">Point at a line to name it</div>`) + (more > 0 ? `<div class="empty">+${more} more ranked</div>` : '');
+  tip.hidden = false;
+  const W = chart.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.min(W - tw - 4, px + 14 > W - tw - 4 ? px - tw - 14 : px + 14) + 'px';
+  tip.style.top = Math.max(0, Math.min(chart.clientHeight - th, py - th / 2)) + 'px';
+}
+chart.addEventListener('pointermove', chartPointer);
+chart.addEventListener('pointerleave', leaveChart);
+chart.addEventListener('click', () => { if (hoverId) { toggle(hoverId, true); if (!byId.get(hoverId).isGroup) focus(hoverId); } });
+
+// ---------- brush (time strip)
+const brush = $('brush');
+let dom = { a: T0, b: END };   // the strip's visible span
+let drag = null, raf = 0;
+const BM = { l: 10, r: 10 };
+function bx(t, w) { return BM.l + (t - dom.a) / (dom.b - dom.a) * (w - BM.l - BM.r); }
+function bt(px, w) { return dom.a + (px - BM.l) / (w - BM.l - BM.r) * (dom.b - dom.a); }
+function fitDom(animate) {
+  const span = win.b - win.a, pad = Math.max(span * .35, 120 * DAY);
+  const target = { a: Math.max(T0, win.a - pad), b: Math.min(END, win.b + pad) };
+  if (!animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { dom = target; drawBrush(); return; }
+  const from = { ...dom }, t0 = performance.now();
+  const step = now => { const k = Math.min(1, (now - t0) / 260), e = 1 - Math.pow(1 - k, 3);
+    dom = { a: from.a + (target.a - from.a) * e, b: from.b + (target.b - from.b) * e }; drawBrush(); if (k < 1 && !drag) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function drawBrush() {
+  const { g, w, h } = setup(brush);
+  g.clearRect(0, 0, w, h);
+  const top = 6, bot = h - 20;
+  // track
+  g.fillStyle = css('--grid'); g.fillRect(BM.l, top, w - BM.l - BM.r, bot - top);
+  // density: how many players were in the top 20 who would also be in the window... show No.1 changes as ticks
+  g.font = '11px ' + css('--body'); g.textBaseline = 'top'; g.textAlign = 'center'; g.fillStyle = css('--ink-3');
+  for (const [t, lab] of niceTicks(dom.a, dom.b, w - BM.l - BM.r)) { const xx = Math.round(bx(t, w)) + .5; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(xx, top); g.lineTo(xx, bot); g.stroke(); g.fillText(lab, xx, bot + 4); }
+  // data limits inside the strip
+  const xa = bx(win.a, w), xb = bx(win.b, w);
+  g.fillStyle = css('--brush'); g.fillRect(xa, top, xb - xa, bot - top);
+  g.strokeStyle = css('--accent'); g.lineWidth = 1.5; g.strokeRect(xa + .75, top + .75, xb - xa - 1.5, bot - top - 1.5);
+  for (const xx of [xa, xb]) { g.fillStyle = css('--accent'); roundRect(g, xx - 4, top - 3, 8, bot - top + 6, 0); g.fill(); g.fillStyle = css('--accent-ink'); g.fillRect(xx - 1, (top + bot) / 2 - 7, 2, 14); }
+  // edge arrows when the strip can extend
+  g.fillStyle = css('--ink-3');
+  if (dom.a > T0 + DAY) tri(g, 3, (top + bot) / 2, -1);
+  if (dom.b < END - DAY) tri(g, w - 3, (top + bot) / 2, 1);
+}
+function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function tri(g, x, y, dir) { g.beginPath(); g.moveTo(x, y); g.lineTo(x - 5 * dir, y - 5); g.lineTo(x - 5 * dir, y + 5); g.closePath(); g.fill(); }
+
+const MIN_SPAN = 14 * DAY;
+brush.addEventListener('pointerdown', ev => {
+  const rect = brush.getBoundingClientRect(), w = rect.width, px = ev.clientX - rect.left;
+  const xa = bx(win.a, w), xb = bx(win.b, w);
+  let kind = null;
+  if (Math.abs(px - xa) <= 12 && Math.abs(px - xa) <= Math.abs(px - xb)) kind = 'a';
+  else if (Math.abs(px - xb) <= 12) kind = 'b';
+  else if (px > xa && px < xb) kind = 'pan';
+  else kind = px < xa ? 'a' : 'b';            // click outside the band moves the nearer edge there
+  drag = { kind, px, start: { ...win }, w, startPx: px };
+  brush.setPointerCapture(ev.pointerId);
+  if (kind !== 'pan') applyBrush(px);
+  loop();
+});
+brush.addEventListener('pointermove', ev => {
+  const rect = brush.getBoundingClientRect(), px = ev.clientX - rect.left, w = rect.width;
+  if (!drag) { const xa = bx(win.a, w), xb = bx(win.b, w); brush.style.cursor = Math.min(Math.abs(px - xa), Math.abs(px - xb)) <= 12 ? 'ew-resize' : (px > xa && px < xb ? 'grab' : 'pointer'); return; }
+  drag.px = px; drag.w = w;
+  applyBrush(px);
+});
+const endDrag = () => { if (!drag) return; drag = null; cancelAnimationFrame(raf); fitDom(true); commit(); };
+brush.addEventListener('pointerup', endDrag);
+brush.addEventListener('pointercancel', endDrag);
+
+function applyBrush(px) {
+  const w = drag.w, lo = BM.l, hi = w - BM.r;
+  const inside = Math.min(hi, Math.max(lo, px));
+  const t = bt(inside, w);
+  if (drag.kind === 'a') win.a = Math.max(T0, Math.min(t, win.b - MIN_SPAN));
+  else if (drag.kind === 'b') win.b = Math.min(END, Math.max(t, win.a + MIN_SPAN));
+  else {
+    const dt = bt(px, w) - bt(drag.startPx, w);
+    const span = drag.start.b - drag.start.a;
+    let a = drag.start.a + dt; a = Math.max(T0, Math.min(END - span, a));
+    win.a = a; win.b = a + span;
+  }
+  syncInputs(); scheduleRender();
+}
+// While a handle is held past the strip's edge, the strip itself grows each frame.
+// Speed rises with the square of how far past the edge the pointer is.
+function loop() {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(function tick() {
+    if (!drag) return;
+    const w = drag.w, over = drag.px > w - BM.r ? drag.px - (w - BM.r) : drag.px < BM.l ? drag.px - BM.l : 0;
+    if (over !== 0) {
+      const span = dom.b - dom.a;
+      const rate = Math.sign(over) * Math.min(.05, Math.pow(Math.abs(over) / 60, 2) * .02 + .004) * span; // ms of time per frame
+      if (over > 0) dom.b = Math.min(END, dom.b + rate); else dom.a = Math.max(T0, dom.a + rate);
+      if (drag.kind === 'b' && over > 0) win.b = dom.b;
+      else if (drag.kind === 'a' && over < 0) win.a = dom.a;
+      else if (drag.kind === 'pan') { const s = drag.start.b - drag.start.a; if (over > 0) { win.b = dom.b; win.a = win.b - s; } else { win.a = dom.a; win.b = win.a + s; } drag.start = { ...win }; drag.startPx = drag.px; }
+      syncInputs(); scheduleRender();
+    }
+    drawBrush();
+    raf = requestAnimationFrame(tick);
+  });
+}
+
+// ---------- inputs
+function syncInputs() { $('from').value = iso(win.a); $('to').value = iso(Math.min(win.b, END - DAY)); }
+function fromInputs() {
+  const a = Date.parse($('from').value), b = Date.parse($('to').value);
+  if (isNaN(a) || isNaN(b)) return;
+  win.a = Math.max(T0, Math.min(a, END - MIN_SPAN)); win.b = Math.min(END, Math.max(b + DAY - 1, win.a + MIN_SPAN));
+  syncInputs(); fitDom(true); commit();
+}
+for (const id of ['from', 'to']) { $(id).min = iso(T0); $(id).max = iso(END); $(id).addEventListener('change', fromInputs); }
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.preset;
+  if (k === '2000') win = { a: Date.UTC(2000, 0, 1), b: END };
+  else if (k === 'all') win = { a: T0, b: END };
+  else win = { a: END - 365 * DAY, b: END };
+  syncInputs(); fitDom(true); commit();
+}));
+function seg(onId, offId, on) { $(onId).setAttribute('aria-pressed', on); $(offId).setAttribute('aria-pressed', !on); }
+$('mode-week').onclick = () => { mode = 'week'; seg('mode-week', 'mode-ye', true); commit(); };
+$('mode-ye').onclick = () => { mode = 'ye'; seg('mode-ye', 'mode-week', true); commit(); };
+$('y-top').onclick = () => { ylog = false; seg('y-top', 'y-log', true); setYr(yr.lo, yr.hi); };
+$('y-log').onclick = () => { ylog = true; seg('y-log', 'y-top', true); setYr(yr.lo, yr.hi); };
+document.querySelectorAll('[data-yr]').forEach(b => b.addEventListener('click', () => {
+  const [lo, hi, sc] = b.dataset.yr.split(',');
+  if (sc === 'log') { ylog = true; seg('y-log', 'y-top', true); }
+  setRange(+lo, +hi);
+}));
+// a range that starts at No. 1 gets headroom above it while a momentum line is showing, so overshoots stay visible
+function setRange(lo, hi) {
+  if (trend.on && trend.mom !== 'none' && lo === 1) { const U1 = toU(hi), U0 = toU(1); lo = fromU(U0 - (U1 - U0) * .15); }
+  setYr(lo, hi);
+}
+for (const id of ['y-lo', 'y-hi']) $(id).addEventListener('change', () => {
+  let lo = Math.round(+$('y-lo').value) || 1, hi = Math.round(+$('y-hi').value) || 30;
+  if (lo > hi) [lo, hi] = [hi, lo];
+  setYr(lo, hi);
+});
+
+// on the chart: wheel over the rank axis zooms around the pointer, dragging the axis pans
+let yDrag = null;
+const inAxis = ev => { const r = chart.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top; return geo && px < M.l && py >= M.t - 6 && py <= geo.h - M.b + 6; };
+chart.addEventListener('wheel', ev => {
+  if (!inAxis(ev)) return;
+  ev.preventDefault();
+  const r = chart.getBoundingClientRect(), ua = toU(geo.Y.inv(ev.clientY - r.top)), z = Math.exp(ev.deltaY * .0015);
+  const U0 = toU(yr.lo), U1 = toU(yr.hi);
+  setYr(fromU(ua - (ua - U0) * z), fromU(ua + (U1 - ua) * z));
+}, { passive: false });
+chart.addEventListener('pointerdown', ev => {
+  if (!inAxis(ev)) return;
+  yDrag = { y: ev.clientY, U0: toU(yr.lo), U1: toU(yr.hi), hpx: geo.h - M.t - M.b };
+  chart.setPointerCapture(ev.pointerId); ev.preventDefault();
+});
+chart.addEventListener('pointermove', ev => {
+  if (yDrag) { const d = (ev.clientY - yDrag.y) / yDrag.hpx * (yDrag.U1 - yDrag.U0); setYr(fromU(yDrag.U0 - d), fromU(yDrag.U1 - d)); return; }
+  chart.style.cursor = inAxis(ev) ? 'ns-resize' : '';
+});
+chart.addEventListener('pointerup', () => { yDrag = null; });
+chart.addEventListener('dblclick', ev => { if (inAxis(ev)) setRange(1, 30); });
+$('oth-show').onclick = () => { showOthers = true; seg('oth-show', 'oth-hide', true); $('oth-alpha').disabled = false; drawChart(); };
+$('oth-hide').onclick = () => { showOthers = false; seg('oth-hide', 'oth-show', true); $('oth-alpha').disabled = true; if (hoverId && !slotOf.has(hoverId)) hoverId = null; drawChart(); };
+$('oth-alpha').oninput = e => { othersAlpha = +e.target.value; drawChart(); };
+$('ol-off').onclick = () => { outline = false; seg('ol-off', 'ol-on', true); drawChart(); };
+$('ol-on').onclick = () => { outline = true; seg('ol-on', 'ol-off', true); drawChart(); };
+
+// ---------- moving average with momentum
+// Each line is resampled to a weekly grid (lists before 1985 are irregular), smoothed in the current axis space
+// (rank, or log rank), then pushed ahead by its own momentum. Nothing pins the result at No. 1.
+const WEEK = 7 * DAY;
+const trendCache = new Map();
+function weeklyU(p) {
+  const t0 = T[p.s], tEnd = p.e + 1 < N ? T[p.e + 1] : END, n = Math.max(1, Math.floor((tEnd - t0) / WEEK));
+  const v = new Float64Array(n); let i = p.s;
+  for (let k = 0; k < n; k++) {
+    const t = t0 + k * WEEK; while (i < p.e && T[i + 1] <= t) i++;
+    const r = p.r[i - p.s]; v[k] = r ? toU(r) : NaN;
+  }
+  return { t0, v };
+}
+function movingAvg(v, n, kind) {
+  const out = new Float64Array(v.length).fill(NaN);
+  if (kind === 'ema') {
+    const a = 2 / (n + 1); let m = NaN, gap = 0;
+    for (let k = 0; k < v.length; k++) {
+      if (isNaN(v[k])) { if (++gap > n) m = NaN; continue; }
+      gap = 0; m = isNaN(m) ? v[k] : m + a * (v[k] - m); out[k] = m;
+    }
+    return out;
+  }
+  const need = Math.max(1, Math.ceil(n / 2)); // at least half the window must be ranked weeks
+  for (let k = 0; k < v.length; k++) {
+    if (isNaN(v[k])) continue;
+    let sw = 0, sv = 0, cnt = 0;
+    for (let j = 0; j < n && k - j >= 0; j++) { const x = v[k - j]; if (isNaN(x)) continue; const wt = kind === 'wma' ? n - j : 1; sw += wt; sv += wt * x; cnt++; }
+    if (cnt >= need) out[k] = sv / sw;
+  }
+  return out;
+}
+function trendSeries(p) {
+  const key = [p.id, p.ver || 0, ylog, trend.ma, trend.n, trend.mom, trend.lead].join('|');
+  if (trendCache.has(key)) return trendCache.get(key);
+  const { t0, v } = weeklyU(p), n = Math.max(2, Math.round(trend.n)), h = Math.max(0, trend.lead), L = Math.max(1, Math.round(n / 2));
+  let out;
+  if (trend.mom === 'holt') { // level + trend smoothing, projected `lead` weeks ahead
+    const a = 2 / (n + 1), b = a / 2; let lv = NaN, tr = 0, gap = 0;
+    out = new Float64Array(v.length).fill(NaN);
+    for (let k = 0; k < v.length; k++) {
+      if (isNaN(v[k])) { if (++gap > n) { lv = NaN; tr = 0; } continue; }
+      gap = 0;
+      if (isNaN(lv)) { lv = v[k]; tr = 0; } else { const prev = lv; lv = a * v[k] + (1 - a) * (lv + tr); tr = b * (lv - prev) + (1 - b) * tr; }
+      out[k] = lv + h * tr;
+    }
+  } else {
+    const m = movingAvg(v, n, trend.ma);
+    if (trend.mom === 'none') out = m;
+    else if (trend.mom === 'zerolag') { const f = movingAvg(v, L, trend.ma); out = m.map((x, k) => 2 * f[k] - x); }
+    else {
+      out = new Float64Array(v.length).fill(NaN);
+      for (let k = 0; k < v.length; k++) {
+        const x0 = m[k], x1 = m[k - L], x2 = m[k - 2 * L];
+        if (isNaN(x0)) continue;
+        if (x1 === undefined || isNaN(x1)) { out[k] = x0; continue; } // too little history yet: plain average
+        const vel = (x0 - x1) / L;
+        out[k] = trend.mom === 'slope' || x2 === undefined || isNaN(x2) ? x0 + h * vel : x0 + h * vel + .5 * h * h * (x0 - 2 * x1 + x2) / (L * L);
+      }
+    }
+  }
+  const res = { t0, v: out };
+  if (trendCache.size > 400) trendCache.clear();
+  trendCache.set(key, res); return res;
+}
+function trendAt(p, t) { const tr = trendSeries(p), k = Math.floor((t - tr.t0) / WEEK), u = tr.v[k]; return k >= 0 && k < tr.v.length && !isNaN(u) ? fromU(u) : null; }
+function syncTrendInputs() {
+  $('tr-lead').disabled = trend.mom === 'none' || trend.mom === 'zerolag';
+  $('tr-ma').disabled = trend.mom === 'holt';
+}
+function setTrend(patch) { Object.assign(trend, patch); syncTrendInputs(); drawChart(); renderSaveScope(); }
+$('tr-on').onclick = () => { seg('tr-on', 'tr-off', true); setTrend({ on: true }); if (yr.lo >= 1 && trend.mom !== 'none') setRange(1, yr.hi); };
+$('tr-off').onclick = () => { seg('tr-off', 'tr-on', true); setTrend({ on: false }); if (yr.lo < 1) setYr(1, yr.hi); };
+$('tr-ma').onchange = e => setTrend({ ma: e.target.value });
+$('tr-mom').onchange = e => { setTrend({ mom: e.target.value }); if (trend.on && trend.mom !== 'none' && yr.lo >= 1) setRange(1, yr.hi); };
+$('tr-raw').onchange = e => setTrend({ raw: e.target.value });
+$('tr-n').onchange = e => { const v = Math.min(520, Math.max(2, Math.round(+e.target.value) || 26)); e.target.value = v; setTrend({ n: v }); };
+$('tr-lead').onchange = e => { const v = Math.min(260, Math.max(0, Math.round(+e.target.value) || 0)); e.target.value = v; setTrend({ lead: v }); };
+syncTrendInputs();
+
+// ---------- groups: one line built from several players (peak = best rank any member holds that week)
+// What a group line shows each week, computed from its members' ranks that week (sorted best first).
+// `k`: takes a k parameter. `spread`: a distance in rank places rather than a rank, needs 2+ values.
+const ord = k => k + (k % 100 >= 11 && k % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[k % 10] || 'th'));
+const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+const AGGS = {
+  peak:   { cat: 'One member', label: 'Peak (best rank)', short: () => 'peak', fn: v => v[0], desc: 'The best rank any member holds that week.' },
+  kth:    { cat: 'One member', label: 'k-th best rank', short: k => `${ord(k)} best`, k: true, fn: (v, k) => v.length >= k ? v[k - 1] : 0, desc: 'The rank of the k-th best member that week (k = 2: the second-best member).' },
+  worst:  { cat: 'One member', label: 'Worst rank', short: () => 'worst', fn: v => v[v.length - 1], desc: 'The worst rank among the members that week.' },
+  avg:    { cat: 'Averages', label: 'Average (mean)', short: () => 'average', fn: v => mean(v), desc: 'Arithmetic mean of the members’ ranks.' },
+  median: { cat: 'Averages', label: 'Median', short: () => 'median', fn: v => { const n = v.length; return n % 2 ? v[n >> 1] : (v[n / 2 - 1] + v[n / 2]) / 2; }, desc: 'Middle rank; one member far down the list barely moves it.' },
+  topk:   { cat: 'Averages', label: 'Average of best k', short: k => `best-${k} avg`, k: true, fn: (v, k) => v.length >= k ? mean(v.slice(0, k)) : 0, desc: 'Mean of the k best-ranked members that week; no value when fewer than k are ranked.' },
+  geo:    { cat: 'Averages', label: 'Geometric mean', short: () => 'geo mean', fn: v => Math.exp(mean(v.map(Math.log))), desc: 'Average on a log scale: #1 vs #2 counts as much as #50 vs #100.' },
+  harm:   { cat: 'Averages', label: 'Harmonic mean', short: () => 'harm. mean', fn: v => v.length / v.reduce((x, y) => x + 1 / y, 0), desc: 'Pulled strongly toward the best-ranked member.' },
+  range:  { cat: 'Spread', label: 'Range (worst − best)', short: () => 'range', spread: true, fn: v => v.length > 1 ? v[v.length - 1] - v[0] : 0, desc: 'How many places separate the best and worst member.' },
+  std:    { cat: 'Spread', label: 'Standard deviation', short: () => 'std dev', spread: true, fn: v => { if (v.length < 2) return 0; const m = mean(v); return Math.sqrt(mean(v.map(x => (x - m) ** 2))); }, desc: 'Typical distance of a member from the group average.' },
+  gap:    { cat: 'Spread', label: 'Gap: 2nd best − best', short: () => 'lead gap', spread: true, fn: v => v.length > 1 ? v[1] - v[0] : 0, desc: 'How far ahead the best member is of the next one.' },
+};
+const MISS = { ignore: 'Leave them out', all: 'No value unless all are ranked', fill: 'Count them as rank…' };
+const gNorm = gd => ({ k: 2, miss: 'ignore', fill: 200, ...gd });
+const t10m = gd => TOP10.metrics[gd.metric] || TOP10.metrics.prev_avg;
+const gShort = gd => { if (gd.dyn) return t10m(gd).short; const g = gNorm(gd); return AGGS[g.agg].short(g.k); };
+const gDescribe = gd => { if (gd.dyn) { const m = t10m(gd); return `${m.label} (${m.unit}) of whoever is ranked 1–10 on each list`; } const g = gNorm(gd), A = AGGS[g.agg]; return `${A.k ? A.label.replace(' k', ' ' + g.k).replace('k-th', ord(g.k)) : A.label}; unranked members: ${g.miss === 'fill' ? 'counted as #' + g.fill : g.miss === 'all' ? 'value needs all ranked' : 'left out'}`; };
+// the value controls, shared by the group editor and the line-settings popover
+function groupCtlHtml(gd, row) {
+  if (gd.dyn) { // Top 10: ranks are always 1-10, so the line plots a property of the players instead
+    const m = t10m(gd);
+    return `${row('Line shows', `<select data-g="metric" aria-label="Top 10 metric">${Object.entries(TOP10.metrics).map(([k, v]) => `<option value="${k}"${k === gd.metric ? ' selected' : ''}>${esc(v.label)} (${esc(v.unit)})</option>`).join('')}</select>`)}
+    <div class="ge-note">${esc(m.desc)}${m.unit === 'rank' ? '' : ` Plotted as a number of ${esc(m.unit)} on the rank axis.`}</div>`;
+  }
+  const g = gNorm(gd), A = AGGS[g.agg], cats = [...new Set(Object.values(AGGS).map(a => a.cat))];
+  return `${row('Line shows', `<select data-g="agg" aria-label="Group value">${cats.map(c => `<optgroup label="${c}">${Object.entries(AGGS).filter(([, a]) => a.cat === c).map(([k, a]) => `<option value="${k}"${k === g.agg ? ' selected' : ''}>${a.label}</option>`).join('')}</optgroup>`).join('')}</select>`)}
+    ${A.k ? row('k', `<input type="number" data-g="k" min="1" max="50" step="1" value="${g.k}" aria-label="k">`) : ''}
+    ${row('Unranked', `<select data-g="miss" aria-label="Members not ranked that week">${Object.entries(MISS).map(([k, v]) => `<option value="${k}"${k === g.miss ? ' selected' : ''}>${v}</option>`).join('')}</select>`)}
+    ${g.miss === 'fill' ? row('as rank', `<input type="number" data-g="fill" min="1" max="2000" step="1" value="${g.fill}" aria-label="Rank used for unranked members">`) : ''}
+    <div class="ge-note">${esc(A.desc)}${A.spread ? ' Plotted in rank places on the same axis.' : ''}</div>`;
+}
+function wireGroupCtl(root, gd, changed) {
+  root.querySelectorAll('[data-g]').forEach(el => el.onchange = () => {
+    const k = el.dataset.g;
+    if (k === 'agg' || k === 'miss' || k === 'metric') gd[k] = el.value;
+    else gd[k] = Math.min(+el.max, Math.max(+el.min, Math.round(+el.value) || +el.min));
+    changed();
+  });
+}
+const GKEY = 'atp-explorer-groups-v1';
+const DEFAULT_GROUPS = [{ id: 'G1', name: 'Big 3', members: ['F324', 'N409', 'D643'], agg: 'peak' }];
+function saveGroups() { try { localStorage.setItem(GKEY, JSON.stringify({ groups })); } catch (e) { /* storage unavailable: groups last for this visit */ } }
+function loadGroups() {
+  try { const d = JSON.parse(localStorage.getItem(GKEY)); if (d && Array.isArray(d.groups)) return d.groups.filter(g => g && Array.isArray(g.members) && (g.dyn ? g.dyn === 'top10' && TOP10 && TOP10.metrics[g.metric] : /^G\d+$/.test(g.id) && AGGS[g.agg])); } catch (e) { /* fall through */ }
+  return null;
+}
+function buildGroup(gd) {
+  if (gd.dyn) return buildTop10(gd);
+  const ps = gd.members.map(id => byId.get(id)).filter(p => p && !p.isGroup);
+  const g = gNorm(gd), A = AGGS[g.agg] || AGGS.peak;
+  const prev = byId.get(gd.id);
+  const obj = { id: gd.id, n: gd.name, isGroup: true, gd, ver: (prev?.ver || 0) + 1, c: '', ye: {}, t20: [], p: {}, key: gd.name.toLowerCase(), s: 0, e: 0, r: [0], hi: 9999, w1: 0, w20: 0 };
+  if (ps.length) {
+    const s0 = Math.min(...ps.map(p => p.s)), e0 = Math.max(...ps.map(p => p.e)), r = new Array(e0 - s0 + 1);
+    let hi = Infinity, d1 = 0, d20 = 0;
+    for (let i = s0; i <= e0; i++) {
+      const vals = []; let missing = 0, real = 0;
+      for (const p of ps) { const x = rankAt(p, i); if (x) { vals.push(x); real++; } else { missing++; if (g.miss === 'fill') vals.push(g.fill); } }
+      let v = 0;
+      // a week needs at least one member actually ranked (so "count as rank" doesn't draw before or after every career)
+      if (real && !(g.miss === 'all' && missing)) {
+        vals.sort((a, b) => a - b);
+        v = Math.round((A.fn(vals, g.k) || 0) * 100) / 100; // 0 = no value this week
+        if (v) { hi = Math.min(hi, v); if (v <= 1) d1 += DATA.dur[i]; if (v <= 20) d20 += DATA.dur[i]; }
+      }
+      r[i - s0] = v;
+    }
+    Object.assign(obj, { s: s0, e: e0, r, hi: hi === Infinity ? 9999 : hi, w1: d1 / 7, w20: d20 / 7 });
+  }
+  byId.set(gd.id, obj);
+  return obj;
+}
+// Top 10: membership changes every list; values come precomputed from top10_metrics.py
+const T10_AT = TOP10 ? new Map(TOP10.dates.map((d, k) => [d, k])) : null;
+function buildTop10(gd) {
+  const m = t10m(gd), prev = byId.get(gd.id), r = new Array(N).fill(0);
+  let hi = Infinity;
+  for (let i = 0; i < N; i++) {
+    const k = T10_AT.get(DATA.dates[i]), v = k == null ? null : m.values[k];
+    if (v == null) continue;
+    r[i] = v === 0 ? EPS : v; hi = Math.min(hi, r[i]);
+  }
+  const obj = { id: gd.id, n: gd.name, isGroup: true, dyn: true, gd, ver: (prev?.ver || 0) + 1, c: '', ye: {}, t20: [], p: {}, key: gd.name.toLowerCase(),
+    s: 0, e: N - 1, r, hi: hi === Infinity ? 9999 : +hi.toFixed(2), w1: 0, w20: 0 };
+  byId.set(gd.id, obj);
+  return obj;
+}
+const top10Names = i => { const k = T10_AT?.get(DATA.dates[i]); return k == null ? [] : TOP10.members[k].map(id => TOP10.names[id] || id); };
+function refreshGroup(gd) { buildGroup(gd); saveGroups(); renderLegend(); renderPop(); drawChart(); }
+
+// group editor
+let geEl = null;
+const nameToId = new Map(P.map(p => [p.n.toLowerCase(), p.id]));
+function closeGE() { if (geEl) geEl.remove(); geEl = null; }
+function openGroupEditor(gid) {
+  closePop(); closeGE();
+  const src = gid ? groups.find(g => g.id === gid) : null;
+  const draft = src ? { ...src, members: [...src.members] } : { id: null, name: '', members: selected.filter(id => !byId.get(id)?.isGroup), agg: 'peak', k: 2, miss: 'ignore', fill: 200 };
+  let err = '';
+  geEl = document.createElement('div'); geEl.className = 'linepop groupedit'; geEl.setAttribute('role', 'dialog'); geEl.setAttribute('aria-label', src ? 'Edit group' : 'New group');
+  geEl.addEventListener('click', e => e.stopPropagation());
+  document.body.appendChild(geEl);
+  const selPlayers = () => selected.filter(id => !byId.get(id)?.isGroup && !draft.members.includes(id));
+  const render = () => {
+    const extra = selPlayers().length;
+    geEl.innerHTML = `<h3><span>${src ? 'Edit group' : 'New group'}</span><button type="button" class="x" data-act="close" aria-label="Close">×</button></h3>
+      <label class="row2"><span>Name</span><input type="text" id="ge-name" maxlength="40" placeholder="e.g. Big 3" value="${esc(draft.name)}"></label>
+      ${groupCtlHtml(draft, (lab, ctl) => `<label class="row2"><span>${lab}</span>${ctl}</label>`)}
+      <div class="lbl">Members (${draft.members.length})</div>
+      <div class="ge-members">${draft.members.map(id => `<span>${esc(byId.get(id)?.n || id)}<button type="button" class="x" data-rm="${esc(id)}" aria-label="Remove">×</button></span>`).join('') || '<span class="ge-note" style="border:0;background:none;padding:0">No members yet.</span>'}</div>
+      <input list="ge-list" id="ge-add" placeholder="Add a player: type a name…" autocomplete="off">
+      <datalist id="ge-list">${ALPHA.map(p => `<option value="${esc(p.n)}">`).join('')}</datalist>
+      ${extra ? `<button type="button" class="chip-btn" data-act="addsel">+ Add the ${extra} selected player${extra > 1 ? 's' : ''}</button>` : ''}
+      ${err ? `<div class="err">${esc(err)}</div>` : ''}
+      <div class="foot">${src ? '<button type="button" class="chip-btn" data-act="delete">Delete group</button>' : '<span></span>'}<span style="display:flex;gap:6px"><button type="button" class="chip-btn" data-act="close">Cancel</button><button type="button" class="chip-btn" data-act="save" style="border-style:solid;color:var(--ink)">Save</button></span></div>`;
+    geEl.querySelector('#ge-name').oninput = e => { draft.name = e.target.value; };
+    wireGroupCtl(geEl, draft, render);
+    geEl.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { draft.members = draft.members.filter(x => x !== b.dataset.rm); render(); });
+    const add = geEl.querySelector('#ge-add');
+    add.onchange = () => { const id = nameToId.get(add.value.trim().toLowerCase()); if (id && !draft.members.includes(id)) { draft.members.push(id); err = ''; render(); geEl.querySelector('#ge-add').focus(); } else if (!id) { err = `No player named “${add.value}”.`; render(); } };
+    const as = geEl.querySelector('[data-act=addsel]'); if (as) as.onclick = () => { draft.members.push(...selPlayers()); render(); };
+    geEl.querySelectorAll('[data-act=close]').forEach(b => b.onclick = closeGE);
+    const del = geEl.querySelector('[data-act=delete]');
+    if (del) del.onclick = () => {
+      if (slotOf.has(src.id)) toggle(src.id);
+      groups = groups.filter(g => g.id !== src.id); byId.delete(src.id); saveGroups(); closeGE(); renderLegend(); drawChart();
+    };
+    geEl.querySelector('[data-act=save]').onclick = () => {
+      draft.name = draft.name.trim();
+      if (!draft.members.length) { err = 'Add at least one player.'; render(); return; }
+      if (!draft.name) draft.name = `Group ${groups.length + 1}`;
+      if (src) { Object.assign(src, { name: draft.name, members: draft.members, agg: draft.agg, k: draft.k, miss: draft.miss, fill: draft.fill }); closeGE(); refreshGroup(src); }
+      else {
+        const gd = { id: 'G' + ++groupSeq, name: draft.name, members: draft.members, agg: draft.agg, k: draft.k, miss: draft.miss, fill: draft.fill };
+        groups.push(gd); buildGroup(gd); saveGroups(); closeGE(); toggle(gd.id, true);
+      }
+    };
+  };
+  render();
+  const lb = document.querySelector('.legendbox').getBoundingClientRect(), pw = geEl.offsetWidth;
+  const besideOk = lb.right + pw + 16 < innerWidth && getComputedStyle($('legend')).flexDirection === 'column';
+  geEl.style.left = (besideOk ? lb.right + 8 : Math.max(8, Math.min(innerWidth - pw - 8, lb.left))) + 'px';
+  geEl.style.top = Math.max(8, Math.min(innerHeight - geEl.offsetHeight - 8, besideOk ? Math.max(lb.top, 8) : lb.bottom + 6)) + 'px';
+  geEl.querySelector('#ge-name').focus();
+}
+document.addEventListener('click', e => { if (geEl && !geEl.contains(e.target)) closeGE(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && geEl) closeGE(); });
+
+// ---------- selection
+function toggle(id, forceOn) {
+  $('ppreset').value = '';
+  if (slotOf.has(id)) { if (forceOn) return; slotOf.delete(id); selected = selected.filter(x => x !== id); if (popIds.includes(id)) { popIds = popIds.filter(x => x !== id); if (!popIds.length) closePop(); else renderPop(); } }
+  else {
+    if (selected.length >= MAXSEL) { const drop = selected.shift(); slotOf.delete(drop); }
+    const used = new Set(slotOf.values()); let s = 1; while (used.has(s)) s++;
+    slotOf.set(id, s); selected.push(id);
+  }
+  renderLegend(); renderTable(); drawChart();
+}
+// legend swatch: a short stroke drawn with the player's own colour, opacity, width and dash
+function swatchSvg(id) {
+  const st = styleOf(id), w = Math.min(st.width, 6);
+  const dash = st.dash === 'dashed' ? `${Math.max(3, w * 1.6)} ${Math.max(2, w * 1.2)}` : st.dash === 'dotted' ? `0.1 ${Math.max(2.5, w * 1.8)}` : '';
+  return `<svg class="sw" viewBox="0 0 24 12" aria-hidden="true"><line x1="${w / 2 + 1}" y1="6" x2="${23 - w / 2}" y2="6" stroke="${colorOf(id)}" stroke-width="${w}" stroke-linecap="round" stroke-opacity="${st.alpha}"${dash ? ` stroke-dasharray="${dash}"` : ''}/></svg>`;
+}
+function tagHtml(id) {
+  const p = byId.get(id), on = slotOf.has(id);
+  const meta = p.isGroup ? `${gShort(p.gd)} · ${p.dyn ? 'top 10' : p.gd.members.length}` : `#${p.hi}${p.w1 ? ` · ${Math.round(p.w1)}w` : ''}`;
+  const metaTitle = p.isGroup ? (p.dyn ? `${gDescribe(p.gd)}. ${t10m(p.gd).desc}` : `${gDescribe(p.gd)}. Members: ${p.gd.members.map(m => byId.get(m)?.n || m).join(', ')}`) : `Career high${p.w1 ? ', weeks at No. 1' : ''}`;
+  if (!on) return `<span class="tag grp off"><button type="button" class="tag-btn" data-id="${esc(id)}" data-off title="Show ${esc(p.n)}"><svg class="sw" viewBox="0 0 24 12" aria-hidden="true"><line x1="2" y1="6" x2="22" y2="6" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3"/></svg><span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">hidden</span></button></span>`;
+  return `<span class="tag${p.isGroup ? ' grp' : ''}"${popIds.includes(id) ? ' data-open' : ''}><button type="button" class="tag-btn" data-id="${esc(id)}" aria-haspopup="dialog" title="Line settings for ${esc(p.n)} (Ctrl+click to edit several)">${swatchSvg(id)}<span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">${esc(meta)}</span></button><button class="x" data-id="${esc(id)}" aria-label="${p.isGroup ? 'Hide' : 'Remove'} ${esc(p.n)}">×</button></span>`;
+}
+function renderLegend() {
+  const L = $('legend'), keep = L.scrollTop;
+  $('selcount').textContent = selected.length ? `(${selected.length})` : '';
+  $('clear').hidden = selected.length < 2;
+  renderSaveScope();
+  const players = selected.filter(id => !byId.get(id)?.isGroup).sort(bySeniority);
+  L.innerHTML = `<div class="lg-sec"><span>Groups</span><button type="button" class="chip-btn" id="newgroup">+ New group</button></div>` +
+    (groups.length ? groups.map(g => tagHtml(g.id)).join('') : '<span class="hint">No groups. A group draws one line from several players.</span>') +
+    `<div class="lg-sec"><span>Players</span></div>` +
+    (players.length ? players.map(tagHtml).join('') : '<span class="hint">Click a line or a row to highlight a player, or pick a player group above.</span>');
+  L.scrollTop = keep;
+  $('newgroup').onclick = e => { e.stopPropagation(); openGroupEditor(null); };
+  L.querySelectorAll('.x').forEach(b => b.onclick = () => toggle(b.dataset.id));
+  L.querySelectorAll('.tag-btn').forEach(b => {
+    b.onmousedown = e => { if (e.shiftKey) e.preventDefault(); };
+    b.onclick = e => { e.stopPropagation(); if (b.hasAttribute('data-off')) toggle(b.dataset.id, true); else legendClick(b.dataset.id, e); };
+  });
+}
+function clearSelection() { selected = []; slotOf.clear(); closePop(); renderLegend(); renderTable(); drawChart(); }
+$('clear').onclick = () => { $('ppreset').value = ''; clearSelection(); };
+
+const hexCtx = document.createElement('canvas').getContext('2d');
+function toHex(c) { hexCtx.fillStyle = '#888888'; hexCtx.fillStyle = c; return /^#[0-9a-f]{6}$/i.test(hexCtx.fillStyle) ? hexCtx.fillStyle : '#888888'; }
+
+// ---------- player groups
+const rankAt = (p, i) => i >= p.s && i <= p.e ? p.r[i - p.s] || 0 : 0;
+const GROUPS = {
+  big3: { ids: () => ['F324', 'N409', 'D643'] },
+  big4: { ids: () => ['F324', 'N409', 'D643', 'MC10'] },
+  no1: { ids: () => P.filter(p => p.hi === 1).map(p => p.id), from: T0 },
+  'no1-2000': { ids: () => { const i0 = lastIdxAtOrBefore(Date.UTC(2000, 0, 1)); return P.filter(p => p.hi === 1 && p.r.some((r, k) => r === 1 && p.s + k >= i0)).map(p => p.id); }, from: Date.UTC(2000, 0, 1) },
+  top10: { ids: () => P.filter(p => { const r = rankAt(p, N - 1); return r && r <= 10; }).map(p => p.id) },
+  ye1: { ids: () => P.filter(p => Object.entries(p.ye).some(([y, r]) => r === 1 && FINAL.has(+y))).map(p => p.id), from: T0 },
+};
+function applyGroup(key) {
+  const g = GROUPS[key]; if (!g) return;
+  const ids = g.ids().filter(id => byId.has(id)).sort(bySeniority).slice(0, MAXSEL);
+  const keep = selected.filter(id => byId.get(id)?.isGroup); // group lines stay on
+  selected = []; slotOf.clear(); closePop();
+  [...keep, ...ids].slice(0, MAXSEL).forEach((id, k) => { slotOf.set(id, k + 1); selected.push(id); });
+  // fit the window to the group: from the January before the earliest member's first top-20 week, to the latest list
+  const first = Math.min(...ids.map(id => Date.parse(byId.get(id).p.first_top20) || T0));
+  win = { a: Math.max(T0, g.from ?? Date.UTC(new Date(first).getUTCFullYear(), 0, 1)), b: END }; syncInputs(); fitDom(true);
+  commit(); renderLegend();
+  if (ids[0]) focus(ids[0]);
+}
+$('ppreset').onchange = e => applyGroup(e.target.value);
+
+// ---------- save / export (current selection, current window)
+function renderSaveScope() {
+  const n = selected.length;
+  const ng = selected.filter(id => byId.get(id)?.isGroup).length, np = n - ng;
+  const what = [np ? `${np} player${np > 1 ? 's' : ''}` : '', ng ? `${ng} group${ng > 1 ? 's' : ''}` : ''].filter(Boolean).join(' + ');
+  $('save-scope').textContent = n ? `${what}, ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}${trend.on ? ', with trend' : ''}` : 'Select players or groups to export their data.';
+  document.querySelectorAll('[data-save]').forEach(b => b.disabled = !n);
+}
+const csvCell = v => v == null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+function download(name, data, type) {
+  const url = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  if (!url.startsWith('data:')) setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportRows() {
+  const [i0, i1] = windowIdx(), ids = [...selected].sort(bySeniority), only = $('save-ranked').checked, idx = [];
+  for (let i = i0; i <= i1; i++) if (!only || ids.some(id => rankAt(byId.get(id), i))) idx.push(i);
+  return { i0, i1, ids, idx };
+}
+function save(kind) {
+  if (!selected.length) return;
+  const { i0, i1, ids, idx } = exportRows(), ps = ids.map(id => byId.get(id));
+  const stem = `atp_${ids.length === 1 ? ps[0].n.replace(/\W+/g, '_') : ids.length + 'lines'}_${iso(win.a)}_${iso(Math.min(win.b, END - DAY))}`;
+  const stat = p => statsFor(p, i0, i1);
+    const tv = (p, i) => { if (!trend.on) return null; const v = trendAt(p, T[i]); return v == null ? '' : +v.toFixed(2); };
+  if (kind === 'wide') download(stem + '_weekly.csv', toCsv([['date', ...ps.map(p => p.n), ...(trend.on ? ps.map(p => p.n + ' (trend)') : [])],
+    ...idx.map(i => [iso(T[i]), ...ps.map(p => rankAt(p, i) || ''), ...(trend.on ? ps.map(p => tv(p, i)) : [])])]), 'text/csv');
+  else if (kind === 'long') download(stem + '_weekly_long.csv', toCsv([['date', 'player_id', 'name', 'rank'], ...idx.flatMap(i => ps.filter(p => rankAt(p, i)).map(p => [iso(T[i]), p.id, p.n, rankAt(p, i)]))]), 'text/csv');
+  else if (kind === 'summary') download(stem + '_summary.csv', toCsv([
+    ['id', 'type', 'name', 'country', 'career_high', 'career_high_first_date', 'weeks_at_no1', 'weeks_in_top20_career', 'best_in_window', 'weeks_in_top20_in_window', 'first_top20', 'last_top20', 'year_end_top20_finishes', 'group_value', 'group_members'],
+    ...ps.map(p => { const s = stat(p); return [p.id, p.isGroup ? 'group' : 'player', p.n, p.c, p.hi, p.p.career_high_first_date, +p.w1.toFixed(1), +p.w20.toFixed(1), s.best, +s.w20.toFixed(1), p.p.first_top20, p.p.last_top20, Object.entries(p.ye).map(([y, r]) => `${y}:${r}`).join(' '),
+      p.isGroup ? gDescribe(p.gd) : '', p.isGroup ? (p.dyn ? 'ranked 1-10 on each list' : p.gd.members.map(m => byId.get(m)?.n || m).join('; ')) : '']; })]), 'text/csv');
+  else if (kind === 'json') download(stem + '.json', JSON.stringify({
+    source: 'ATP Top 20 Explorer', exported: new Date().toISOString(), data_generated: DATA.generated,
+    window: { from: iso(win.a), to: iso(Math.min(win.b, END - DAY)), who_counts: mode === 'week' ? 'top 20 any week' : 'year-end top 20' },
+    players: ps.map(p => { const s = stat(p); return { id: p.id, name: p.n, country: p.c, career_high: p.hi, weeks_at_no1: p.w1, weeks_in_top20_career: p.w20, best_in_window: s.best, weeks_in_top20_in_window: +s.w20.toFixed(1), line: { ...styleOf(p.id), color: colorOf(p.id) }, ...(p.isGroup ? { type: 'group', value: p.dyn ? { metric: p.gd.metric, unit: t10m(p.gd).unit, description: gDescribe(p.gd) } : (({ agg, k, miss, fill }) => ({ agg, k, miss, fill, description: gDescribe(p.gd) }))(gNorm(p.gd)), members: p.dyn ? 'ranked 1-10 on each list' : p.gd.members.map(m => ({ id: m, name: byId.get(m)?.n })) } : { type: 'player', profile: p.p }) }; }),
+    trend: trend.on ? { average: trend.ma, period_weeks: trend.n, momentum: trend.mom, lead_weeks: trend.lead, axis: ylog ? 'log rank' : 'rank' } : null,
+    trend_values: trend.on ? Object.fromEntries(ps.map(p => [p.id, idx.map(i => { const v = trendAt(p, T[i]); return v == null ? null : +v.toFixed(3); })])) : undefined,
+    dates: idx.map(i => iso(T[i])),
+    ranks: Object.fromEntries(ps.map(p => [p.id, idx.map(i => rankAt(p, i) || null)])),
+  }, null, 1), 'application/json');
+  else if (kind === 'png') download(stem + '.png', chartPng(ps), 'image/png');
+}
+function chartPng(ps) {
+  const dpr = chart.width / chart.clientWidth || 1, LW = 200, TH = 34, w = chart.clientWidth, rowH = 18;
+  const h = Math.max(chart.clientHeight, ps.length * rowH + 16) + TH;
+  const cv = document.createElement('canvas'); cv.width = Math.round((LW + w) * dpr); cv.height = Math.round(h * dpr);
+  const g = cv.getContext('2d'); g.scale(dpr, dpr);
+  g.fillStyle = css('--panel'); g.fillRect(0, 0, LW + w, h);
+  g.fillStyle = css('--ink'); g.textBaseline = 'middle'; g.font = '600 15px ' + css('--body');
+  g.fillText(`ATP rankings · ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}`, 12, TH / 2);
+  g.drawImage(chart, LW, TH, w, chart.clientHeight);
+  g.font = '12.5px ' + css('--body');
+  ps.forEach((p, k) => {
+    const y = TH + 10 + k * rowH, st = styleOf(p.id);
+    g.globalAlpha = st.alpha; g.strokeStyle = colorOf(p.id); g.lineWidth = Math.max(2, st.width); g.lineCap = 'round';
+    g.setLineDash(dashFor(st.dash, Math.max(2, st.width))); g.beginPath(); g.moveTo(12, y); g.lineTo(28, y); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+    let nm = p.n; while (nm.length > 3 && g.measureText(nm).width > LW - 100) nm = nm.slice(0, -2) + '…';
+    g.fillStyle = css('--ink'); g.fillText(nm, 36, y);
+    g.fillStyle = css('--ink-3'); g.textAlign = 'right'; g.fillText(`#${p.hi}${p.w1 ? ' · ' + Math.round(p.w1) + 'w' : ''}`, LW - 8, y); g.textAlign = 'left';
+  });
+  return cv.toDataURL('image/png');
+}
+document.querySelectorAll('[data-save]').forEach(b => b.onclick = () => save(b.dataset.save));
+
+// ---------- line settings popover: one player, or several (Ctrl/Cmd+click to add, Shift+click for a range)
+let popIds = [], popEl = null, popAnchor = null;
+const legendOrder = () => [...selected].sort(bySeniority); // groups first, then players: the order shown
+const patchAll = patch => popIds.forEach(id => lineStyle.set(id, { ...lineStyle.get(id), ...patch }));
+function setStyle(patch) { patchAll(patch); renderLegend(); renderTable(); drawChart(); renderPop(); }
+function closePop() { if (popEl) popEl.remove(); popEl = null; const had = popIds.length; popIds = []; if (had) renderLegend(); }
+function legendClick(id, e) {
+  if (e.ctrlKey || e.metaKey) popIds = popIds.includes(id) ? popIds.filter(x => x !== id) : [...popIds, id];
+  else if (e.shiftKey && popAnchor && selected.includes(popAnchor)) {
+    const o = legendOrder(), i = o.indexOf(popAnchor), j = o.indexOf(id);
+    popIds = o.slice(Math.min(i, j), Math.max(i, j) + 1);
+  } else popIds = popIds.length === 1 && popIds[0] === id ? [] : [id];
+  if (!e.shiftKey) popAnchor = id;
+  if (!popIds.length) { closePop(); return; }
+  if (!popEl) {
+    popEl = document.createElement('div'); popEl.className = 'linepop'; popEl.setAttribute('role', 'dialog');
+    popEl.addEventListener('click', e => e.stopPropagation());
+    document.body.appendChild(popEl);
+  }
+  renderLegend(); renderPop(); placePop(id);
+}
+function placePop(id) {
+  const tag = document.querySelector(`#legend .tag-btn[data-id="${CSS.escape(id)}"]`)?.closest('.tag') || document.querySelector('#legend .tag[data-open]');
+  if (!tag || !popEl) return;
+  const r = tag.getBoundingClientRect(), pw = popEl.offsetWidth;
+  const beside = getComputedStyle($('legend')).flexDirection === 'column' && r.right + pw + 16 < innerWidth;
+  popEl.style.left = (beside ? r.right + 8 : Math.max(8, Math.min(innerWidth - pw - 8, r.left))) + 'px';
+  popEl.style.top = Math.max(8, Math.min(innerHeight - popEl.offsetHeight - 8, beside ? r.top - 8 : r.bottom + 6)) + 'px';
+}
+function renderPop() {
+  if (!popEl || !popIds.length) return;
+  const ids = popIds, multi = ids.length > 1, sts = ids.map(styleOf), cols = ids.map(colorOf);
+  const same = k => sts.every(st => st[k] === sts[0][k]), st = sts[0], c = cols[0];
+  const sameCol = cols.every(x => x === c);
+  const slots = [1, 2, 3, 4, 5, 6, 7, 8].map(slotColor);
+  const names = ids.map(id => byId.get(id).n);
+  const short = names.map(n => n.split(' ').slice(-1)[0]);
+  const list = short.length > 6 ? short.slice(0, 6).join(', ') + ` +${short.length - 6}` : short.join(', ');
+  const out = k => !same(k) ? 'mixed' : k === 'alpha' ? Math.round(st.alpha * 100) + '%' : st.width + 'px';
+  popEl.setAttribute('aria-label', `Line settings for ${names.join(', ')}`);
+  popEl.innerHTML = `<h3><span>${multi ? `${ids.length} lines` : esc(names[0])}</span><button type="button" class="x" data-act="close" aria-label="Close">×</button></h3>
+    ${multi ? `<div class="pop-sub">${esc(list)}</div>` : ''}
+    <canvas class="preview" style="height:${Math.min(ids.length, 6) * 9 + 13}px"></canvas>
+    <label class="row"><span>Opacity</span><input type="range" data-k="alpha" min="0.05" max="1" step="0.05" value="${st.alpha}"><output>${out('alpha')}</output></label>
+    <label class="row"><span>Width</span><input type="range" data-k="width" min="0.5" max="6" step="0.25" value="${st.width}"><output>${out('width')}</output></label>
+    <div class="row" style="grid-template-columns:62px 1fr"><span>Style</span><div class="seg" role="group" aria-label="Line style">${['solid', 'dashed', 'dotted'].map(d => `<button type="button" data-dash="${d}" aria-pressed="${same('dash') && st.dash === d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join('')}</div></div>
+    <div class="row" style="grid-template-columns:62px 1fr"><span>Colour</span><div class="swatches">${slots.map(s => `<button type="button" data-color="${s}" style="background:${s}" aria-pressed="${sameCol && s === c}" aria-label="Colour ${s}"></button>`).join('')}<input type="color" value="${toHex(c)}" aria-label="Custom colour"></div></div>
+    ${!multi && byId.get(ids[0]).isGroup ? `${groupCtlHtml(byId.get(ids[0]).gd, (lab, ctl) => `<label class="row" style="grid-template-columns:62px 1fr"><span>${lab}</span>${ctl}</label>`)}
+    ${byId.get(ids[0]).dyn ? `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:12px">Whoever is ranked 1–10 on each list (hover the line to see them)</span></div>` : `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:12px">${esc(byId.get(ids[0]).gd.members.map(m => (byId.get(m)?.n || m).split(' ').slice(-1)[0]).join(', '))} <button type="button" class="chip-btn" data-act="editgroup" style="margin-left:4px">Edit…</button></span></div>`}` : ''}
+    <div class="foot"><button type="button" class="chip-btn" data-act="reset">${multi ? 'Reset all' : 'Reset'}</button><button type="button" class="chip-btn" data-act="close">Done</button></div>
+    <div class="pop-hint">Ctrl+click bubbles to edit several · Shift+click for a range</div>`;
+  popEl.querySelectorAll('input[type=range]').forEach(inp => inp.oninput = () => {
+    const k = inp.dataset.k, v = +inp.value; patchAll({ [k]: v });
+    inp.nextElementSibling.textContent = k === 'alpha' ? Math.round(v * 100) + '%' : v + 'px';
+    renderLegend(); drawChart(); drawPreview();
+  });
+  popEl.querySelectorAll('[data-dash]').forEach(b => b.onclick = () => setStyle({ dash: b.dataset.dash }));
+  popEl.querySelectorAll('[data-color]').forEach(b => b.onclick = () => setStyle({ color: b.dataset.color }));
+  const ci = popEl.querySelector('input[type=color]');
+  ci.oninput = e => { patchAll({ color: e.target.value }); renderLegend(); renderTable(); drawChart(); drawPreview(); };
+  ci.onchange = () => renderPop();
+  popEl.querySelector('[data-act=reset]').onclick = () => { popIds.forEach(id => lineStyle.delete(id)); renderLegend(); renderTable(); drawChart(); renderPop(); };
+  popEl.querySelectorAll('[data-act=close]').forEach(b => b.onclick = closePop);
+  if (!multi && byId.get(ids[0]).isGroup) { const gd = byId.get(ids[0]).gd; wireGroupCtl(popEl, gd, () => refreshGroup(gd)); }
+  const eg = popEl.querySelector('[data-act=editgroup]'); if (eg) eg.onclick = () => openGroupEditor(ids[0]);
+  drawPreview();
+}
+function drawPreview() {
+  const cv = popEl?.querySelector('.preview'); if (!cv) return;
+  const { g, w, h } = setup(cv), ids = popIds.slice(0, 6);
+  g.clearRect(0, 0, w, h); g.lineCap = 'round';
+  ids.forEach((id, k) => {
+    const st = styleOf(id), y = ids.length === 1 ? h / 2 : 6 + k * (h - 12) / (ids.length - 1);
+    g.globalAlpha = st.alpha; g.setLineDash(dashFor(st.dash, st.width)); g.strokeStyle = colorOf(id); g.lineWidth = st.width;
+    g.beginPath(); g.moveTo(6, y); g.lineTo(w - 6, y); g.stroke();
+  });
+  g.globalAlpha = 1; g.setLineDash([]);
+}
+document.addEventListener('click', e => { if (popEl && !popEl.contains(e.target)) closePop(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && popEl) closePop(); });
+addEventListener('scroll', () => { if (popEl) closePop(); }, { passive: true });
+
+// ---------- table + finders
+function renderTable() {
+  const rows = [...inWin];
+  const k = sortK, d = sortDir;
+  rows.sort((A, B) => {
+    if (k === 'name') return d * A.p.key.localeCompare(B.p.key);
+    const va = k === 'best' ? A.best : k === 'w20' ? -A.w20 : A.p.hi, vb = k === 'best' ? B.best : k === 'w20' ? -B.w20 : B.p.hi;
+    return d * ((va ?? 1e9) - (vb ?? 1e9)) || A.p.key.localeCompare(B.p.key);
+  });
+  $('rows').innerHTML = rows.map(({ p, best, w20 }) => `<tr data-id="${esc(p.id)}" class="${p.id === focusId ? 'focus' : ''}">
+    <td><span class="sel" style="${slotOf.has(p.id) ? `background:${colorOf(p.id)};border-color:${colorOf(p.id)}` : ''}"></span>${esc(p.n)}<span class="country">${esc(p.c || '')}</span></td>
+    <td class="num">${best ?? '—'}</td><td class="num">${w20.toFixed(w20 < 10 ? 1 : 0)}</td><td class="num">${p.hi}</td></tr>`).join('');
+  document.querySelectorAll('th[data-k]').forEach(th => { if (th.dataset.k === sortK) th.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort'); });
+}
+$('rows').addEventListener('click', e => { const tr = e.target.closest('tr'); if (!tr) return; toggle(tr.dataset.id); focus(tr.dataset.id); });
+document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => { if (sortK === th.dataset.k) sortDir *= -1; else { sortK = th.dataset.k; sortDir = 1; } renderTable(); }));
+
+function renderPick() {
+  const ids = new Set(inWin.map(x => x.p.id));
+  const sel = $('pick');
+  sel.innerHTML = `<option value="">${inWin.length} players in this window…</option>` +
+    ALPHA.filter(p => ids.has(p.id)).map(p => `<option value="${esc(p.id)}">${esc(p.n)}${p.c ? ' · ' + esc(p.c) : ''}</option>`).join('');
+}
+$('pick').addEventListener('change', e => { const id = e.target.value; if (id) { toggle(id, true); focus(id); } e.target.value = ''; });
+
+// searchable list: players in window first, everyone else in the data set below (picking one widens the window to include them)
+const find = $('find'), list = $('find-list');
+let opts = [], active = -1;
+function renderFind() {
+  const q = find.value.trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const ids = new Set(inWin.map(x => x.p.id));
+  const match = p => !q || p.key.includes(q);
+  const a = ALPHA.filter(p => ids.has(p.id) && match(p)), b = q ? ALPHA.filter(p => !ids.has(p.id) && match(p)) : [];
+  opts = [...a, ...b];
+  let html = '', last = '';
+  a.forEach((p, i) => { const L = p.key[0].toUpperCase(); if (!q && L !== last) { html += `<li class="letter" role="presentation">${L}</li>`; last = L; } html += opt(p, i, false); });
+  if (b.length) { html += `<li class="letter" role="presentation">Outside this window</li>`; b.forEach((p, j) => html += opt(p, a.length + j, true)); }
+  list.innerHTML = html || '<li class="empty">No player matches.</li>';
+  active = Math.min(active, opts.length - 1);
+}
+function opt(p, i, out) { const span = `${p.p.first_top20?.slice(0, 4) ?? ''}–${p.p.last_top20?.slice(0, 4) ?? ''}`; return `<li role="option" id="o${i}" data-i="${i}" class="${out ? 'out' : ''}" aria-selected="${i === active}"><span class="n">${esc(p.n)}</span><span class="m">${esc(p.c || '')} ${span}</span></li>`; }
+function openFind() { list.hidden = false; find.setAttribute('aria-expanded', 'true'); renderFind(); }
+function closeFind() { list.hidden = true; find.setAttribute('aria-expanded', 'false'); active = -1; }
+function choose(i) {
+  const p = opts[i]; if (!p) return;
+  if (!inWin.some(x => x.p.id === p.id)) { // widen the window to cover this player's top-20 years
+    const s = T[p.t20[0][0]], e = Math.min(END, T[p.t20[p.t20.length - 1][1]] + 7 * DAY);
+    win = { a: Math.min(win.a, s), b: Math.max(win.b, e) }; syncInputs(); fitDom(true); commit();
+  }
+  toggle(p.id, true); focus(p.id); find.value = ''; closeFind();
+}
+find.addEventListener('focus', openFind);
+find.addEventListener('input', () => { active = 0; openFind(); });
+find.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { active = Math.min(opts.length - 1, active + 1); renderFind(); $('o' + active)?.scrollIntoView({ block: 'nearest' }); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { active = Math.max(0, active - 1); renderFind(); $('o' + active)?.scrollIntoView({ block: 'nearest' }); e.preventDefault(); }
+  else if (e.key === 'Enter') { choose(active < 0 ? 0 : active); e.preventDefault(); }
+  else if (e.key === 'Escape') { closeFind(); }
+});
+list.addEventListener('pointerdown', e => { const li = e.target.closest('li[data-i]'); if (li) { e.preventDefault(); choose(+li.dataset.i); } });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.combo')) closeFind(); });
+
+// ---------- profile card (renders every attribute present, so new attributes show up without code changes)
+const LABELS = { atp_id: 'ATP id', dob: 'Born', birthplace: 'Birthplace', hand: 'Plays', backhand: 'Backhand', height_cm: 'Height', weight_kg: 'Weight', turned_pro: 'Turned pro', coaches: 'Coaches', career_high_first_date: 'First reached career high', first_ranked: 'First ranked', last_ranked: 'Last ranked', first_top20: 'First top-20 list', last_top20: 'Last top-20 list', latest_ranking: 'Latest ranking', weeks_in_top10: 'Weeks in top 10' };
+const SKIP = new Set(['player_id', 'name', 'name_first', 'name_last', 'country', 'in_top20s', 'in_top20s_21st_century', 'year_end_top20_finishes', 'career_high_rank', 'weeks_at_no1', 'weeks_in_top20', 'best_year_end_rank']);
+function focus(id) {
+  focusId = id; const p = byId.get(id); const a = p.p;
+  const val = (k, v) => k === 'hand' ? ({ R: 'Right-handed', L: 'Left-handed' }[v] || v) : k === 'backhand' ? ({ '1H': 'One-handed', '2H': 'Two-handed' }[v] || v)
+    : k === 'height_cm' ? v + ' cm' : k === 'weight_kg' ? v + ' kg' : /date|dob|ranked|top20$/.test(k) && typeof v === 'string' ? fmt(Date.parse(v))
+    : k === 'latest_ranking' ? `#${v.rank} on ${fmt(Date.parse(v.date))}` : typeof v === 'object' ? JSON.stringify(v) : v;
+  const lab = k => LABELS[k] || k.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+  const ye = Object.entries(a.year_end_top20_finishes || {}).map(([y, r]) => `<span>${y}<i>#${r}</i></span>`).join('');
+  const it = inWin.find(x => x.p.id === id);
+  $('profile').innerHTML = `
+    <div><h2>${esc(p.n)}</h2><div class="meta">${esc([a.country, a.dob ? 'born ' + new Date(a.dob).getUTCFullYear() : null].filter(Boolean).join(' · '))}</div></div>
+    <div class="stats">
+      <div class="stat"><b>${a.career_high_rank ?? '—'}</b><span>Career-high rank</span></div>
+      <div class="stat"><b>${(a.weeks_at_no1 ?? 0).toFixed(0)}</b><span>Weeks at No. 1</span></div>
+      <div class="stat"><b>${(a.weeks_in_top20 ?? 0).toFixed(0)}</b><span>Weeks in top 20</span></div>
+    </div>
+    ${it ? `<div class="meta">In this window: best #${it.best ?? '—'}, ${it.w20.toFixed(1)} weeks in the top 20.</div>` : ''}
+    <div><div class="lbl" style="margin-bottom:6px">Year-end top-20 finishes</div><div class="ye">${ye || '<span class="empty">None</span>'}</div></div>
+    <dl class="attrs">${Object.entries(a).filter(([k]) => !SKIP.has(k)).map(([k, v]) => `<dt>${esc(lab(k))}</dt><dd>${esc(String(val(k, v)))}</dd>`).join('')}</dl>`;
+  renderTable();
+}
+function emptyProfile() { $('profile').innerHTML = '<h2 style="font:700 1.4rem var(--display);margin:0">Player profile</h2><p class="empty">Pick a player from the list, the dropdown or the chart to see their profile.</p>'; }
+
+// ---------- data-quality panel
+const sevOrder = { error: 0, warning: 1, info: 2 };
+$('dq').innerHTML = [...DATA.issues].sort((a, b) => sevOrder[a.s] - sevOrder[b.s]).map(i => `<tr><td><span class="sev ${i.s}">${i.s}</span></td><td>${esc(i.c)}</td><td class="num">${i.n.toLocaleString()}</td><td>${esc(i.a)}</td></tr>`).join('');
+$('dq-intro').textContent = `Rankings from Tennismylife's TML-Rankings-Database (official ATP lists before 1985, weekly lists from 1985), bios from TML-Database. Covers ${fmt(T0)} to ${fmt(TL)}; built ${DATA.generated}. Every check below ran on load; errors were corrected or excluded as described.`;
+$('stamp').textContent = `${N.toLocaleString()} ranking lists · ${fmt(T0)} – ${fmt(TL)}`;
+
+// ---------- render
+let pending = 0;
+function scheduleRender() { if (pending) return; pending = requestAnimationFrame(() => { pending = 0; inWin = aggregate(); drawChart(); drawBrush(); updateCount(); renderSaveScope(); }); }
+function commit() { inWin = aggregate(); updateCount(); renderSaveScope(); renderTable(); renderPick(); if (!list.hidden) renderFind(); drawChart(); drawBrush(); }
+function updateCount() { $('count').innerHTML = `${inWin.length} players<small>${mode === 'week' ? 'ranked 1–20 on a list in force between' : 'with a year-end top-20 finish between'} ${fmt(win.a)} and ${fmt(Math.min(win.b, END - DAY))}</small>`; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+new ResizeObserver(() => { drawChart(); drawBrush(); }).observe(chart);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { drawChart(); drawBrush(); renderLegend(); });
+new MutationObserver(() => { drawChart(); drawBrush(); renderLegend(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+syncInputs(); fitDom(false);
+commit(); renderLegend();
+// open with a realistic working state: the four players who dominated the window
+const seed = [...inWin].sort((a, b) => b.w20 - a.w20).slice(0, 4).map(x => x.p.id);
+seed.forEach(id => toggle(id, true));
+if (seed[0]) focus(seed[0]); else emptyProfile();
+groups = loadGroups() ?? DEFAULT_GROUPS.map(g => ({ ...g, members: [...g.members] }));
+if (TOP10 && !groups.some(g => g.dyn === 'top10')) groups.push({ id: 'T10', name: 'Top 10', dyn: 'top10', metric: 'prev_avg', members: [] });
+groupSeq = Math.max(0, ...groups.filter(g => /^G\d+$/.test(g.id)).map(g => +g.id.slice(1)));
+groups.forEach(buildGroup);
+const big3 = groups.find(g => g.name === 'Big 3');
+if (big3) toggle(big3.id, true); else renderLegend();
+$('ppreset').value = '';
+})();
+</script>
