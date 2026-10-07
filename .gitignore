@@ -26,3 +26,6 @@ desktop.ini
 
 # rs-alchemy updater scratch file
 public/rs-alchemy/data/_update_points_cache.json
+
+# python bytecode (tools/)
+__pycache__/
