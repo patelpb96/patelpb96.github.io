@@ -90,28 +90,44 @@ function makeStarField(count, seed, options) {
   }).join(",\n          ");
 }
 
+// Seeds re-rolled 2026-10-07. front/ultraFront were searched so every bright star (with its glow)
+// clears the hero text at widths 540-1920px while staying on the card; the back layers sit behind the text.
 const starFields = {
-  farBack: makeStarField(280, 137, { centerBias: 0.18, minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
-  midBack: makeStarField(220, 71, { centerBias: 0.20, minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
-  mid: makeStarField(180, 91, { centerBias: 0.22, minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
-  back: makeStarField(150, 23, { centerBias: 0.24, minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
-  front: makeStarField(14, 211, { centerBias: 0.12, minSize: 1.1, maxSize: 2.2, alpha: 1.0, glow: true }),
-  ultraFront: makeStarField(4, 911, { centerBias: 0.08, minSize: 2.2, maxSize: 4.0, alpha: 1.0, glow: true, fullOpacity: true }),
+  farBack: makeStarField(280, 908, { centerBias: 0.18, minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
+  midBack: makeStarField(220, 3695, { centerBias: 0.20, minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
+  mid: makeStarField(180, 4397, { centerBias: 0.22, minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
+  back: makeStarField(150, 5201, { centerBias: 0.24, minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
+  front: makeStarField(14, 3211.293, { centerBias: 0.12, minSize: 1.1, maxSize: 2.2, alpha: 1.0, glow: true }),
+  ultraFront: makeStarField(4, 4616.537, { centerBias: 0.08, minSize: 2.2, maxSize: 4.0, alpha: 1.0, glow: true, fullOpacity: true }),
 };
 
-function LazyGraphic({ src, alt }) {
+// Nothing heavy downloads until the visitor asks for it.
+function LazyGraphic({ src, alt, label = "Click to load image", size = "50+ MB", className }) {
   const [loaded, setLoaded] = useState(false);
 
   if (!loaded) {
     return (
-      <button className="lazy-graphic" type="button" onClick={() => setLoaded(true)} aria-label={`Load ${alt}`}>
-        <span>Click to load image</span>
-        <small>50+ MB</small>
+      <button className={`lazy-graphic${className ? " lazy-wide" : ""}`} type="button" onClick={() => setLoaded(true)} aria-label={`Load ${alt}`}>
+        <span>{label}</span>
+        <small>{size}</small>
       </button>
     );
   }
 
-  return <img src={src} alt={alt} loading="lazy" />;
+  return <img src={src} alt={alt} loading="lazy" className={className} />;
+}
+
+function LazyFrame({ src, title, label, size }) {
+  const [loaded, setLoaded] = useState(false);
+  if (!loaded) {
+    return (
+      <button className="lazy-graphic lazy-frame" type="button" onClick={() => setLoaded(true)} aria-label={`Load ${title}`}>
+        <span>{label}</span>
+        <small>{size}</small>
+      </button>
+    );
+  }
+  return <iframe className="resume-frame" src={src} title={title} />;
 }
 
 function assertSiteData() {
@@ -219,6 +235,7 @@ function Css() {
       * { box-sizing: border-box; }
       html { scroll-behavior: smooth; }
       body { margin: 0; }
+      .site-root button, .site-root input, .site-root select, .site-root textarea, .site-root code { font-family: inherit; }
 
       .site-root {
         position: relative;
@@ -353,7 +370,7 @@ function Css() {
       .project-blurb { margin: 0; color: var(--muted); font-size: 0.97rem; line-height: 1.7; flex: 1; }
       .project-tags { display: flex; flex-wrap: wrap; gap: 6px; }
       .project-tags span { border: 1px solid var(--line); color: var(--dim); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; }
-      .project-open { align-self: flex-start; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 700; font-size: 0.86rem; color: #000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); padding: 10px 16px; box-shadow: 0 0 22px rgba(255,154,77,0.28); }
+      .project-open { align-self: flex-start; font-family: inherit; font-weight: 700; font-size: 0.86rem; color: #000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); padding: 10px 16px; box-shadow: 0 0 22px rgba(255,154,77,0.28); }
       .project-card:hover .project-open { filter: brightness(1.06); }
       .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
       .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
@@ -524,6 +541,8 @@ function Css() {
       }
       .lazy-graphic:hover { border-color: rgba(255,255,255,0.6); filter: brightness(1.12); }
       .lazy-graphic span { font-size: 0.86rem; font-weight: 800; }
+      .lazy-wide { min-height: 260px; border: 0; border-bottom: 1px solid var(--line); }
+      .lazy-frame { height: 100%; min-height: 320px; border: 0; }
       .lazy-graphic small { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.18em; }
 
       .content { position: relative; z-index: 1; width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 12px 0 76px; }
@@ -535,11 +554,12 @@ function Css() {
       .prose p { margin: 0 0 18px; }
       .prose a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(255,170,100,0.42); }
       .prose a:hover { border-bottom-color: var(--cyan); }
+      .prose a.button-link, .prose a.button-link:hover { color: #000000; border-bottom: 0; } /* buttons inside prose keep button styling */
       .intro-image-frame { width: 100%; margin: 0 auto; overflow: visible; border-bottom: 1px solid var(--line); background: rgba(30,14,8,0.72); }
       .profile-image { width: 100%; height: auto; display: block; object-fit: contain; object-position: center; filter: contrast(1.05) saturate(0.98); }
       .galaxy-gif { width: 100%; display: block; background: #160a06; }
       .button-link {
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: inherit;
         display: inline-flex;
         align-items: center;
         gap: 9px;
@@ -721,7 +741,7 @@ function HomePage() {
 
         <Section id="research" title="Research">
           <div className="panel">
-            <img src={assets.galaxies} alt="Animated simulated low-mass galaxies" className="galaxy-gif" />
+            <LazyGraphic src={assets.galaxies} alt="Animated simulated low-mass galaxies" className="galaxy-gif" label="Click to load animation" size="2.6 MB" />
             <div className="panel-body prose">
               <h3 className="subheading">Elemental Abundances of Simulated Low-Mass Galaxies</h3>
               <p>For research, I previously focused on the elemental abundances of stars in low-mass dwarf galaxies simulated using <a href="https://fire.northwestern.edu/" target="_blank" rel="noreferrer">FIRE-2</a>.</p>
@@ -739,12 +759,7 @@ function HomePage() {
               <ButtonLink href={`${base}/assets/Resume_public.pdf`}>Open PDF</ButtonLink>
             </div>
             <div className="resume-frame-shell">
-              <iframe
-                className="resume-frame"
-                src={`${base}/assets/Resume_public.pdf#view=FitH`}
-                title="Preet Patel Resume"
-                loading="lazy"
-              />
+              <LazyFrame src={`${base}/assets/Resume_public.pdf#view=FitH`} title="Preet Patel Resume" label="Click to load resume preview" size="PDF · 104 KB" />
             </div>
           </div>
         </Section>

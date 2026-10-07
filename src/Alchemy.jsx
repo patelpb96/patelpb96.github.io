@@ -557,7 +557,7 @@ function AlchemyStyles() {
       .alc-load { margin: 0; }
       .alc-msg { padding: 22px; text-align: center; color: var(--muted); border: 1px solid var(--line); background: rgba(30,14,8,0.6); }
       .alc-intro { margin: 0 0 20px; }
-      .alc-intro code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; color: var(--accent-soft); background: rgba(255,170,100,0.10); padding: 1px 6px; }
+      .alc-intro code { font-family: inherit; font-size: 0.92em; color: var(--accent-soft); background: rgba(255,170,100,0.10); padding: 1px 6px; }
       .alc-neg { color: var(--alc-neg); }
       .alc-pos { color: var(--alc-pos); }
 
@@ -601,7 +601,7 @@ function AlchemyStyles() {
       .alc-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
       .alc-row.is-open { background: rgba(255,170,100,0.12); }
       .alc-td { padding: 9px 12px; vertical-align: middle; }
-      .alc-num { text-align: right; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; }
+      .alc-num { text-align: right; font-variant-numeric: tabular-nums; font-family: inherit; font-size: 0.86rem; }
       .alc-rank { color: var(--dim); }
       .alc-td-name { display: flex; align-items: center; gap: 8px; }
       .alc-name-btn {
@@ -620,15 +620,15 @@ function AlchemyStyles() {
       .alc-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 20px; }
       .alc-stat { border: 1px solid var(--line); padding: 10px 12px; background: rgba(30,14,8,0.5); }
       .alc-stat-label { display: block; color: var(--dim); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
-      .alc-stat-value { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.05rem; font-weight: 700; color: var(--text); }
+      .alc-stat-value { display: block; font-family: inherit; font-size: 1.05rem; font-weight: 700; color: var(--text); }
 
       .alc-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
       .alc-chart { margin: 0; }
       .alc-chart-cap { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
-      .alc-chart-last { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+      .alc-chart-last { font-family: inherit; font-weight: 700; }
       .alc-chart svg { width: 100%; height: 180px; display: block; background: rgba(20,10,6,0.5); border: 1px solid var(--line); }
       .alc-chart-zero { stroke: rgba(255,210,170,0.35); stroke-width: 1; stroke-dasharray: 4 4; }
-      .alc-chart-axis { display: flex; justify-content: space-between; gap: 8px; color: var(--dim); font-size: 0.7rem; margin-top: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .alc-chart-axis { display: flex; justify-content: space-between; gap: 8px; color: var(--dim); font-size: 0.7rem; margin-top: 5px; font-family: inherit; }
       .alc-chart-range { color: var(--muted); }
       .alc-chart-empty { color: var(--dim); font-size: 0.85rem; padding: 40px 0; text-align: center; border: 1px solid var(--line); background: rgba(20,10,6,0.5); }
       .alc-detail-note { color: var(--dim); font-size: 0.78rem; margin: 16px 0 0; line-height: 1.6; }

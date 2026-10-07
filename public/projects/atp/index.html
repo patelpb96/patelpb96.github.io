@@ -235,8 +235,10 @@ details.dq summary { cursor: pointer; font: 600 1.15rem var(--display); letter-s
   --warn: #ffb36b; --err: #ff8a7a;
   --s1: #5aa9ff; --s2: #ff7a45; --s3: #3cc497; --s4: #ffc247; --s5: #ff7fb0; --s6: #9fd36a; --s7: #a99bff; --s8: #ff6b6b;
   --display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --body: "Playfair Display", Georgia, "Times New Roman", serif; /* serif throughout, like the site */
   color-scheme: dark;
 }
+button, input, select, textarea { font-family: var(--body); }
 body { background: radial-gradient(120% 60% at 50% 0%, #2a160c 0%, #1a0f0a 55%, #120a06 100%) fixed; }
 h1 span { color: var(--accent); }
 .panel { box-shadow: 0 22px 70px rgba(0, 0, 0, .45); }
