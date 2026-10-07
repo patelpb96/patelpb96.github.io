@@ -3,6 +3,7 @@
 ## Source
 Jeff Sackmann's `tennis_atp` repo was taken down in 2026. Replacement:
 - `Tennismylife/TML-Rankings-Database` — official atptour.com lists (1973 → Jul 2025) and a completed weekly set (1973 → 19 Jan 2026)
+- atptour.com directly for lists after 19 Jan 2026, when the TML repo stopped updating (`fetch_atp_lists.py`, below)
 - `Tennismylife/TML-Database` — `ATP_Database.csv` player bios keyed by ATP id
 
 Canonical history = official ATP lists before 1985 + TML weekly lists from 1985.
@@ -15,9 +16,12 @@ Verification: 53/53 year-end No. 1s and 26/26 career weeks-at-No.-1 totals match
 ## Run
     git clone --depth 1 https://github.com/Tennismylife/TML-Rankings-Database
     git clone --depth 1 https://github.com/Tennismylife/TML-Database
-    python build.py TML-Rankings-Database TML-Database out
+    # TML stopped at 19 Jan 2026: append every newer list ATP has published (re-run any time; skips dates it has)
+    python fetch_atp_lists.py TML-Rankings-Database
+    python -X utf8 build.py TML-Rankings-Database TML-Database out
     uv run --with polars python top10_metrics.py TML-Rankings-Database TML-Database out/explorer_data.json out/top10_metrics.json
     python assemble.py out/explorer_data.json out/atp_top20_explorer.html
+    uv run --no-project --with polars python top10_csv.py out/top10_metrics.json out/top10_metrics.csv
 
 `top10_metrics.py` (polars) derives the "Top 10" group: whoever is ranked 1-10 on each list, plotted as
 a property of those players (avg rank a year earlier/later, new vs a year earlier, changes per list, average
