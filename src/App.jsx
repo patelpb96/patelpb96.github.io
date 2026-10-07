@@ -7,8 +7,8 @@ const base = "https://patelpb96.github.io";
 const assets = {
   bg: `${base}/bg.jpg`,
   bgGif: `${base}/assets/bg.gif`,
-  introImg: `${base}/images/pic01.png`,
-  pfp: `${base}/pfp.jpg`,
+  introImg: `${base}/images/pic01.webp`, // WebP re-encodes; originals (pic01.png, pfp.jpg) kept in public/
+  pfp: `${base}/pfp.webp`, // 1200px wide, ~230 kB (was a 1.6 MB 1365x2048 JPEG)
   galaxies: `${base}/images/8gals_GIF.gif`,
   graphics: [
     `${base}/images/A1.webp`,
@@ -137,8 +137,8 @@ function assertSiteData() {
   console.assert(projects.length === 3 && projects.every((p) => p.title && p.href), "projects portal should list three linked projects");
   console.assert(base.startsWith("https://"), "base URL should be absolute HTTPS");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
-  console.assert(assets.pfp === `${base}/pfp.jpg`, "hero image should use pfp.jpg");
-  console.assert(assets.introImg === `${base}/images/pic01.png`, "intro image should use images/pic01.png");
+  console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
+  console.assert(assets.introImg === `${base}/images/pic01.webp`, "intro image should use images/pic01.webp");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
   console.assert(contactCards.some((card) => card.href?.startsWith("mailto:")), "contact cards should include a mailto link");
   console.assert(contactCards.every((card) => card.label && card.icon), "each contact card should have a label and icon key");
