@@ -48,10 +48,17 @@
   --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
   color-scheme: dark;
 }
+:root { --fs: 1; }
+html { font-size: calc(16px * var(--fs)); } /* rem headings follow the text size too */
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--body); }
+.textsize { display: inline-flex; border: 1px solid var(--line); }
+.textsize button { font-family: var(--body); line-height: 1; color: var(--ink-2); background: var(--bg); border: 0; min-width: 30px; height: 28px; padding: 0 6px; cursor: pointer; }
+.textsize button + button { border-left: 1px solid var(--line); }
+.textsize button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
+.hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+body { background: var(--bg); color: var(--ink); font: calc(15px * var(--fs))/1.45 var(--body); }
 .wrap { max-width: 1780px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: grid; gap: 16px;
-  grid-template-columns: 270px minmax(0, 1fr); }
+  grid-template-columns: calc(270px * var(--fs)) minmax(0, 1fr); }
 .wrap > * { grid-column: 2; }
 /* legend lives in the left gutter, level with the chart, and follows you down the page */
 .wrap > .legendbox { grid-column: 1; grid-row: 3 / span 3; align-self: start; position: sticky; top: 16px; padding: 12px 12px 10px; }
@@ -59,47 +66,47 @@ header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content:
 h1 { font: 700 2.1rem/1 var(--display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
 h1 span { color: var(--accent); }
 .sub { color: var(--ink-2); margin: 4px 0 0; }
-.stamp { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.stamp { color: var(--ink-3); font-size: calc(13px * var(--fs)); font-variant-numeric: tabular-nums; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 0; }
 .controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; padding: 12px 14px; }
 .field { display: grid; gap: 4px; }
-.lbl { font: 600 11px/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+.lbl { font: 600 calc(12.5px * var(--fs))/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 input[type=date], input[type=search], input[type=number], select {
-  font: 500 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  font: 500 calc(15px * var(--fs)) var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
   border-radius: 0; padding: 7px 9px; min-height: 36px; font-variant-numeric: tabular-nums;
 }
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 0; overflow: hidden; }
-.seg button { font: 500 13px var(--body); color: var(--ink-2); background: var(--bg); border: 0; padding: 8px 11px; cursor: pointer; min-height: 36px; }
+.seg button { font: 500 calc(14px * var(--fs)) var(--body); color: var(--ink-2); background: var(--bg); border: 0; padding: 8px 11px; cursor: pointer; min-height: 36px; }
 .seg button + button { border-left: 1px solid var(--line); }
 .seg button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip-btn { font: 500 12px var(--body); color: var(--ink-2); background: transparent; border: 1px dashed var(--line); border-radius: 0; padding: 6px 10px; cursor: pointer; }
+.chip-btn { font: 500 calc(13px * var(--fs)) var(--body); color: var(--ink-2); background: transparent; border: 1px dashed var(--line); border-radius: 0; padding: 6px 10px; cursor: pointer; }
 .chip-btn:hover { color: var(--ink); border-color: var(--ink-3); }
 
 .chartbox { padding: 12px 14px 10px; display: grid; gap: 10px; }
 .chart-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
 .count { font: 600 1.35rem/1 var(--display); }
-.count small { font: 400 13px var(--body); color: var(--ink-2); margin-left: 6px; }
+.count small { font: 400 calc(14px * var(--fs)) var(--body); color: var(--ink-2); margin-left: 6px; }
 .chart-body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 14px; align-items: start; }
 .chart-main { display: grid; gap: 10px; min-width: 0; }
 .side { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .side-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 28px; }
 .side-head .lbl #selcount { color: var(--ink-3); }
-.side-sub { color: var(--ink-3); font-size: 11.5px; margin-top: -4px; }
+.side-sub { color: var(--ink-3); font-size: calc(13px * var(--fs)); margin-top: -4px; }
 .legendbox .legend { flex-direction: column; flex-wrap: nowrap; max-height: calc(100vh - 130px); overflow-y: auto; padding-right: 2px; }
 .legendbox .legend .tag { justify-content: space-between; border-radius: 0; }
 .legendbox .legend .tag-btn { min-width: 0; flex: 1; text-align: left; }
 .legendbox .legend .tag-btn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.legend .meta { color: var(--ink-3); font-size: 11px; font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
+.legend .meta { color: var(--ink-3); font-size: calc(12.5px * var(--fs)); font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
 .savebox { border-left: 1px solid var(--line); padding-left: 14px; }
 .save-group { display: grid; gap: 6px; }
 .save-btn { display: grid; gap: 1px; text-align: left; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 0; padding: 7px 10px; cursor: pointer; }
-.save-btn b { font-weight: 600; font-size: 13px; }
-.save-btn span { color: var(--ink-3); font-size: 11.5px; }
+.save-btn b { font-weight: 600; font-size: calc(14px * var(--fs)); }
+.save-btn span { color: var(--ink-3); font-size: calc(13px * var(--fs)); }
 .save-btn:hover:not(:disabled) { border-color: var(--accent); }
 .save-btn:disabled { opacity: .45; cursor: not-allowed; }
-.save-opt { display: flex; gap: 6px; align-items: flex-start; color: var(--ink-2); font-size: 12px; }
+.save-opt { display: flex; gap: 6px; align-items: flex-start; color: var(--ink-2); font-size: calc(13px * var(--fs)); }
 @media (max-width: 1250px) {
   .wrap { grid-template-columns: minmax(0, 1fr); }
   .wrap > *, .wrap > .legendbox { grid-column: 1; grid-row: auto; position: static; }
@@ -112,55 +119,55 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .save-group .lbl { grid-column: 1 / -1; }
 }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; }
-.legend .tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px; border: 1px solid var(--line); border-radius: 0; font-size: 12.5px; color: var(--ink); background: var(--bg); }
+.legend .tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px; border: 1px solid var(--line); border-radius: 0; font-size: calc(13.5px * var(--fs)); color: var(--ink); background: var(--bg); }
 .legend .sw { width: 24px; height: 12px; flex: none; overflow: visible; }
-.legend .x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 5px; border-radius: 0; }
+.legend .x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: calc(15px * var(--fs)); line-height: 1; padding: 2px 5px; border-radius: 0; }
 .legend .x:hover { color: var(--ink); background: var(--grid); }
-.legend .hint { color: var(--ink-3); font-size: 12.5px; }
+.legend .hint { color: var(--ink-3); font-size: calc(13.5px * var(--fs)); }
 .legend .tag-btn { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: inherit; font: inherit; padding: 0; cursor: pointer; }
 .legend .tag:hover { border-color: var(--ink-3); }
 .legend .tag[data-open] { border-color: var(--accent); background: var(--accent-soft); }
 .legend .tag-btn { user-select: none; }
 .legend { position: relative; }
-.legend .grip { flex: none; cursor: grab; color: var(--ink-3); font-size: 13px; line-height: 1; letter-spacing: -3px; padding: 2px 5px 2px 0; margin-left: -4px; user-select: none; touch-action: none; }
+.legend .grip { flex: none; cursor: grab; color: var(--ink-3); font-size: calc(14px * var(--fs)); line-height: 1; letter-spacing: -3px; padding: 2px 5px 2px 0; margin-left: -4px; user-select: none; touch-action: none; }
 .legend .grip:hover, .legend .grip:focus-visible { color: var(--ink); outline: none; }
 .legend .grip:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
 body.reordering, body.reordering * { cursor: grabbing !important; }
 .legend .tag.dragging { opacity: .4; }
 .legend .drop-line { position: absolute; background: var(--accent); pointer-events: none; z-index: 2; }
-.linepop .pop-sub { color: var(--ink-2); font-size: 12px; margin-top: -6px; }
-.linepop .pop-hint { color: var(--ink-3); font-size: 11px; }
+.linepop .pop-sub { color: var(--ink-2); font-size: calc(13px * var(--fs)); margin-top: -6px; }
+.linepop .pop-hint { color: var(--ink-3); font-size: calc(12.5px * var(--fs)); }
 .others { display: flex; align-items: center; gap: 10px; }
 .field.wide { flex-basis: 100%; }
 .trend { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .trend select, .trend input[type=number] { min-height: 32px; padding: 5px 6px; }
-.trend input[type=number] { width: 64px; font: 500 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.trend input[type=number] { width: 64px; font: 500 calc(15px * var(--fs)) var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .trend :disabled { opacity: .4; }
 .lg-sec { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-basis: 100%; margin-top: 4px;
-  font: 600 11px/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+  font: 600 calc(12.5px * var(--fs))/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .lg-sec .chip-btn { padding: 4px 8px; text-transform: none; letter-spacing: 0; }
 .legend .tag.grp { border-left: 3px solid var(--ink-3); }
 .legend .tag.off { opacity: .55; border-style: dashed; }
 .legend .tag.off:hover { opacity: .9; }
 .groupedit { width: 330px; }
 .groupedit .row2 { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
-.groupedit input[type=text], .groupedit input[list] { width: 100%; font: 500 13px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 6px 8px; min-height: 32px; }
-.groupedit .ge-note, .linepop .ge-note { color: var(--ink-3); font-size: 11.5px; }
+.groupedit input[type=text], .groupedit input[list] { width: 100%; font: 500 calc(14px * var(--fs)) var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 6px 8px; min-height: 32px; }
+.groupedit .ge-note, .linepop .ge-note { color: var(--ink-3); font-size: calc(13px * var(--fs)); }
 .groupedit select, .linepop label.row select { width: 100%; min-height: 32px; padding: 5px 6px; }
-.groupedit input[type=number], .linepop label.row input[type=number] { width: 80px; font: 500 13px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 5px 6px; min-height: 30px; }
+.groupedit input[type=number], .linepop label.row input[type=number] { width: 80px; font: 500 calc(14px * var(--fs)) var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 5px 6px; min-height: 30px; }
 .groupedit .ge-members { display: flex; flex-wrap: wrap; gap: 4px; max-height: 150px; overflow-y: auto; }
-.groupedit .ge-members span { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); background: var(--bg); padding: 2px 2px 2px 7px; font-size: 12px; }
-.groupedit .err { color: var(--err); font-size: 12px; }
+.groupedit .ge-members span { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); background: var(--bg); padding: 2px 2px 2px 7px; font-size: calc(13px * var(--fs)); }
+.groupedit .err { color: var(--err); font-size: calc(13px * var(--fs)); }
 .tip .row b i { font-style: normal; font-weight: 400; color: var(--ink-3); margin-left: 5px; }
-.tip .tsub { color: var(--ink-3); font-size: 11.5px; margin: -1px 0 3px 18px; white-space: normal; }
+.tip .tsub { color: var(--ink-3); font-size: calc(13px * var(--fs)); margin: -1px 0 3px 18px; white-space: normal; }
 .yaxis { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.yaxis .yr { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12.5px; }
-.yaxis input[type=number] { width: 70px; font: 500 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 7px 6px; min-height: 36px; font-variant-numeric: tabular-nums; }
-.chart-note { color: var(--ink-3); font-size: 12px; }
+.yaxis .yr { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: calc(13.5px * var(--fs)); }
+.yaxis input[type=number] { width: 70px; font: 500 calc(15px * var(--fs)) var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 7px 6px; min-height: 36px; font-variant-numeric: tabular-nums; }
+.chart-note { color: var(--ink-3); font-size: calc(13px * var(--fs)); }
 .others input[type=range] { width: 110px; accent-color: var(--accent); }
 .others input:disabled { opacity: .4; }
 .linepop { position: fixed; z-index: 10; width: 280px; background: var(--panel); border: 1px solid var(--line); border-radius: 0;
-  box-shadow: 0 12px 32px rgba(0,0,0,.2); padding: 12px 14px; display: grid; gap: 10px; font-size: 13px; }
+  box-shadow: 0 12px 32px rgba(0,0,0,.2); padding: 12px 14px; display: grid; gap: 10px; font-size: calc(14px * var(--fs)); }
 .linepop h3 { margin: 0; font: 600 1.05rem var(--display); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .linepop .row { display: grid; grid-template-columns: 62px 1fr 42px; align-items: center; gap: 8px; }
 .linepop .row output { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -176,9 +183,9 @@ body.reordering, body.reordering * { cursor: grabbing !important; }
 canvas { display: block; width: 100%; touch-action: none; }
 #chart { height: 440px; cursor: crosshair; }
 #brush { height: 64px; cursor: default; }
-.brush-note { color: var(--ink-3); font-size: 12px; }
+.brush-note { color: var(--ink-3); font-size: calc(13px * var(--fs)); }
 .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 0;
-  padding: 8px 10px; font-size: 12.5px; box-shadow: 0 6px 20px rgba(0,0,0,.12); min-width: 170px; max-width: 260px; z-index: 3; }
+  padding: 8px 10px; font-size: calc(13.5px * var(--fs)); box-shadow: 0 6px 20px rgba(0,0,0,.12); min-width: 170px; max-width: 260px; z-index: 3; }
 .tip .d { color: var(--ink-3); font-variant-numeric: tabular-nums; margin-bottom: 4px; }
 .tip .row { display: grid; grid-template-columns: 12px 1fr auto; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
 .tip .row b { font-weight: 600; }
@@ -193,21 +200,21 @@ canvas { display: block; width: 100%; touch-action: none; }
 .combo ul { position: absolute; left: 0; right: 0; top: calc(100% + 4px); max-height: 300px; overflow-y: auto; margin: 0; padding: 4px;
   list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 0; box-shadow: 0 10px 28px rgba(0,0,0,.14); z-index: 5; }
 .combo li { padding: 6px 8px; border-radius: 0; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
-.combo li .m { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.combo li .m { color: var(--ink-3); font-size: calc(13px * var(--fs)); font-variant-numeric: tabular-nums; }
 .combo li[aria-selected=true] { background: var(--accent-soft); }
 .combo li.out .n { color: var(--ink-3); }
-.letter { position: sticky; top: -4px; background: var(--panel); font: 700 12px var(--display); letter-spacing: .1em; color: var(--accent); padding: 4px 8px 2px; }
+.letter { position: sticky; top: -4px; background: var(--panel); font: 700 calc(13px * var(--fs)) var(--display); letter-spacing: .1em; color: var(--accent); padding: 4px 8px 2px; }
 .tablewrap { overflow-x: auto; max-height: 460px; overflow-y: auto; border-top: 1px solid var(--line); }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
 th, td { padding: 6px 10px; text-align: left; white-space: nowrap; }
-th { position: sticky; top: 0; background: var(--panel); font: 600 11px var(--body); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; }
+th { position: sticky; top: 0; background: var(--panel); font: 600 calc(12.5px * var(--fs)) var(--body); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; }
 th.num, td.num { text-align: right; }
 th[aria-sort] { color: var(--ink); }
 tbody tr { border-bottom: 1px solid var(--grid); cursor: pointer; }
 tbody tr:hover { background: var(--accent-soft); }
 tbody tr.focus { box-shadow: inset 3px 0 0 var(--accent); }
 td .sel { display: inline-block; width: 12px; height: 12px; border-radius: 0; border: 1.5px solid var(--ink-3); vertical-align: -1px; margin-right: 8px; }
-td .country { color: var(--ink-3); font-size: 12px; margin-left: 6px; }
+td .country { color: var(--ink-3); font-size: calc(13px * var(--fs)); margin-left: 6px; }
 
 .profile { padding: 14px 16px 16px; display: grid; gap: 12px; min-width: 0; }
 .profile h2 { font: 700 1.7rem/1.05 var(--display); margin: 0; }
@@ -215,18 +222,18 @@ td .country { color: var(--ink-3); font-size: 12px; margin-left: 6px; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .stat { border: 1px solid var(--line); border-radius: 0; padding: 8px 10px; background: var(--bg); }
 .stat b { display: block; font: 600 1.5rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
-.stat span { color: var(--ink-3); font-size: 11.5px; }
+.stat span { color: var(--ink-3); font-size: calc(13px * var(--fs)); }
 .ye { display: flex; flex-wrap: wrap; gap: 4px; }
-.ye span { font: 600 12px var(--display); letter-spacing: .02em; padding: 3px 6px; border-radius: 0; background: var(--grid); font-variant-numeric: tabular-nums; }
+.ye span { font: 600 calc(13px * var(--fs)) var(--display); letter-spacing: .02em; padding: 3px 6px; border-radius: 0; background: var(--grid); font-variant-numeric: tabular-nums; }
 .ye span i { font-style: normal; color: var(--ink-3); font-weight: 500; margin-left: 3px; }
-dl.attrs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 13px; }
+dl.attrs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: calc(14px * var(--fs)); }
 dl.attrs dt { color: var(--ink-3); }
 dl.attrs dd { margin: 0; overflow-wrap: anywhere; }
 .empty { color: var(--ink-3); }
 details.dq { padding: 12px 14px; }
 details.dq summary { cursor: pointer; font: 600 1.15rem var(--display); letter-spacing: .02em; }
 .dq table td { white-space: normal; vertical-align: top; }
-.sev { font: 600 11px var(--body); text-transform: uppercase; letter-spacing: .06em; padding: 2px 6px; border-radius: 0; }
+.sev { font: 600 calc(12.5px * var(--fs)) var(--body); text-transform: uppercase; letter-spacing: .06em; padding: 2px 6px; border-radius: 0; }
 .sev.error { color: var(--err); border: 1px solid currentColor; }
 .sev.warning { color: var(--warn); border: 1px solid currentColor; }
 .sev.info { color: var(--ink-3); border: 1px solid var(--line); }
@@ -246,6 +253,8 @@ details.dq summary { cursor: pointer; font: 600 1.15rem var(--display); letter-s
   color-scheme: dark;
 }
 button, input, select, textarea { font-family: var(--body); }
+/* lining figures: the serif's old-style digits read small in ranks, dates and counts */
+body, button, input, select, textarea { font-feature-settings: "lnum" 1; }
 body { background: radial-gradient(120% 60% at 50% 0%, #2a160c 0%, #1a0f0a 55%, #120a06 100%) fixed; }
 h1 span { color: var(--accent); }
 .panel { box-shadow: 0 22px 70px rgba(0, 0, 0, .45); }
@@ -254,7 +263,7 @@ h1 span { color: var(--accent); }
 .sitebar a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid transparent; }
 .sitebar a:hover { color: #ffd9b3; border-bottom-color: var(--line); }
 .sitebar .who { font: 700 15px var(--display); color: var(--ink); letter-spacing: .01em; }
-.sitebar nav { display: flex; gap: 16px; }
+.sitebar nav { display: flex; gap: 16px; align-items: center; }
 </style>
 
 
@@ -262,7 +271,12 @@ h1 span { color: var(--accent); }
   <nav class="sitebar" aria-label="Site">
     <a href="/#/projects">← All projects</a>
     <span class="who">Preet Patel</span>
-    <nav><a href="https://github.com/patelpb96/patelpb96.github.io/tree/main/public/projects/atp/data" target="_blank" rel="noreferrer">Data (CSV)</a><a href="https://github.com/patelpb96/patelpb96.github.io/tree/main/projects/atp-top20" target="_blank" rel="noreferrer">Source</a></nav>
+    <nav><div class="textsize" role="group" aria-label="Text size" title="Text size">
+        <button type="button" data-fs="0.9" aria-label="Small text" style="font-size:11px">A</button>
+        <button type="button" data-fs="1" aria-label="Medium text" style="font-size:13px">A</button>
+        <button type="button" data-fs="1.12" aria-label="Large text" style="font-size:15px">A</button>
+        <button type="button" data-fs="1.25" aria-label="Extra large text" style="font-size:17px">A</button>
+      </div><a href="https://github.com/patelpb96/patelpb96.github.io/tree/main/public/projects/atp/data" target="_blank" rel="noreferrer">Data (CSV)</a><a href="https://github.com/patelpb96/patelpb96.github.io/tree/main/projects/atp-top20" target="_blank" rel="noreferrer">Source</a></nav>
   </nav>
 
   <header>
@@ -270,7 +284,9 @@ h1 span { color: var(--accent); }
       <h1>ATP <span>Top 20</span> Explorer</h1>
       <p class="sub">Pick a time window. Everyone who held a top-20 ranking in it is plotted; select players to highlight them.</p>
     </div>
-    <div class="stamp" id="stamp"></div>
+    <div class="hdr-right">
+      <div class="stamp" id="stamp"></div>
+    </div>
   </header>
 
   <section class="panel controls" aria-label="Time window">
@@ -533,6 +549,15 @@ const colorOf = id => slotOf.has(id) ? (lineStyle.get(id)?.color || slotColor(sl
 // ---------- main chart
 const chart = $('chart');
 const M = { l: 44, r: 112, t: 14, b: 26 };
+// text size (presets in the header); canvas text follows the same scale
+let FS = 1;
+const fpx = n => (n * FS).toFixed(1) + 'px ';
+function setTextSize(v, save = true) {
+  FS = +v || 1;
+  document.documentElement.style.setProperty('--fs', FS);
+  document.querySelectorAll('.textsize button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.fs === FS)));
+  if (save) { try { localStorage.setItem('atp-top20-textsize', String(FS)); } catch (e) { /* not remembered */ } }
+}
 const LIN_MAX = 30;
 let geo = null;
 // rank <-> axis space: linear in rank, or log(rank)
@@ -580,12 +605,12 @@ function niceTicks(a, b, w) {
 
 function drawChart() {
   const { g, w, h } = setup(chart);
-  M.r = w < 600 ? 78 : 112;
+  M.r = Math.round((w < 600 ? 78 : 112) * FS); M.l = Math.round(44 * FS); M.b = Math.round(26 * FS);
   const x = t => M.l + (t - win.a) / (win.b - win.a) * (w - M.l - M.r);
   const Y = yScale(h);
   geo = { x, Y, w, h };
   g.clearRect(0, 0, w, h);
-  g.font = '12px ' + css('--body'); g.textBaseline = 'middle';
+  g.font = fpx(13.5) + css('--body'); g.textBaseline = 'middle';
   // grid
   g.strokeStyle = css('--grid'); g.fillStyle = css('--ink-3'); g.lineWidth = 1;
   for (const r of Y.ticks) { const y = Math.round(Y.f(r)) + .5; g.beginPath(); g.moveTo(M.l, y); g.lineTo(w - M.r, y); g.stroke(); g.textAlign = 'right'; g.fillText(r < 0 ? '−' + -r : r, M.l - 8, y); }
@@ -673,11 +698,11 @@ function drawChart() {
     labels.push({ id, y: Math.max(M.t, Math.min(h - M.b, Y.f(r))), text: (p.isGroup ? p.n : p.n.split(' ').slice(-1)[0]) + ' ' + fmtR(r), c: colorOf(id) || css('--idle-hi') });
   }
   labels.sort((a, b) => a.y - b.y);
-  for (let k = 1; k < labels.length; k++) if (labels[k].y - labels[k - 1].y < 14) labels[k].y = labels[k - 1].y + 14;
-  for (let k = labels.length - 2; k >= 0; k--) if (labels[k].y > labels[k + 1].y - 14) labels[k].y = labels[k + 1].y - 14; // keep inside the bottom edge
+  for (let k = 1; k < labels.length; k++) if (labels[k].y - labels[k - 1].y < 15 * FS) labels[k].y = labels[k - 1].y + 15 * FS;
+  for (let k = labels.length - 2; k >= 0; k--) if (labels[k].y > labels[k + 1].y - 15 * FS) labels[k].y = labels[k + 1].y - 15 * FS; // keep inside the bottom edge
   const over = labels.length ? labels[labels.length - 1].y - (h - M.b) : 0;
   if (over > 0) labels.forEach(L => L.y -= over);
-  g.font = '600 12px ' + css('--body');
+  g.font = '600 ' + fpx(13.5) + css('--body');
   for (const L of labels) { g.fillStyle = L.c; g.fillRect(w - M.r + 6, L.y - 1.5, 8, 3); g.fillStyle = css('--ink'); g.fillText(L.text, w - M.r + 18, L.y); }
 
   // crosshair
@@ -689,7 +714,7 @@ function drawChart() {
       g.beginPath(); g.arc(xx, Y.f(r), 4.5, 0, 7); g.fillStyle = colorOf(id) || css('--idle-hi'); g.fill(); g.lineWidth = 2; g.strokeStyle = surf; g.stroke();
     }
   }
-  if (!inWin.length) { g.fillStyle = css('--ink-3'); g.textAlign = 'center'; g.font = '14px ' + css('--body'); g.fillText('No player held a top-20 ranking in this window.', w / 2, h / 2); }
+  if (!inWin.length) { g.fillStyle = css('--ink-3'); g.textAlign = 'center'; g.font = fpx(15) + css('--body'); g.fillText('No player held a top-20 ranking in this window.', w / 2, h / 2); }
 }
 
 function chartPointer(ev) {
@@ -762,11 +787,11 @@ function fitDom(animate) {
 function drawBrush() {
   const { g, w, h } = setup(brush);
   g.clearRect(0, 0, w, h);
-  const top = 6, bot = h - 20;
+  const top = 6, bot = h - Math.round(12 * FS + 8);
   // track
   g.fillStyle = css('--grid'); g.fillRect(BM.l, top, w - BM.l - BM.r, bot - top);
   // density: how many players were in the top 20 who would also be in the window... show No.1 changes as ticks
-  g.font = '11px ' + css('--body'); g.textBaseline = 'top'; g.textAlign = 'center'; g.fillStyle = css('--ink-3');
+  g.font = fpx(13) + css('--body'); g.textBaseline = 'top'; g.textAlign = 'center'; g.fillStyle = css('--ink-3');
   for (const [t, lab] of niceTicks(dom.a, dom.b, w - BM.l - BM.r)) { const xx = Math.round(bx(t, w)) + .5; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(xx, top); g.lineTo(xx, bot); g.stroke(); g.fillText(lab, xx, bot + 4); }
   // data limits inside the strip
   const xa = bx(win.a, w), xb = bx(win.b, w);
@@ -1312,15 +1337,15 @@ function save(kind) {
   else if (kind === 'png') download(stem + '.png', chartPng(ps), 'image/png');
 }
 function chartPng(ps) {
-  const dpr = chart.width / chart.clientWidth || 1, LW = 200, TH = 34, w = chart.clientWidth, rowH = 18;
+  const dpr = chart.width / chart.clientWidth || 1, LW = Math.round(200 * FS), TH = Math.round(34 * FS), w = chart.clientWidth, rowH = Math.round(19 * FS);
   const h = Math.max(chart.clientHeight, ps.length * rowH + 16) + TH;
   const cv = document.createElement('canvas'); cv.width = Math.round((LW + w) * dpr); cv.height = Math.round(h * dpr);
   const g = cv.getContext('2d'); g.scale(dpr, dpr);
   g.fillStyle = css('--panel'); g.fillRect(0, 0, LW + w, h);
-  g.fillStyle = css('--ink'); g.textBaseline = 'middle'; g.font = '600 15px ' + css('--body');
+  g.fillStyle = css('--ink'); g.textBaseline = 'middle'; g.font = '600 ' + fpx(16) + css('--body');
   g.fillText(`ATP rankings · ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}`, 12, TH / 2);
   g.drawImage(chart, LW, TH, w, chart.clientHeight);
-  g.font = '12.5px ' + css('--body');
+  g.font = fpx(13.5) + css('--body');
   ps.forEach((p, k) => {
     const y = TH + 10 + k * rowH, st = styleOf(p.id);
     g.globalAlpha = st.alpha; g.strokeStyle = colorOf(p.id); g.lineWidth = Math.max(2, st.width); g.lineCap = 'round';
@@ -1393,7 +1418,7 @@ function renderPop() {
     <div class="row" style="grid-template-columns:62px 1fr"><span>Style</span><div class="seg" role="group" aria-label="Line style">${['solid', 'dashed', 'dotted'].map(d => `<button type="button" data-dash="${d}" aria-pressed="${same('dash') && st.dash === d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join('')}</div></div>
     <div class="row" style="grid-template-columns:62px 1fr"><span>Colour</span><div class="swatches">${slots.map(s => `<button type="button" data-color="${s}" style="background:${s}" aria-pressed="${sameCol && s === c}" aria-label="Colour ${s}"></button>`).join('')}<input type="color" value="${toHex(c)}" aria-label="Custom colour"></div></div>
     ${!multi && byId.get(ids[0]).isGroup ? `${groupCtlHtml(byId.get(ids[0]).gd, (lab, ctl) => `<label class="row" style="grid-template-columns:62px 1fr"><span>${lab}</span>${ctl}</label>`)}
-    ${byId.get(ids[0]).dyn ? `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:12px">Whoever is ranked 1–10 on each list (hover the line to see them)</span></div>` : `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:12px">${esc(byId.get(ids[0]).gd.members.map(m => (byId.get(m)?.n || m).split(' ').slice(-1)[0]).join(', '))} <button type="button" class="chip-btn" data-act="editgroup" style="margin-left:4px">Edit…</button></span></div>`}` : ''}
+    ${byId.get(ids[0]).dyn ? `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:calc(13px * var(--fs))">Whoever is ranked 1–10 on each list (hover the line to see them)</span></div>` : `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:calc(13px * var(--fs))">${esc(byId.get(ids[0]).gd.members.map(m => (byId.get(m)?.n || m).split(' ').slice(-1)[0]).join(', '))} <button type="button" class="chip-btn" data-act="editgroup" style="margin-left:4px">Edit…</button></span></div>`}` : ''}
     <div class="foot"><button type="button" class="chip-btn" data-act="reset">${multi ? 'Reset all' : 'Reset'}</button><button type="button" class="chip-btn" data-act="close">Done</button></div>
     <div class="pop-hint">Ctrl+click bubbles to edit several · Shift+click for a range</div>`;
   popEl.querySelectorAll('input[type=range]').forEach(inp => inp.oninput = () => {
@@ -1518,6 +1543,8 @@ function emptyProfile() { $('profile').innerHTML = '<h2 style="font:700 1.4rem v
 const sevOrder = { error: 0, warning: 1, info: 2 };
 $('dq').innerHTML = [...DATA.issues].sort((a, b) => sevOrder[a.s] - sevOrder[b.s]).map(i => `<tr><td><span class="sev ${i.s}">${i.s}</span></td><td>${esc(i.c)}</td><td class="num">${i.n.toLocaleString()}</td><td>${esc(i.a)}</td></tr>`).join('');
 $('dq-intro').textContent = `Rankings from Tennismylife's TML-Rankings-Database (official ATP lists before 1985, weekly lists from 1985), bios from TML-Database. Covers ${fmt(T0)} to ${fmt(TL)}; built ${DATA.generated}. Every check below ran on load; errors were corrected or excluded as described.`;
+{ let v = 1; try { v = +localStorage.getItem('atp-top20-textsize') || 1; } catch (e) { /* default */ } setTextSize(v, false); }
+document.querySelectorAll('.textsize button').forEach(b => b.onclick = () => { setTextSize(b.dataset.fs); renderLegend(); drawChart(); drawBrush(); });
 $('stamp').textContent = `${N.toLocaleString()} ranking lists · ${fmt(T0)} – ${fmt(TL)}`;
 
 // ---------- render
