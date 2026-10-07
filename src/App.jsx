@@ -27,7 +27,7 @@ const projects = [
     title: "ATP Top 20 Explorer",
     href: "/projects/atp/",
     external: true,
-    blurb: "Every player who held a top-20 ATP ranking since 1973, on one chart. Pick a time window, compare rivals, build groups like the Big 3, and overlay moving averages with momentum.",
+    blurb: "Every player who held a top-20 ATP ranking since 1973, on one chart. Pick a time window, compare rivals, build groups like the Big Three, and overlay moving averages with momentum.",
     tags: ["Tennis", "Data viz", "Python · polars"],
     art: "lines",
   },
