@@ -270,16 +270,16 @@ details.dq summary { cursor: pointer; font: 600 1.15rem var(--display); letter-s
     <div class="field"><span class="lbl">Other players</span>
       <div class="others">
         <div class="seg" role="group" aria-label="Other players">
-          <button type="button" id="oth-show" aria-pressed="true">Show</button>
-          <button type="button" id="oth-hide" aria-pressed="false">Hide</button>
+          <button type="button" id="oth-show" aria-pressed="false">Show</button>
+          <button type="button" id="oth-hide" aria-pressed="true">Hide</button>
         </div>
-        <input type="range" id="oth-alpha" min="0.05" max="1" step="0.05" value="1" aria-label="Opacity of unselected players' lines" title="Opacity of unselected lines">
+        <input type="range" id="oth-alpha" min="0.05" max="1" step="0.05" value="1" disabled aria-label="Opacity of unselected players' lines" title="Opacity of unselected lines">
       </div>
     </div>
     <div class="field"><label class="lbl" for="ppreset">Player groups</label>
       <select id="ppreset">
         <option value="">Choose a group…</option>
-        <option value="big3">Big 3 (players)</option>
+        <option value="big3">Big Three (players)</option>
         <option value="big4">Big 4 (players)</option>
         <option value="no1">World No. 1 (ever)</option>
         <option value="no1-2000">World No. 1 since 2000</option>
@@ -439,7 +439,7 @@ const bySeniority = (a, b) => {
 };
 const EPS = 1e-6;              // a true zero in a group series (0 itself means "no value this week")
 const fmtR = r => r > 0 && r < 1e-3 ? '0' : Number.isInteger(r) ? String(r) : (Math.round(r * 10) / 10).toFixed(1);
-let showOthers = true, othersAlpha = 1;   // unselected lines: visibility, opacity multiplier
+let showOthers = false, othersAlpha = 1;   // unselected lines: visibility, opacity multiplier
 const lineStyle = new Map();    // id -> { alpha, width, dash, color }; kept if a player is deselected and picked again
 const DEF_STYLE = { alpha: 1, width: 2.25, dash: 'solid', color: null };
 const styleOf = id => ({ ...DEF_STYLE, ...lineStyle.get(id) });
@@ -993,7 +993,7 @@ function wireGroupCtl(root, gd, changed) {
   });
 }
 const GKEY = 'atp-explorer-groups-v1';
-const DEFAULT_GROUPS = [{ id: 'G1', name: 'Big 3', members: ['F324', 'N409', 'D643'], agg: 'peak' }];
+const DEFAULT_GROUPS = [{ id: 'G1', name: 'Big Three', members: ['F324', 'N409', 'D643'], agg: 'peak' }];
 function saveGroups() { try { localStorage.setItem(GKEY, JSON.stringify({ groups })); } catch (e) { /* storage unavailable: groups last for this visit */ } }
 function loadGroups() {
   try { const d = JSON.parse(localStorage.getItem(GKEY)); if (d && Array.isArray(d.groups)) return d.groups.filter(g => g && Array.isArray(g.members) && (g.dyn ? g.dyn === 'top10' && TOP10 && TOP10.metrics[g.metric] : /^G\d+$/.test(g.id) && AGGS[g.agg])); } catch (e) { /* fall through */ }
@@ -1059,7 +1059,7 @@ function openGroupEditor(gid) {
   const render = () => {
     const extra = selPlayers().length;
     geEl.innerHTML = `<h3><span>${src ? 'Edit group' : 'New group'}</span><button type="button" class="x" data-act="close" aria-label="Close">×</button></h3>
-      <label class="row2"><span>Name</span><input type="text" id="ge-name" maxlength="40" placeholder="e.g. Big 3" value="${esc(draft.name)}"></label>
+      <label class="row2"><span>Name</span><input type="text" id="ge-name" maxlength="40" placeholder="e.g. Big Three" value="${esc(draft.name)}"></label>
       ${groupCtlHtml(draft, (lab, ctl) => `<label class="row2"><span>${lab}</span>${ctl}</label>`)}
       <div class="lbl">Members (${draft.members.length})</div>
       <div class="ge-members">${draft.members.map(id => `<span>${esc(byId.get(id)?.n || id)}<button type="button" class="x" data-rm="${esc(id)}" aria-label="Remove">×</button></span>`).join('') || '<span class="ge-note" style="border:0;background:none;padding:0">No members yet.</span>'}</div>
@@ -1432,10 +1432,11 @@ const seed = [...inWin].sort((a, b) => b.w20 - a.w20).slice(0, 4).map(x => x.p.i
 seed.forEach(id => toggle(id, true));
 if (seed[0]) focus(seed[0]); else emptyProfile();
 groups = loadGroups() ?? DEFAULT_GROUPS.map(g => ({ ...g, members: [...g.members] }));
+groups.forEach(g => { if (g.id === 'G1' && g.name === 'Big 3') g.name = 'Big Three'; }); // renamed from 'Big 3'
 if (TOP10 && !groups.some(g => g.dyn === 'top10')) groups.push({ id: 'T10', name: 'Top 10', dyn: 'top10', metric: 'prev_avg', members: [] });
 groupSeq = Math.max(0, ...groups.filter(g => /^G\d+$/.test(g.id)).map(g => +g.id.slice(1)));
 groups.forEach(buildGroup);
-const big3 = groups.find(g => g.name === 'Big 3');
+const big3 = groups.find(g => g.name === 'Big Three');
 if (big3) toggle(big3.id, true); else renderLegend();
 $('ppreset').value = '';
 })();
