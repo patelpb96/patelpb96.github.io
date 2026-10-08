@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import AlchemyDashboard from "./Alchemy.jsx";
 
@@ -90,13 +90,39 @@ function makeStarField(count, seed, options) {
   }).join(",\n          ");
 }
 
+// Background stars as small repeating tiles (the old wallpaper trick): each layer draws ~1/10 of the stars it
+// used to and repeats them. Layers use different tile sizes so the repeats never line up into a visible pattern.
+function makeStarTile(count, seed, tilePx, options) {
+  const { minSize, maxSize, alpha } = options;
+  const stars = Array.from({ length: count }, (_, index) => {
+    const i = index + 1;
+    const x = 2 + seededRandom(seed + i * 3.1) * 96; // keep clear of the tile edge so no star is cut in half
+    const y = 2 + seededRandom(seed + i * 5.3) * 96;
+    const size = minSize + seededRandom(seed + i * 7.9) * (maxSize - minSize);
+    const opacity = alpha * (0.45 + seededRandom(seed + i * 13.1) * 0.55);
+    return `radial-gradient(circle at ${x}% ${y}%, rgba(255, 255, 255, ${opacity}) 0 ${size}px, transparent ${size + 0.8}px)`;
+  });
+  return { image: stars.join(", "), size: Array(count).fill(`${tilePx}px ${tilePx}px`).join(", ") };
+}
+const joinTiles = (...tiles) => ({ image: tiles.map((t) => t.image).join(", "), size: tiles.map((t) => t.size).join(", ") });
+
+// page background (fixed, full screen) and the hero card's back layers; tile sizes are deliberately unrelated
+const starTiles = {
+  page: joinTiles(
+    makeStarTile(28, 908, 331, { minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
+    makeStarTile(22, 3695, 359, { minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
+    makeStarTile(18, 4397, 383, { minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
+    makeStarTile(15, 5201, 409, { minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
+  ),
+  farBack: makeStarTile(28, 1907, 157, { minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
+  midBack: makeStarTile(22, 2713, 167, { minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
+  mid: makeStarTile(18, 6121, 179, { minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
+  back: makeStarTile(15, 7019, 191, { minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
+};
+
 // Seeds re-rolled 2026-10-07. front/ultraFront were searched so every bright star (with its glow)
 // clears the hero text at widths 540-1920px while staying on the card; the back layers sit behind the text.
 const starFields = {
-  farBack: makeStarField(280, 908, { centerBias: 0.18, minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
-  midBack: makeStarField(220, 3695, { centerBias: 0.20, minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
-  mid: makeStarField(180, 4397, { centerBias: 0.22, minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
-  back: makeStarField(150, 5201, { centerBias: 0.24, minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
   front: makeStarField(14, 3211.293, { centerBias: 0.12, minSize: 1.1, maxSize: 2.2, alpha: 1.0, glow: true }),
   ultraFront: makeStarField(4, 4616.537, { centerBias: 0.08, minSize: 2.2, maxSize: 4.0, alpha: 1.0, glow: true, fullOpacity: true }),
 };
@@ -144,11 +170,9 @@ function assertSiteData() {
   console.assert(contactCards.every((card) => card.label && card.icon), "each contact card should have a label and icon key");
   console.assert(!contactCards.some((card) => card.label === "Twitter"), "Twitter should not be included");
   console.assert(`${base}/assets/Resume_public.pdf`.endsWith("assets/Resume_public.pdf"), "resume link should point to the hosted PDF");
-  console.assert(!starFields.back.includes('join("'), "back star field should be a finalized CSS string");
-  console.assert(starFields.farBack.includes("radial-gradient"), "far-back star field should contain gradients");
-  console.assert(starFields.midBack.includes("radial-gradient"), "mid-back star field should contain gradients");
-  console.assert(starFields.mid.includes("radial-gradient"), "mid star field should contain gradients");
-  console.assert(starFields.back.includes("radial-gradient"), "back star field should contain gradients");
+  for (const [name, t] of Object.entries(starTiles)) {
+    console.assert(t.image.split("radial-gradient").length - 1 === t.size.split(",").length, `${name}: one tile size per star`);
+  }
   console.assert(starFields.front.includes("radial-gradient"), "front star field should contain gradients");
   console.assert(starFields.ultraFront.includes("radial-gradient"), "ultra-front star field should contain gradients");
 }
@@ -254,16 +278,13 @@ function Css() {
         pointer-events: none;
         z-index: 0;
         opacity: 0.78;
-        mix-blend-mode: screen;
         background-image:
-          ${starFields.farBack},
-          ${starFields.midBack},
-          ${starFields.mid},
-          ${starFields.back};
-        background-size: 100% 100%;
+          ${starTiles.page.image};
+        background-size: ${starTiles.page.size};
         background-position: center;
         filter: drop-shadow(0 0 3px rgba(255,210,170,0.35));
         animation: pageStarTwinkle 1.6s linear infinite;
+        will-change: opacity;
       }
       .bg-scroll-layer::after {
         content: "";
@@ -275,46 +296,27 @@ function Css() {
         opacity: 0.52;
         filter: drop-shadow(0 0 8px rgba(255,235,215,0.5));
         animation: pageStarTwinkleBright 1.2s linear infinite;
+        will-change: opacity;
       }
 
-      @keyframes starTwinkleA {
-        0%, 100% { filter: brightness(0.9); }
-        50% { filter: brightness(1.25); }
-      }
+      /* Twinkles animate opacity only: animating filter re-draws every star gradient each frame (very slow on
+         phones), while opacity is composited on the GPU and each star layer is drawn once. */
       @keyframes pageStarTwinkle {
-        0% { opacity: 0.70; filter: brightness(0.92) drop-shadow(0 0 2px rgba(255,210,170,0.25)); }
-        10% { opacity: 0.74; filter: brightness(1.02) drop-shadow(0 0 3px rgba(255,210,170,0.28)); }
-        20% { opacity: 0.68; filter: brightness(0.95) drop-shadow(0 0 2px rgba(255,210,170,0.26)); }
-        30% { opacity: 0.76; filter: brightness(1.05) drop-shadow(0 0 3px rgba(255,210,170,0.30)); }
-        40% { opacity: 0.72; filter: brightness(0.98) drop-shadow(0 0 2px rgba(255,210,170,0.27)); }
-        50% { opacity: 0.78; filter: brightness(1.06) drop-shadow(0 0 3px rgba(255,210,170,0.31)); }
-        60% { opacity: 0.70; filter: brightness(0.96) drop-shadow(0 0 2px rgba(255,210,170,0.27)); }
-        70% { opacity: 0.75; filter: brightness(1.04) drop-shadow(0 0 3px rgba(255,210,170,0.30)); }
-        80% { opacity: 0.71; filter: brightness(0.97) drop-shadow(0 0 2px rgba(255,210,170,0.27)); }
-        90% { opacity: 0.77; filter: brightness(1.05) drop-shadow(0 0 3px rgba(255,210,170,0.31)); }
-        100% { opacity: 0.70; filter: brightness(0.92) drop-shadow(0 0 2px rgba(255,210,170,0.25)); }
+        0%, 100% { opacity: 0.70; } 10% { opacity: 0.76; } 20% { opacity: 0.68; } 30% { opacity: 0.79; } 40% { opacity: 0.73; }
+        50% { opacity: 0.81; } 60% { opacity: 0.71; } 70% { opacity: 0.78; } 80% { opacity: 0.72; } 90% { opacity: 0.80; }
       }
       @keyframes pageStarTwinkleBright {
-        0% { opacity: 0.45; filter: brightness(0.95) drop-shadow(0 0 6px rgba(255,235,215,0.45)); }
-        15% { opacity: 0.52; filter: brightness(1.10) drop-shadow(0 0 7px rgba(255,235,215,0.55)); }
-        30% { opacity: 0.48; filter: brightness(1.02) drop-shadow(0 0 6px rgba(255,235,215,0.50)); }
-        45% { opacity: 0.56; filter: brightness(1.18) drop-shadow(0 0 8px rgba(255,235,215,0.65)); }
-        60% { opacity: 0.50; filter: brightness(1.05) drop-shadow(0 0 7px rgba(255,235,215,0.55)); }
-        75% { opacity: 0.54; filter: brightness(1.15) drop-shadow(0 0 8px rgba(255,235,215,0.62)); }
-        90% { opacity: 0.49; filter: brightness(1.03) drop-shadow(0 0 6px rgba(255,235,215,0.50)); }
-        100% { opacity: 0.45; filter: brightness(0.95) drop-shadow(0 0 6px rgba(255,235,215,0.45)); }
+        0%, 100% { opacity: 0.45; } 15% { opacity: 0.56; } 30% { opacity: 0.49; } 45% { opacity: 0.64; }
+        60% { opacity: 0.52; } 75% { opacity: 0.61; } 90% { opacity: 0.50; }
       }
-      @keyframes starTwinkleBgStrong {
-        0%, 100% { filter: brightness(0.8) blur(0px); }
-        50% { filter: brightness(1.4) blur(0.2px); }
-      }
-      @keyframes starTwinkleB {
-        0%, 100% { filter: brightness(0.9); }
-        50% { filter: brightness(1.3); }
-      }
-      @keyframes starTwinkleC {
-        0%, 100% { filter: brightness(1.0); }
-        50% { filter: brightness(1.35); }
+      @keyframes twinkleFarBack { 0%, 100% { opacity: 0.56; } 50% { opacity: 0.98; } }
+      @keyframes twinkleMidBack { 0%, 100% { opacity: 0.64; } 50% { opacity: 1; } }
+      @keyframes twinkleMid { 0%, 100% { opacity: 0.70; } 50% { opacity: 1; } }
+      @keyframes twinkleBack { 0%, 100% { opacity: 0.76; } 50% { opacity: 1; } }
+      @keyframes twinkleFront { 0%, 100% { opacity: 0.86; } 50% { opacity: 1; } }
+      @keyframes twinkleUltraFront { 0%, 100% { opacity: 0.90; } 50% { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        .bg-scroll-layer, .bg-scroll-layer::after, .starfield { animation: none !important; }
       }
       @keyframes riseIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes navDrop { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
@@ -375,6 +377,12 @@ function Css() {
       .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
       .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
       .nav-link.active { color: #fff2e6; box-shadow: inset 0 -2px 0 var(--accent); }
+      .menu-btn { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 44px; height: 44px; padding: 0 11px; background: transparent; border: 1px solid var(--line); cursor: pointer; }
+      .menu-btn span { display: block; height: 2px; background: var(--text); transition: transform 180ms ease, opacity 180ms ease; }
+      .menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+      .menu-btn.open span:nth-child(2) { opacity: 0; }
+      .menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+      .menu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
       .hero {
         position: relative;
@@ -428,48 +436,43 @@ function Css() {
         inset: 0;
         pointer-events: none;
         transition: transform 320ms ease-out;
+        will-change: opacity, transform;
       }
       .starfield-farback {
-        animation: starTwinkleBgStrong 5.8s ease-in-out infinite;
+        animation: twinkleFarBack 5.8s ease-in-out infinite;
         z-index: 0;
-        opacity: 0.7;
         transform: translate3d(calc(var(--star-x, 0px) * -18), calc(var(--star-y, 0px) * -18), 0) scale(1.05);
-        background-image: ${starFields.farBack};
-        background-size: 100% 100%;
+        background-image: ${starTiles.farBack.image};
+        background-size: ${starTiles.farBack.size};
         background-position: center;
       }
       .starfield-midback {
-        animation: starTwinkleBgStrong 5.2s ease-in-out infinite;
+        animation: twinkleMidBack 5.2s ease-in-out infinite;
         z-index: 1;
-        opacity: 0.8;
         transform: translate3d(calc(var(--star-x, 0px) * -26), calc(var(--star-y, 0px) * -26), 0) scale(1.07);
-        background-image: ${starFields.midBack};
-        background-size: 100% 100%;
+        background-image: ${starTiles.midBack.image};
+        background-size: ${starTiles.midBack.size};
         background-position: center;
       }
       .starfield-mid {
-        animation: starTwinkleBgStrong 4.6s ease-in-out infinite;
+        animation: twinkleMid 4.6s ease-in-out infinite;
         z-index: 2;
-        opacity: 0.88;
         transform: translate3d(calc(var(--star-x, 0px) * -34), calc(var(--star-y, 0px) * -34), 0) scale(1.09);
-        background-image: ${starFields.mid};
-        background-size: 100% 100%;
+        background-image: ${starTiles.mid.image};
+        background-size: ${starTiles.mid.size};
         background-position: center;
       }
       .starfield-back {
-        animation: starTwinkleBgStrong 5.0s ease-in-out infinite;
+        animation: twinkleBack 5.0s ease-in-out infinite;
         z-index: 1;
-        opacity: 0.95;
         transform: translate3d(calc(var(--star-x, 0px) * -42), calc(var(--star-y, 0px) * -42), 0) scale(1.10);
-        background-image: ${starFields.back};
-        background-size: 100% 100%;
+        background-image: ${starTiles.back.image};
+        background-size: ${starTiles.back.size};
         background-position: center;
       }
       .starfield-front {
-        animation: starTwinkleC 3.8s ease-in-out infinite;
+        animation: twinkleFront 3.8s ease-in-out infinite;
         z-index: 6;
-        opacity: 0.92;
-        mix-blend-mode: screen;
         transform: translate3d(calc(var(--star-x, 0px) * 74), calc(var(--star-y, 0px) * 74), 0) scale(1.16);
         filter: drop-shadow(0 0 3px rgba(255,255,255,0.75));
         background-image: ${starFields.front};
@@ -477,10 +480,8 @@ function Css() {
         background-position: center;
       }
       .starfield-ultrafront {
-        animation: starTwinkleB 2.9s ease-in-out infinite;
+        animation: twinkleUltraFront 2.9s ease-in-out infinite;
         z-index: 7;
-        opacity: 1;
-        mix-blend-mode: screen;
         transform: translate3d(calc(var(--star-x, 0px) * 140), calc(var(--star-y, 0px) * 140), 0) scale(1.22);
         filter: drop-shadow(0 0 18px rgba(255,255,255,1)) drop-shadow(0 0 8px rgba(255,255,255,0.95));
         background-image: ${starFields.ultraFront};
@@ -607,7 +608,24 @@ function Css() {
       .footer { position: relative; z-index: 1; border-top: 1px solid var(--line); color: var(--dim); text-align: center; padding: 28px 16px; font-size: 0.86rem; background: rgba(9,10,13,0.7); }
 
       @media (max-width: 860px) {
+        .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(28, 14, 8, 0.97); }
+        .menu-btn { display: flex; }
         .nav { display: none; }
+        .nav.open {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          padding: 6px 16px 12px;
+          background: #1c0e08;
+          border-bottom: 1px solid var(--line);
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        }
+        .nav.open .nav-link { padding: 13px 4px; font-size: 1.02rem; border-bottom: 1px solid rgba(255,180,120,0.10); }
+        .nav.open .nav-link:last-child { border-bottom: 0; }
         .hero { min-height: auto; padding-top: 54px; }
         .hero-cards {
           grid-template-columns: 1fr;
@@ -648,7 +666,6 @@ function Css() {
         }
       }
       @media (max-width: 620px) {
-        .nav { display: none; }
         .hero { min-height: auto; padding-top: 54px; }
         .hero-cards { grid-template-columns: 1fr; height: auto; }
         .image-card { min-height: 0; height: min(360px, 95vw); }
@@ -665,16 +682,30 @@ function Css() {
 }
 
 function HomePage() {
-  const [starParallax, setStarParallax] = useState({ x: 0, y: 0 });
-
-  const handleStarParallax = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
-    const y = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
-    setStarParallax({ x, y });
+  // Mouse-only parallax/tilt. Writes CSS variables straight onto the card once per frame (no React
+  // re-render per mouse move). Touch is left alone: on a phone a drag over the card is a scroll.
+  const cardRef = useRef(null);
+  const frame = useRef(0);
+  const setParallax = (x, y) => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const st = cardRef.current?.style;
+      if (!st) return;
+      st.setProperty("--star-x", `${x}px`);
+      st.setProperty("--star-y", `${y}px`);
+      st.setProperty("--tilt-x", `${x * 8}deg`);
+      st.setProperty("--tilt-y", `${y * 8}deg`);
+      st.setProperty("--plane-shadow-x", `${x * 18}px`);
+      st.setProperty("--plane-shadow-y", `${y * 18}px`);
+    });
   };
-
-  const resetStarParallax = () => setStarParallax({ x: 0, y: 0 });
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const handleStarParallax = (event) => {
+    if (event.pointerType !== "mouse") return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setParallax(((event.clientX - rect.left) / rect.width - 0.5) * 2, ((event.clientY - rect.top) / rect.height - 0.5) * 2);
+  };
+  const resetStarParallax = (event) => { if (event.pointerType === "mouse") setParallax(0, 0); };
 
   return (
     <>
@@ -686,18 +717,9 @@ function HomePage() {
 
           <motion.div
             className="hero-card content-card"
-            style={{
-              "--star-x": `${starParallax.x}px`,
-              "--star-y": `${starParallax.y}px`,
-              "--tilt-x": `${starParallax.x * 8}deg`,
-              "--tilt-y": `${starParallax.y * 8}deg`,
-              "--plane-shadow-x": `${starParallax.x * 18}px`,
-              "--plane-shadow-y": `${starParallax.y * 18}px`,
-            }}
-            onMouseMove={handleStarParallax}
-            onMouseLeave={resetStarParallax}
-            onTouchMove={(event) => handleStarParallax(event.touches[0])}
-            onTouchEnd={resetStarParallax}
+            ref={cardRef}
+            onPointerMove={handleStarParallax}
+            onPointerLeave={resetStarParallax}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9 }}
@@ -907,6 +929,19 @@ function useHashRoute() {
 }
 
 function Topbar({ route }) {
+  // phone-width menu: remembers the page it was opened on, so changing page closes it
+  const [menuRoute, setMenuRoute] = useState(null);
+  const menuOpen = menuRoute === route;
+  const setMenuOpen = (open) => setMenuRoute(open ? route : null);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setMenuRoute(null); };
+    const onDown = (e) => { if (!e.target.closest(".topbar")) setMenuRoute(null); };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown); };
+  }, [menuOpen]);
+
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -917,7 +952,22 @@ function Topbar({ route }) {
             <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
           </div>
         </a>
-        <nav className="nav" aria-label="Primary navigation">
+        <button
+          type="button"
+          className={`menu-btn${menuOpen ? " open" : ""}`}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          aria-controls="primary-nav"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          <span /><span /><span />
+        </button>
+        <nav
+          id="primary-nav"
+          className={`nav${menuOpen ? " open" : ""}`}
+          aria-label="Primary navigation"
+          onClick={(e) => { if (e.target.closest("a")) setMenuOpen(false); }}
+        >
           {route.startsWith("projects") ? (
             <>
               <a href="#/" className="nav-link">Home</a>
