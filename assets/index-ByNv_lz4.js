@@ -495,11 +495,9 @@ Error generating stack: `+e.message+`
           grid-template-columns: 1fr;
           height: auto;
         }
-        .image-card,
-        .content-card {
-          min-height: 360px;
-          height: 40px;
-        }
+        /* stacked: the photo keeps a fixed height; the text card grows to fit its content */
+        .image-card { min-height: 360px; height: 360px; }
+        .content-card { min-height: 360px; height: auto; }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
 
@@ -534,8 +532,9 @@ Error generating stack: `+e.message+`
       @media (max-width: 620px) {
         .nav { display: none; }
         .hero { min-height: auto; padding-top: 54px; }
-        .hero-cards { grid-template-columns: 1fr; height: 400px; }
-        .image-card, .content-card { min-height: 360px; }
+        .hero-cards { grid-template-columns: 1fr; height: auto; }
+        .image-card { min-height: 0; height: min(360px, 95vw); }
+        .content-card { min-height: 0; height: auto; }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
         .contact-grid, .graphics-grid, .graphics-grid.old { grid-template-columns: 1fr; }
