@@ -230,9 +230,9 @@ dl.attrs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap
 dl.attrs dt { color: var(--ink-3); }
 dl.attrs dd { margin: 0; overflow-wrap: anywhere; }
 .empty { color: var(--ink-3); }
-details.dq { padding: 12px 14px; }
-details.dq summary { cursor: pointer; font: 600 1.15rem var(--display); letter-spacing: .02em; }
-.dq table td { white-space: normal; vertical-align: top; }
+.dq { padding: 12px 14px; display: grid; gap: 8px; justify-items: start; }
+.dq h2 { margin: 0; font: 600 1.15rem var(--display); letter-spacing: .02em; }
+.dq .sub { margin: 0; }
 .sev { font: 600 calc(12.5px * var(--fs)) var(--body); text-transform: uppercase; letter-spacing: .06em; padding: 2px 6px; border-radius: 0; }
 .sev.error { color: var(--err); border: 1px solid currentColor; }
 .sev.warning { color: var(--warn); border: 1px solid currentColor; }
@@ -404,11 +404,11 @@ details.dq summary { cursor: pointer; font: 600 1.15rem var(--display); letter-s
     <section class="panel profile" id="profile" aria-live="polite"></section>
   </div>
 
-  <details class="panel dq">
-    <summary>Data source and quality checks</summary>
+  <section class="panel dq" aria-label="Data source">
+    <h2>Data source</h2>
     <p class="sub" id="dq-intro"></p>
-    <div class="tablewrap" style="max-height:none"><table><thead><tr><th>Severity</th><th>Check</th><th class="num">Count</th><th>What was done</th></tr></thead><tbody id="dq"></tbody></table></div>
-  </details>
+    <button type="button" class="chip-btn" id="dq-dl">Download data-quality report (.txt)</button>
+  </section>
 </div>
 
 <script>
@@ -1507,10 +1507,21 @@ function focus(id) {
 }
 function emptyProfile() { $('profile').innerHTML = '<h2 style="font:700 1.4rem var(--display);margin:0">Player profile</h2><p class="empty">Pick a player from the list, the dropdown or the chart to see their profile.</p>'; }
 
-// ---------- data-quality panel
+// ---------- data source + downloadable data-quality report
 const sevOrder = { error: 0, warning: 1, info: 2 };
-$('dq').innerHTML = [...DATA.issues].sort((a, b) => sevOrder[a.s] - sevOrder[b.s]).map(i => `<tr><td><span class="sev ${i.s}">${i.s}</span></td><td>${esc(i.c)}</td><td class="num">${i.n.toLocaleString()}</td><td>${esc(i.a)}</td></tr>`).join('');
-$('dq-intro').textContent = `Rankings from Tennismylife's TML-Rankings-Database (official ATP lists before 1985, weekly lists from 1985), bios from TML-Database. Covers ${fmt(T0)} to ${fmt(TL)}; built ${DATA.generated}. Every check below ran on load; errors were corrected or excluded as described.`;
+const SOURCE_NOTE = `Rankings from Tennismylife's TML-Rankings-Database (official ATP lists before 1985, weekly lists from 1985; lists after 19 Jan 2026 from atptour.com), bios from TML-Database. Covers ${fmt(T0)} to ${fmt(TL)}; built ${DATA.generated}.`;
+$('dq-intro').textContent = SOURCE_NOTE + ` The data was run through ${DATA.issues.length} checks when it was built; each problem was corrected, excluded or flagged. The full report is below as a download.`;
+function qualityReport() {
+  const rows = [...DATA.issues].sort((a, b) => sevOrder[a.s] - sevOrder[b.s]);
+  const out = ['ATP Top 20 Explorer: data-quality report', '', SOURCE_NOTE, '', `${rows.length} checks (error = a problem in the source data; warning = suspicious but kept; info = for reference). Each check says what was done.`, ''];
+  for (const s of ['error', 'warning', 'info']) {
+    const part = rows.filter(i => i.s === s); if (!part.length) continue;
+    out.push(`== ${s.toUpperCase()} (${part.length}) ==`, '');
+    for (const i of part) out.push(`- ${i.c}`, `    count:  ${i.n.toLocaleString()}`, `    action: ${i.a}`, '');
+  }
+  return out.join('\r\n');
+}
+$('dq-dl').onclick = () => download('atp_top20_data_quality.txt', qualityReport(), 'text/plain;charset=utf-8');
 { let v = 1; try { v = +localStorage.getItem('atp-top20-textsize') || 1; } catch (e) { /* default */ } setTextSize(v, false); }
 document.querySelectorAll('.textsize button').forEach(b => b.onclick = () => { setTextSize(b.dataset.fs); renderLegend(); drawChart(); drawBrush(); });
 $('stamp').textContent = `${N.toLocaleString()} ranking lists · ${fmt(T0)} – ${fmt(TL)}`;
