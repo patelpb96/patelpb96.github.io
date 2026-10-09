@@ -148,6 +148,17 @@ body.reordering, body.reordering * { cursor: grabbing !important; }
 .lg-sec .chip-btn { padding: 4px 8px; text-transform: none; letter-spacing: 0; }
 .legend .tag.grp { border-left: 3px solid var(--ink-3); }
 .legend .tag.off { opacity: .55; border-style: dashed; }
+.legend .eye { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; padding: 2px 4px; line-height: 0; }
+.legend .eye svg { width: calc(15px * var(--fs)); height: calc(15px * var(--fs)); }
+.legend .eye:hover { color: var(--ink); background: var(--grid); }
+.legend .x[data-armed] { color: var(--err); font-size: calc(12.5px * var(--fs)); padding: 3px 6px; border: 1px solid currentColor; }
+.cmpbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.cmpbar .note { color: var(--ink-3); font-size: calc(13px * var(--fs)); }
+.cmpbar .chip-btn.on { border-style: solid; border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+.chartbox.comparing .canvas-wrap { box-shadow: inset 0 2px 0 var(--accent); }
+.linepop .cmp-row { display: grid; gap: 4px; padding-top: 2px; }
+.linepop .cmp-row .chip-btn { border-style: solid; border-color: var(--accent); color: var(--ink); }
+.list-note { flex-basis: 100%; color: var(--ink-3); font-size: calc(13px * var(--fs)); margin-top: -2px; }
 .legend .tag.off:hover { opacity: .9; }
 .groupedit { width: 330px; }
 .groupedit .row2 { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
@@ -213,7 +224,10 @@ th[aria-sort] { color: var(--ink); }
 tbody tr { border-bottom: 1px solid var(--grid); cursor: pointer; }
 tbody tr:hover { background: var(--accent-soft); }
 tbody tr.focus { box-shadow: inset 3px 0 0 var(--accent); }
-td .sel { display: inline-block; width: 12px; height: 12px; border-radius: 0; border: 1.5px solid var(--ink-3); vertical-align: -1px; margin-right: 8px; }
+td .sel { display: inline-block; width: 12px; height: 12px; border-radius: 0; border: 1.5px solid var(--ink-3); vertical-align: -1px; margin-right: 8px; padding: 0; background: transparent; cursor: pointer; position: relative; }
+td .sel::before { content: ''; position: absolute; inset: -9px -6px -9px -10px; } /* a bigger target than the box itself */
+td .sel:hover, td .sel:focus-visible { border-color: var(--ink); outline: none; }
+td .sel.hid { background: transparent !important; border-style: dashed; }
 td .country { color: var(--ink-3); font-size: calc(13px * var(--fs)); margin-left: 6px; }
 
 .profile { padding: 14px 16px 16px; display: grid; gap: 12px; min-width: 0; }
@@ -351,6 +365,7 @@ dl.attrs dd { margin: 0; overflow-wrap: anywhere; }
   <section class="panel chartbox" aria-label="Rankings chart">
     <div class="chart-head">
       <div class="count" id="count"></div>
+      <div class="cmpbar" id="cmpbar"></div>
     </div>
     <div class="chart-body">
       <div class="chart-main">
@@ -392,6 +407,7 @@ dl.attrs dd { margin: 0; overflow-wrap: anywhere; }
           <label class="lbl" for="pick">Or choose</label>
           <select id="pick"></select>
         </div>
+        <div class="list-note">Click a name to see the profile. Tick the box to plot the player.</div>
       </div>
       <div class="tablewrap">
         <table>
@@ -466,6 +482,19 @@ const bySeniority = (a, b) => {
 const EPS = 1e-6;              // a true zero in a group series (0 itself means "no value this week")
 const fmtR = r => r > 0 && r < 1e-3 ? '0' : Number.isInteger(r) ? String(r) : (Math.round(r * 10) / 10).toFixed(1);
 let showOthers = false, othersAlpha = 1;   // unselected lines: visibility, opacity multiplier
+const hiddenP = new Set();      // selected players kept in the legend (colour, style) but not drawn or exported
+const shown = () => selected.filter(id => !hiddenP.has(id));
+// career comparison: x = time since each player's first ranking, so every career starts at 0.
+// { ids: Set of players, win: {a, b} in ms since debut }. null = the normal calendar view.
+let cmp = null, crossO = null;
+const YEAR = 365.2425 * DAY;
+const debutOf = p => { if (p.d0 == null) { const k = p.r.findIndex(r => r > 0); p.d0 = T[p.s + Math.max(0, k)]; } return p.d0; };
+const careerEnd = p => (p.e + 1 < N ? T[p.e + 1] : END) - debutOf(p); // ms from debut to the end of the last list ranked
+const cmpPlayers = () => cmp ? shown().filter(id => cmp.ids.has(id)) : [];
+const cmpMax = () => Math.max(YEAR, ...cmpPlayers().map(id => careerEnd(byId.get(id))));
+// the brush and the chart's x axis work on whichever window is active
+const BW = () => cmp ? cmp.win : win, BLO = () => cmp ? 0 : T0, BHI = () => cmp ? cmpMax() : END;
+const rankAtTime = (p, t) => { const i = lastIdxAtOrBefore(t); return t >= T[p.s] && i >= p.s && i <= p.e ? p.r[i - p.s] || 0 : 0; };
 const lineStyle = new Map();    // id -> { alpha, width, dash, color }; kept if a player is deselected and picked again
 const DEF_STYLE = { alpha: 1, width: 2.25, dash: 'solid', color: null };
 const styleOf = id => ({ ...DEF_STYLE, ...lineStyle.get(id) });
@@ -492,14 +521,14 @@ function aggregate() {
   return out;
 }
 // best rank and weeks in the top 20 for one player inside the window
-function statsFor(p, i0, i1) {
+function statsFor(p, i0, i1, wa = win.a, wb = win.b) {
   let best = Infinity, days = 0;
   for (let i = Math.max(i0, p.s); i <= Math.min(i1, p.e); i++) {
     const r = p.r[i - p.s];
     if (!r) continue;
     if (r < best) best = r;
     if (r <= 20) {
-      const from = Math.max(T[i], win.a), to = Math.min(T[i] + DATA.dur[i] * DAY, win.b);
+      const from = Math.max(T[i], wa), to = Math.min(T[i] + DATA.dur[i] * DAY, wb);
       if (to > from) days += (to - from) / DAY;
     }
   }
@@ -575,12 +604,28 @@ function niceTicks(a, b, w) {
   return ticks;
 }
 
+// career axis: years since first ranking
+function careerTicks(a, b, w) {
+  const span = (b - a) / YEAR, target = Math.max(2, Math.floor(w / 80));
+  const step = [.25, .5, 1, 2, 5, 10].find(s => span / s <= target) || 10;
+  const out = [];
+  for (let y = Math.ceil(a / YEAR / step - 1e-9) * step; y * YEAR <= b + 1; y += step) out.push([y * YEAR, y === 0 ? 'debut' : `${+y.toFixed(2)} yr${y === 1 ? '' : 's'}`]);
+  return out;
+}
+const ticksX = (a, b, w) => cmp ? careerTicks(a, b, w) : niceTicks(a, b, w);
+function fmtSpan(ms) {
+  const m = Math.round(ms / (YEAR / 12)), y = Math.floor(m / 12), r = m % 12;
+  return m <= 0 ? 'At first ranking' : [y ? `${y} yr${y > 1 ? 's' : ''}` : '', r ? `${r} mo` : ''].filter(Boolean).join(' ') + ' after first ranking';
+}
+
 function drawChart() {
   const { g, w, h } = setup(chart);
   M.r = Math.round((w < 600 ? 78 : 112) * FS); M.l = Math.round(44 * FS); M.b = Math.round(26 * FS);
-  const x = t => M.l + (t - win.a) / (win.b - win.a) * (w - M.l - M.r);
+  const C = !!cmp, A = C ? cmp.win.a : win.a, B = C ? cmp.win.b : win.b;
+  const x = v => M.l + (v - A) / (B - A) * (w - M.l - M.r); // v: a date, or ms since debut when comparing careers
+  const sh = p => C ? debutOf(p) : 0;
   const Y = yScale(h);
-  geo = { x, Y, w, h };
+  geo = { x, Y, w, h, A, B };
   g.clearRect(0, 0, w, h);
   g.font = fpx(13.5) + css('--body'); g.textBaseline = 'middle';
   // grid
@@ -597,28 +642,35 @@ function drawChart() {
     g.fillStyle = css('--ink-3'); g.textAlign = 'left'; if (y1 - M.t > 18) g.fillText('beyond No. 1', M.l + 8, M.t + 10);
   }
   g.textAlign = 'center'; g.textBaseline = 'top';
-  for (const [t, lab] of niceTicks(win.a, win.b, w - M.l - M.r)) { const xx = Math.round(x(t)) + .5; g.strokeStyle = css('--grid'); g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, h - M.b); g.stroke(); g.fillText(lab, xx, h - M.b + 6); }
+  for (const [t, lab] of ticksX(A, B, w - M.l - M.r)) { const xx = Math.round(x(t)) + .5; g.strokeStyle = css('--grid'); g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, h - M.b); g.stroke(); g.fillText(lab, xx, h - M.b + 6); }
   g.textAlign = 'left'; g.textBaseline = 'middle';
   g.fillStyle = css('--ink-3'); g.save(); g.translate(12, (M.t + h - M.b) / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText('Rank', 0, 0); g.restore();
 
   const [i0, i1] = windowIdx();
+  // the lists to draw for one player: the window's, or (comparing) the lists inside the window counted from their debut
+  const rangeOf = p => {
+    const [a, b] = C ? [lastIdxAtOrBefore(debutOf(p) + A), lastIdxAtOrBefore(debutOf(p) + B)] : [i0, i1];
+    return [Math.max(p.s, a), Math.min(p.e, b + 1 < N ? b + 1 : b)];
+  };
+  const plotIds = drawOrder().filter(id => byId.get(id) && !hiddenP.has(id) && (!C || cmp.ids.has(id)));
+  const plotSet = new Set(plotIds);
   g.save(); g.beginPath(); g.rect(M.l, M.t - 2, w - M.l - M.r, h - M.t - M.b + 4); g.clip();
   // idle lines break where a player drops out of the 1-30 view, so exits don't smear vertical streaks
   const pathFor = (p, breakOut) => {
     g.beginPath(); let pen = false;
-    const from = Math.max(p.s, i0), to = Math.min(p.e, i1 + 1 < N ? i1 + 1 : i1);
+    const [from, to] = rangeOf(p), d = sh(p);
     for (let i = from; i <= to; i++) {
       const r = p.r[i - p.s];
       if (!r || (breakOut && !Y.inView(r))) { pen = false; continue; }
-      const xx = x(T[i]), yy = Y.f(r);
+      const xx = x(T[i] - d), yy = Y.f(r);
       if (!pen) { g.moveTo(xx, yy); pen = true; } else g.lineTo(xx, yy);
     }
   };
   g.lineJoin = 'round'; g.lineCap = 'round';
   // idle lines first, then selected, then hovered on top
-  if (showOthers) {
+  if (showOthers && !C) { // comparing careers: only the compared players
     g.strokeStyle = css('--idle'); g.lineWidth = 1.25; g.globalAlpha = othersAlpha;
-    for (const it of inWin) { if (slotOf.has(it.p.id) || it.p.id === hoverId) continue; pathFor(it.p, true); g.stroke(); }
+    for (const it of inWin) { if (slotOf.has(it.p.id) && !hiddenP.has(it.p.id) || it.p.id === hoverId) continue; pathFor(it.p, true); g.stroke(); }
     g.globalAlpha = 1;
   }
   const surf = css('--panel');
@@ -632,9 +684,9 @@ function drawChart() {
     g.setLineDash(dashFor(st.dash, lw)); g.strokeStyle = colorOf(id); g.lineWidth = lw; g.stroke();
     g.setLineDash([]); g.globalAlpha = 1;
   };
-  for (const id of drawOrder()) { if (!byId.get(id) || id === hoverId) continue; strokeSel(id, false); }
+  for (const id of plotIds) { if (id === hoverId) continue; strokeSel(id, false); }
   if (hoverId) {
-    if (slotOf.has(hoverId)) strokeSel(hoverId, true);
+    if (plotSet.has(hoverId)) strokeSel(hoverId, true);
     else { const p = byId.get(hoverId); pathFor(p); if (outline) { g.strokeStyle = surf; g.lineWidth = 6; g.stroke(); } g.strokeStyle = css('--idle-hi'); g.lineWidth = 2.75; g.stroke(); }
   }
   g.restore();
@@ -642,14 +694,14 @@ function drawChart() {
   // moving average + momentum: own clip that is open at the top, so overshoots past No. 1 run off the plot instead of being cut
   if (trend.on) {
     g.save(); g.beginPath(); g.rect(M.l, 0, w - M.l - M.r, h - M.b + 2); g.clip();
-    for (const id of drawOrder()) {
-      const p = byId.get(id); if (!p) continue;
+    for (const id of plotIds) {
+      const p = byId.get(id), d = sh(p);
       const tr = trendSeries(p), st = styleOf(id);
-      const k0 = Math.max(0, Math.floor((win.a - tr.t0) / WEEK) - 1), k1 = Math.min(tr.v.length - 1, Math.ceil((win.b - tr.t0) / WEEK) + 1);
+      const k0 = Math.max(0, Math.floor((A + d - tr.t0) / WEEK) - 1), k1 = Math.min(tr.v.length - 1, Math.ceil((B + d - tr.t0) / WEEK) + 1);
       g.beginPath(); let pen = false;
       for (let k = k0; k <= k1; k++) {
         const u = tr.v[k]; if (isNaN(u)) { pen = false; continue; }
-        const xx = x(tr.t0 + k * WEEK), yy = Y.fu(u);
+        const xx = x(tr.t0 + k * WEEK - d), yy = Y.fu(u);
         if (!pen) { g.moveTo(xx, yy); pen = true; } else g.lineTo(xx, yy);
       }
       const lw = st.width + .75;
@@ -662,12 +714,13 @@ function drawChart() {
 
   // direct labels for selected (and hovered) at their last visible point
   const labels = [];
-  for (const id of new Set([...(selected.length <= MAXLABELS ? selected : []), ...(hoverId ? [hoverId] : [])])) {
+  for (const id of new Set([...(plotIds.length <= MAXLABELS ? plotIds : []), ...(hoverId ? [hoverId] : [])])) {
     const p = byId.get(id); if (!p) continue;
-    let li = -1; for (let i = Math.min(p.e, i1); i >= Math.max(p.s, i0); i--) if (p.r[i - p.s]) { li = i; break; }
+    const [from, to] = rangeOf(p), last = C ? to - (T[to] - debutOf(p) > B ? 1 : 0) : Math.min(p.e, i1);
+    let li = -1; for (let i = last; i >= from; i--) if (p.r[i - p.s]) { li = i; break; }
     if (li < 0) continue;
     const r = p.r[li - p.s];
-    labels.push({ id, y: Math.max(M.t, Math.min(h - M.b, Y.f(r))), text: (p.isGroup ? p.n : p.n.split(' ').slice(-1)[0]) + ' ' + fmtR(r), c: colorOf(id) || css('--idle-hi') });
+    labels.push({ id, y: Math.max(M.t, Math.min(h - M.b, Y.f(r))), text: (p.isGroup ? p.n : p.n.split(' ').slice(-1)[0]) + (C && debutOf(p) <= T0 ? '*' : '') + ' ' + fmtR(r), c: colorOf(id) || css('--idle-hi') });
   }
   labels.sort((a, b) => a.y - b.y);
   for (let k = 1; k < labels.length; k++) if (labels[k].y - labels[k - 1].y < 15 * FS) labels[k].y = labels[k - 1].y + 15 * FS;
@@ -678,15 +731,16 @@ function drawChart() {
   for (const L of labels) { g.fillStyle = L.c; g.fillRect(w - M.r + 6, L.y - 1.5, 8, 3); g.fillStyle = css('--ink'); g.fillText(L.text, w - M.r + 18, L.y); }
 
   // crosshair
-  if (crossI != null && crossI >= i0 && crossI <= i1) {
-    const xx = Math.round(x(Math.max(T[crossI], win.a))) + .5;
+  if (C ? crossO != null : crossI != null && crossI >= i0 && crossI <= i1) {
+    const xx = Math.round(x(C ? crossO : Math.max(T[crossI], win.a))) + .5;
     g.strokeStyle = css('--ink-3'); g.lineWidth = 1; g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, h - M.b); g.stroke();
-    for (const id of new Set([...selected, ...(hoverId ? [hoverId] : [])])) {
-      const p = byId.get(id); const r = p && crossI >= p.s && crossI <= p.e ? p.r[crossI - p.s] : 0; if (!r || !Y.inView(r)) continue;
+    for (const id of new Set([...plotIds, ...(hoverId ? [hoverId] : [])])) {
+      const p = byId.get(id); const r = !p ? 0 : C ? rankAtTime(p, debutOf(p) + crossO) : crossI >= p.s && crossI <= p.e ? p.r[crossI - p.s] : 0; if (!r || !Y.inView(r)) continue;
       g.beginPath(); g.arc(xx, Y.f(r), 4.5, 0, 7); g.fillStyle = colorOf(id) || css('--idle-hi'); g.fill(); g.lineWidth = 2; g.strokeStyle = surf; g.stroke();
     }
   }
-  if (!inWin.length) { g.fillStyle = css('--ink-3'); g.textAlign = 'center'; g.font = fpx(15) + css('--body'); g.fillText('No player held a top-20 ranking in this window.', w / 2, h / 2); }
+  const empty = C ? (plotIds.length ? '' : 'Select players to compare their careers.') : inWin.length ? '' : 'No player held a top-20 ranking in this window.';
+  if (empty) { g.fillStyle = css('--ink-3'); g.textAlign = 'center'; g.font = fpx(15) + css('--body'); g.fillText(empty, w / 2, h / 2); }
 }
 
 function chartPointer(ev) {
@@ -694,6 +748,13 @@ function chartPointer(ev) {
   const rect = chart.getBoundingClientRect(), px = ev.clientX - rect.left, py = ev.clientY - rect.top;
   const { x, Y, w, h } = geo;
   if (px < M.l || px > w - M.r + 4 || py < 0 || py > h) { leaveChart(); return; }
+  if (cmp) { // nearest compared career at this point in time since debut
+    const o = Math.max(geo.A, Math.min(geo.B, geo.A + (px - M.l) / (w - M.l - M.r) * (geo.B - geo.A)));
+    crossO = o; crossI = null;
+    let bestD = 18, best = null;
+    for (const id of cmpPlayers()) { const p = byId.get(id), r = rankAtTime(p, debutOf(p) + o); if (!r || !Y.inView(r)) continue; const d = Math.abs(Y.f(r) - py); if (d < bestD) { bestD = d; best = id; } }
+    hoverId = best; drawChart(); showCmpTip(px, py, o); return;
+  }
   const t = win.a + (px - M.l) / (w - M.l - M.r) * (win.b - win.a);
   const [i0, i1] = windowIdx();
   let i = Math.min(i1, Math.max(i0, lastIdxAtOrBefore(t)));
@@ -702,14 +763,14 @@ function chartPointer(ev) {
   let bestD = 18, best = null;
   const cands = [...inWin.map(it => it.p), ...selected.map(id => byId.get(id)).filter(p => p && p.isGroup)];
   for (const p of cands) {
-    if (!showOthers && !slotOf.has(p.id)) continue; // hidden lines can't be pointed at
+    if (!showOthers && (!slotOf.has(p.id) || hiddenP.has(p.id))) continue; // lines not drawn can't be pointed at (hidden players draw as idle lines)
     if (i < p.s || i > p.e) continue; const r = p.r[i - p.s]; if (!r || !Y.inView(r)) continue;
     const d = Math.abs(Y.f(r) - py); if (d < bestD) { bestD = d; best = p.id; }
   }
   hoverId = best;
   drawChart(); showTip(px, py, i);
 }
-function leaveChart() { crossI = null; hoverId = null; $('tip').hidden = true; drawChart(); }
+function leaveChart() { crossI = null; crossO = null; hoverId = null; $('tip').hidden = true; drawChart(); }
 // ranks get a '#'; group values that are counts, ages or distances get their unit instead
 function valText(p, r) {
   if (!p.isGroup) return '#' + fmtR(r);
@@ -718,7 +779,7 @@ function valText(p, r) {
 }
 function showTip(px, py, i) {
   const tip = $('tip');
-  const ids = [...new Set([...(hoverId ? [hoverId] : []), ...selected])];
+  const ids = [...new Set([...(hoverId ? [hoverId] : []), ...shown()])];
   let rows = ids.map(id => { const p = byId.get(id); const r = i >= p.s && i <= p.e ? p.r[i - p.s] : 0; return { p, r }; });
   let more = 0;
   if (rows.length > MAXLABELS) { // big selections: hovered first, then by rank on this list
@@ -731,6 +792,21 @@ function showTip(px, py, i) {
   tip.innerHTML = `<div class="d">List of ${fmt(T[i])}${(until - T[i]) / DAY > 8 ? ` (in force to ${fmt(until - DAY)})` : ''}</div>` +
     (rows.length ? rows.map(({ p, r }) => { const tv = trend.on && slotOf.has(p.id) ? trendAt(p, T[i]) : null; return `<div class="row"><span class="k" style="background:${colorOf(p.id) || css('--idle-hi')}"></span><span>${esc(p.n)}</span><b>${r ? valText(p, r) : '—'}${tv != null ? `<i title="moving average with momentum">~${fmtR(tv)}</i>` : ''}</b></div>${p.dyn && r ? `<div class="tsub">${esc(top10Names(i).map(n => n.split(' ').slice(-1)[0]).join(', '))}</div>` : ''}`; }).join('')
       : `<div class="empty">Point at a line to name it</div>`) + (more > 0 ? `<div class="empty">+${more} more ranked</div>` : '');
+  placeTip(px, py);
+}
+function showCmpTip(px, py, o) {
+  const tip = $('tip');
+  const ids = [...new Set([...(hoverId ? [hoverId] : []), ...cmpPlayers()])].slice(0, MAXLABELS);
+  const rows = ids.map(id => { const p = byId.get(id), t = debutOf(p) + o, r = rankAtTime(p, t); return { p, r, t }; });
+  const mon = t => new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', timeZone: 'UTC' });
+  tip.innerHTML = `<div class="d">${esc(fmtSpan(o))}</div>` + rows.map(({ p, r, t }) => {
+    const tv = trend.on ? trendAt(p, t) : null;
+    return `<div class="row"><span class="k" style="background:${colorOf(p.id) || css('--idle-hi')}"></span><span>${esc(p.n)} <i style="font-style:normal;color:var(--ink-3)">${t <= END ? mon(t) : ''}</i></span><b>${r ? '#' + fmtR(r) : '—'}${tv != null ? `<i title="moving average with momentum">~${fmtR(tv)}</i>` : ''}</b></div>`;
+  }).join('');
+  placeTip(px, py);
+}
+function placeTip(px, py) {
+  const tip = $('tip');
   tip.hidden = false;
   const W = chart.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
   tip.style.left = Math.min(W - tw - 4, px + 14 > W - tw - 4 ? px - tw - 14 : px + 14) + 'px';
@@ -742,14 +818,14 @@ chart.addEventListener('click', () => { if (hoverId) { toggle(hoverId, true); if
 
 // ---------- brush (time strip)
 const brush = $('brush');
-let dom = { a: T0, b: END };   // the strip's visible span
+let dom = { a: BLO(), b: BHI() };   // the strip's visible span
 let drag = null, raf = 0;
 const BM = { l: 10, r: 10 };
 function bx(t, w) { return BM.l + (t - dom.a) / (dom.b - dom.a) * (w - BM.l - BM.r); }
 function bt(px, w) { return dom.a + (px - BM.l) / (w - BM.l - BM.r) * (dom.b - dom.a); }
 function fitDom(animate) {
-  const span = win.b - win.a, pad = Math.max(span * .35, 120 * DAY);
-  const target = { a: Math.max(T0, win.a - pad), b: Math.min(END, win.b + pad) };
+  const W = BW(), span = W.b - W.a, pad = Math.max(span * .35, cmp ? 30 * DAY : 120 * DAY);
+  const target = { a: Math.max(BLO(), W.a - pad), b: Math.min(BHI(), W.b + pad) };
   if (!animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { dom = target; drawBrush(); return; }
   const from = { ...dom }, t0 = performance.now();
   const step = now => { const k = Math.min(1, (now - t0) / 260), e = 1 - Math.pow(1 - k, 3);
@@ -764,16 +840,16 @@ function drawBrush() {
   g.fillStyle = css('--grid'); g.fillRect(BM.l, top, w - BM.l - BM.r, bot - top);
   // density: how many players were in the top 20 who would also be in the window... show No.1 changes as ticks
   g.font = fpx(13) + css('--body'); g.textBaseline = 'top'; g.textAlign = 'center'; g.fillStyle = css('--ink-3');
-  for (const [t, lab] of niceTicks(dom.a, dom.b, w - BM.l - BM.r)) { const xx = Math.round(bx(t, w)) + .5; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(xx, top); g.lineTo(xx, bot); g.stroke(); g.fillText(lab, xx, bot + 4); }
+  for (const [t, lab] of ticksX(dom.a, dom.b, w - BM.l - BM.r)) { const xx = Math.round(bx(t, w)) + .5; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(xx, top); g.lineTo(xx, bot); g.stroke(); const hw = g.measureText(lab).width / 2; g.fillText(lab, Math.max(hw + 1, Math.min(w - hw - 1, xx)), bot + 4); }
   // data limits inside the strip
-  const xa = bx(win.a, w), xb = bx(win.b, w);
+  const xa = bx(BW().a, w), xb = bx(BW().b, w);
   g.fillStyle = css('--brush'); g.fillRect(xa, top, xb - xa, bot - top);
   g.strokeStyle = css('--accent'); g.lineWidth = 1.5; g.strokeRect(xa + .75, top + .75, xb - xa - 1.5, bot - top - 1.5);
   for (const xx of [xa, xb]) { g.fillStyle = css('--accent'); roundRect(g, xx - 4, top - 3, 8, bot - top + 6, 0); g.fill(); g.fillStyle = css('--accent-ink'); g.fillRect(xx - 1, (top + bot) / 2 - 7, 2, 14); }
   // edge arrows when the strip can extend
   g.fillStyle = css('--ink-3');
-  if (dom.a > T0 + DAY) tri(g, 3, (top + bot) / 2, -1);
-  if (dom.b < END - DAY) tri(g, w - 3, (top + bot) / 2, 1);
+  if (dom.a > BLO() + DAY) tri(g, 3, (top + bot) / 2, -1);
+  if (dom.b < BHI() - DAY) tri(g, w - 3, (top + bot) / 2, 1);
 }
 function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
 function tri(g, x, y, dir) { g.beginPath(); g.moveTo(x, y); g.lineTo(x - 5 * dir, y - 5); g.lineTo(x - 5 * dir, y + 5); g.closePath(); g.fill(); }
@@ -781,20 +857,20 @@ function tri(g, x, y, dir) { g.beginPath(); g.moveTo(x, y); g.lineTo(x - 5 * dir
 const MIN_SPAN = 14 * DAY;
 brush.addEventListener('pointerdown', ev => {
   const rect = brush.getBoundingClientRect(), w = rect.width, px = ev.clientX - rect.left;
-  const xa = bx(win.a, w), xb = bx(win.b, w);
+  const xa = bx(BW().a, w), xb = bx(BW().b, w);
   let kind = null;
   if (Math.abs(px - xa) <= 12 && Math.abs(px - xa) <= Math.abs(px - xb)) kind = 'a';
   else if (Math.abs(px - xb) <= 12) kind = 'b';
   else if (px > xa && px < xb) kind = 'pan';
   else kind = px < xa ? 'a' : 'b';            // click outside the band moves the nearer edge there
-  drag = { kind, px, start: { ...win }, w, startPx: px };
+  drag = { kind, px, start: { ...BW() }, w, startPx: px };
   brush.setPointerCapture(ev.pointerId);
   if (kind !== 'pan') applyBrush(px);
   loop();
 });
 brush.addEventListener('pointermove', ev => {
   const rect = brush.getBoundingClientRect(), px = ev.clientX - rect.left, w = rect.width;
-  if (!drag) { const xa = bx(win.a, w), xb = bx(win.b, w); brush.style.cursor = Math.min(Math.abs(px - xa), Math.abs(px - xb)) <= 12 ? 'ew-resize' : (px > xa && px < xb ? 'grab' : 'pointer'); return; }
+  if (!drag) { const xa = bx(BW().a, w), xb = bx(BW().b, w); brush.style.cursor = Math.min(Math.abs(px - xa), Math.abs(px - xb)) <= 12 ? 'ew-resize' : (px > xa && px < xb ? 'grab' : 'pointer'); return; }
   drag.px = px; drag.w = w;
   applyBrush(px);
 });
@@ -806,13 +882,13 @@ function applyBrush(px) {
   const w = drag.w, lo = BM.l, hi = w - BM.r;
   const inside = Math.min(hi, Math.max(lo, px));
   const t = bt(inside, w);
-  if (drag.kind === 'a') win.a = Math.max(T0, Math.min(t, win.b - MIN_SPAN));
-  else if (drag.kind === 'b') win.b = Math.min(END, Math.max(t, win.a + MIN_SPAN));
+  if (drag.kind === 'a') BW().a = Math.max(BLO(), Math.min(t, BW().b - MIN_SPAN));
+  else if (drag.kind === 'b') BW().b = Math.min(BHI(), Math.max(t, BW().a + MIN_SPAN));
   else {
     const dt = bt(px, w) - bt(drag.startPx, w);
     const span = drag.start.b - drag.start.a;
-    let a = drag.start.a + dt; a = Math.max(T0, Math.min(END - span, a));
-    win.a = a; win.b = a + span;
+    let a = drag.start.a + dt; a = Math.max(BLO(), Math.min(BHI() - span, a));
+    BW().a = a; BW().b = a + span;
   }
   syncInputs(); scheduleRender();
 }
@@ -826,16 +902,61 @@ function loop() {
     if (over !== 0) {
       const span = dom.b - dom.a;
       const rate = Math.sign(over) * Math.min(.05, Math.pow(Math.abs(over) / 60, 2) * .02 + .004) * span; // ms of time per frame
-      if (over > 0) dom.b = Math.min(END, dom.b + rate); else dom.a = Math.max(T0, dom.a + rate);
-      if (drag.kind === 'b' && over > 0) win.b = dom.b;
-      else if (drag.kind === 'a' && over < 0) win.a = dom.a;
-      else if (drag.kind === 'pan') { const s = drag.start.b - drag.start.a; if (over > 0) { win.b = dom.b; win.a = win.b - s; } else { win.a = dom.a; win.b = win.a + s; } drag.start = { ...win }; drag.startPx = drag.px; }
+      if (over > 0) dom.b = Math.min(BHI(), dom.b + rate); else dom.a = Math.max(BLO(), dom.a + rate);
+      if (drag.kind === 'b' && over > 0) BW().b = dom.b;
+      else if (drag.kind === 'a' && over < 0) BW().a = dom.a;
+      else if (drag.kind === 'pan') { const s = drag.start.b - drag.start.a; if (over > 0) { BW().b = dom.b; BW().a = BW().b - s; } else { BW().a = dom.a; BW().b = BW().a + s; } drag.start = { ...BW() }; drag.startPx = drag.px; }
       syncInputs(); scheduleRender();
     }
     drawBrush();
     raf = requestAnimationFrame(tick);
   });
 }
+
+// ---------- career comparison (x = time since each player's first ranking)
+const yrs = ms => +(ms / YEAR).toFixed(1);
+function enterCompare(ids) {
+  const ps = ids.filter(id => byId.get(id) && !byId.get(id).isGroup);
+  if (!ps.length) return;
+  ps.forEach(id => hiddenP.delete(id));
+  cmp = { ids: new Set(ps), win: { a: 0, b: 0 } };
+  cmp.win.b = cmpMax();
+  closePop(); afterModeChange();
+}
+function exitCompare() { if (!cmp) return; cmp = null; closePop(); afterModeChange(); }
+function afterModeChange() {
+  crossI = null; crossO = null; hoverId = null; $('tip').hidden = true;
+  document.querySelector('.chartbox').classList.toggle('comparing', !!cmp);
+  fitDom(false); updateCount(); renderLegend(); renderCmpBar(); drawChart();
+}
+function addToCompare(id) {
+  const full = cmp.win.b >= cmpMax() - DAY; // showing whole careers: keep doing so if the new one is longer
+  cmp.ids.add(id);
+  if (full) cmp.win.b = cmpMax();
+  fitDom(false);
+}
+function renderCmpBar() {
+  const bar = $('cmpbar');
+  if (cmp) {
+    const max = cmpMax();
+    if (cmp.win.b > max) { cmp.win.b = max; cmp.win.a = Math.max(0, Math.min(cmp.win.a, max - MIN_SPAN)); fitDom(false); }
+    const early = cmpPlayers().filter(id => debutOf(byId.get(id)) <= T0).map(id => byId.get(id).n.split(' ').slice(-1)[0]);
+    const grp = shown().some(id => byId.get(id).isGroup);
+    bar.innerHTML = `<span class="note" title="${early.length ? esc(`${early.join(', ')} ${early.length > 1 ? 'were' : 'was'} already ranked on the first ATP list (Aug 1973), so ${early.length > 1 ? 'their careers start' : 'that career starts'} earlier than shown.`) : ''}">Aligned on each player’s first ranking${early.length ? ' · <b style="color:var(--warn)">*</b> ranked before 1973' : ''}${grp ? ' · groups not shown' : ''}</span>` +
+      `<button type="button" class="chip-btn on" id="cmp-exit" title="Back to the calendar view (Esc)">← Back to dates</button>`;
+    $('cmp-exit').onclick = e => { e.stopPropagation(); exitCompare(); };
+  } else {
+    const n = shown().filter(id => !byId.get(id).isGroup).length;
+    bar.innerHTML = n >= 2 ? `<button type="button" class="chip-btn" id="cmp-enter" title="Plot the selected players against time since their first ranking, all starting together">Compare careers</button>` : '';
+    if (n >= 2) $('cmp-enter').onclick = e => { e.stopPropagation(); enterCompare(shown()); };
+  }
+  renderSaveScope();
+}
+// Esc leaves the comparison, unless it is closing a popover or the find list first (capture: runs before their handlers)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !cmp || popEl || geEl || !$('find-list').hidden || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName)) return;
+  exitCompare();
+}, true);
 
 // ---------- inputs
 function syncInputs() { $('from').value = iso(win.a); $('to').value = iso(Math.min(win.b, END - DAY)); }
@@ -1029,9 +1150,10 @@ function wireGroupCtl(root, gd, changed) {
 }
 const GKEY = 'atp-explorer-groups-v1';
 const DEFAULT_GROUPS = [{ id: 'G1', name: 'Big Three', members: ['F324', 'N409', 'D643'], agg: 'peak' }];
-function saveGroups() { try { localStorage.setItem(GKEY, JSON.stringify({ groups })); } catch (e) { /* storage unavailable: groups last for this visit */ } }
+let noTop10 = false; // the built-in Top 10 group was deleted: don't bring it back on the next visit
+function saveGroups() { try { localStorage.setItem(GKEY, JSON.stringify({ groups, noTop10 })); } catch (e) { /* storage unavailable: groups last for this visit */ } }
 function loadGroups() {
-  try { const d = JSON.parse(localStorage.getItem(GKEY)); if (d && Array.isArray(d.groups)) return d.groups.filter(g => g && Array.isArray(g.members) && (g.dyn ? g.dyn === 'top10' && TOP10 && TOP10.metrics[g.metric] : /^G\d+$/.test(g.id) && AGGS[g.agg])); } catch (e) { /* fall through */ }
+  try { const d = JSON.parse(localStorage.getItem(GKEY)); noTop10 = !!d?.noTop10; if (d && Array.isArray(d.groups)) return d.groups.filter(g => g && Array.isArray(g.members) && (g.dyn ? g.dyn === 'top10' && TOP10 && TOP10.metrics[g.metric] : /^G\d+$/.test(g.id) && AGGS[g.agg])); } catch (e) { /* fall through */ }
   return null;
 }
 function buildGroup(gd) {
@@ -1111,10 +1233,7 @@ function openGroupEditor(gid) {
     const as = geEl.querySelector('[data-act=addsel]'); if (as) as.onclick = () => { draft.members.push(...selPlayers()); render(); };
     geEl.querySelectorAll('[data-act=close]').forEach(b => b.onclick = closeGE);
     const del = geEl.querySelector('[data-act=delete]');
-    if (del) del.onclick = () => {
-      if (slotOf.has(src.id)) toggle(src.id);
-      groups = groups.filter(g => g.id !== src.id); byId.delete(src.id); saveGroups(); closeGE(); renderLegend(); drawChart();
-    };
+    if (del) del.onclick = () => { closeGE(); deleteGroup(src.id); };
     geEl.querySelector('[data-act=save]').onclick = () => {
       draft.name = draft.name.trim();
       if (!draft.members.length) { err = 'Add at least one player.'; render(); return; }
@@ -1139,13 +1258,26 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && geEl) clos
 // ---------- selection
 function toggle(id, forceOn) {
   $('ppreset').value = '';
-  if (slotOf.has(id)) { if (forceOn) return; slotOf.delete(id); selected = selected.filter(x => x !== id); if (popIds.includes(id)) { popIds = popIds.filter(x => x !== id); if (!popIds.length) closePop(); else renderPop(); } }
+  if (slotOf.has(id)) { if (forceOn) { if (hiddenP.delete(id)) { renderLegend(); renderTable(); drawChart(); renderCmpBar(); } return; } slotOf.delete(id); hiddenP.delete(id); selected = selected.filter(x => x !== id); if (popIds.includes(id)) { popIds = popIds.filter(x => x !== id); if (!popIds.length) closePop(); else renderPop(); } }
   else {
-    if (selected.length >= MAXSEL) { const drop = selected.shift(); slotOf.delete(drop); }
+    if (selected.length >= MAXSEL) { const drop = selected.shift(); slotOf.delete(drop); hiddenP.delete(drop); }
     const used = new Set(slotOf.values()); let s = 1; while (used.has(s)) s++;
     slotOf.set(id, s); selected.push(id);
+    if (cmp && !byId.get(id)?.isGroup) addToCompare(id);
   }
-  renderLegend(); renderTable(); drawChart();
+  renderLegend(); renderTable(); drawChart(); renderCmpBar();
+}
+function setHidden(id, hide) {
+  const p = byId.get(id); if (!p) return;
+  if (p.isGroup) { if (hide === slotOf.has(id)) toggle(id); return; }
+  if (hide) { hiddenP.add(id); if (popIds.includes(id)) { popIds = popIds.filter(x => x !== id); if (!popIds.length) closePop(); else renderPop(); } if (hoverId === id) hoverId = null; }
+  else hiddenP.delete(id);
+  renderLegend(); renderTable(); drawChart(); renderCmpBar();
+}
+function deleteGroup(gid) {
+  if (slotOf.has(gid)) toggle(gid);
+  if (byId.get(gid)?.dyn) noTop10 = true;
+  groups = groups.filter(g => g.id !== gid); byId.delete(gid); lineStyle.delete(gid); saveGroups(); renderLegend(); drawChart();
 }
 // legend swatch: a short stroke drawn with the player's own colour, opacity, width and dash
 function swatchSvg(id) {
@@ -1159,8 +1291,10 @@ function tagHtml(id) {
   const metaTitle = p.isGroup ? (p.dyn ? `${gDescribe(p.gd)}. ${t10m(p.gd).desc}` : `${gDescribe(p.gd)}. Members: ${p.gd.members.map(m => byId.get(m)?.n || m).join(', ')}`) : `Career high${p.w1 ? ', weeks at No. 1' : ''}`;
   const grip = `<span class="grip" role="button" tabindex="0" data-id="${esc(id)}" aria-label="Reorder ${esc(p.n)}: drag, or use the up and down arrow keys" title="Drag to reorder (higher = drawn on top)">⋮⋮</span>`;
   const sec = p.isGroup ? 'g' : 'p';
-  if (!on) return `<span class="tag grp off" data-id="${esc(id)}" data-sec="g">${grip}<button type="button" class="tag-btn" data-id="${esc(id)}" data-off title="Show ${esc(p.n)}"><svg class="sw" viewBox="0 0 24 12" aria-hidden="true"><line x1="2" y1="6" x2="22" y2="6" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3"/></svg><span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">hidden</span></button></span>`;
-  return `<span class="tag${p.isGroup ? ' grp' : ''}" data-id="${esc(id)}" data-sec="${sec}"${popIds.includes(id) ? ' data-open' : ''}>${grip}<button type="button" class="tag-btn" data-id="${esc(id)}" aria-haspopup="dialog" title="Line settings for ${esc(p.n)} (Ctrl+click to edit several)">${swatchSvg(id)}<span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">${esc(meta)}</span></button><button class="x" data-id="${esc(id)}" aria-label="${p.isGroup ? 'Hide' : 'Remove'} ${esc(p.n)}">×</button></span>`;
+  // × removes a player from the selection / deletes a group (asks once more); the eye hides the line but keeps the entry
+  const x = `<button type="button" class="x" data-id="${esc(id)}"${p.isGroup ? ' data-del' : ''} aria-label="${p.isGroup ? 'Delete group' : 'Remove'} ${esc(p.n)}" title="${p.isGroup ? 'Delete this group' : 'Remove from the chart'}">×</button>`;
+  if (!on || hiddenP.has(id)) return `<span class="tag${p.isGroup ? ' grp' : ''} off" data-id="${esc(id)}" data-sec="${sec}">${grip}<button type="button" class="tag-btn" data-id="${esc(id)}" data-off title="Show ${esc(p.n)}"><svg class="sw" viewBox="0 0 24 12" aria-hidden="true"><line x1="2" y1="6" x2="22" y2="6" stroke="${on ? colorOf(id) : 'currentColor'}" stroke-width="1.5" stroke-dasharray="2 3"/></svg><span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">hidden</span></button>${x}</span>`;
+  return `<span class="tag${p.isGroup ? ' grp' : ''}" data-id="${esc(id)}" data-sec="${sec}"${popIds.includes(id) ? ' data-open' : ''}>${grip}<button type="button" class="tag-btn" data-id="${esc(id)}" aria-haspopup="dialog" title="Line settings for ${esc(p.n)} (Ctrl+click to edit several)">${swatchSvg(id)}<span class="nm">${esc(p.n)}</span><span class="meta" title="${esc(metaTitle)}">${esc(meta)}</span></button><button type="button" class="eye" data-id="${esc(id)}" aria-label="Hide ${esc(p.n)}" title="Hide the line (keeps it in this list)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg></button>${x}</span>`;
 }
 function renderLegend() {
   const L = $('legend'), keep = L.scrollTop;
@@ -1171,16 +1305,24 @@ function renderLegend() {
   L.innerHTML = `<div class="lg-sec"><span>Groups</span><button type="button" class="chip-btn" id="newgroup">+ New group</button></div>` +
     (groups.length ? groups.map(g => tagHtml(g.id)).join('') : '<span class="hint">No groups. A group draws one line from several players.</span>') +
     `<div class="lg-sec"><span>Players</span>${playerOrder ? '<button type="button" class="chip-btn" id="autoorder" title="Back to career high, then weeks at No. 1">Auto order</button>' : ''}</div>` +
-    (players.length ? players.map(tagHtml).join('') : '<span class="hint">Click a line or a row to highlight a player, or pick a player group above.</span>');
+    (players.length ? players.map(tagHtml).join('') : '<span class="hint">Click a line, or tick a player’s box in the list below, to plot them. Or pick a player group above.</span>');
   L.scrollTop = keep;
   $('newgroup').onclick = e => { e.stopPropagation(); openGroupEditor(null); };
   const ao = $('autoorder'); if (ao) ao.onclick = e => { e.stopPropagation(); playerOrder = null; renderLegend(); drawChart(); };
   L.querySelectorAll('.grip').forEach(g => { g.onpointerdown = startReorder; g.onkeydown = keyReorder; g.onclick = e => e.stopPropagation(); });
   $('legend-sub').textContent = playerOrder ? 'Custom order. Higher in the list is drawn on top.' : 'By career high, then weeks at No. 1. Higher in the list is drawn on top.';
-  L.querySelectorAll('.x').forEach(b => b.onclick = () => toggle(b.dataset.id));
+  L.querySelectorAll('.x').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const id = b.dataset.id;
+    if (!b.hasAttribute('data-del')) { toggle(id); return; }
+    if (b.hasAttribute('data-armed')) { deleteGroup(id); return; }
+    b.setAttribute('data-armed', ''); b.textContent = 'Delete?'; b.title = 'Click again to delete this group';
+    setTimeout(() => { if (b.isConnected && b.hasAttribute('data-armed')) { b.removeAttribute('data-armed'); b.textContent = '×'; b.title = 'Delete this group'; } }, 3000);
+  });
+  L.querySelectorAll('.eye').forEach(b => b.onclick = e => { e.stopPropagation(); setHidden(b.dataset.id, true); });
   L.querySelectorAll('.tag-btn').forEach(b => {
     b.onmousedown = e => { if (e.shiftKey) e.preventDefault(); };
-    b.onclick = e => { e.stopPropagation(); if (b.hasAttribute('data-off')) toggle(b.dataset.id, true); else legendClick(b.dataset.id, e); };
+    b.onclick = e => { e.stopPropagation(); if (b.hasAttribute('data-off')) { if (hiddenP.has(b.dataset.id)) setHidden(b.dataset.id, false); else toggle(b.dataset.id, true); } else legendClick(b.dataset.id, e); };
   });
 }
 // ---------- reorder legend entries (= line stacking order)
@@ -1233,7 +1375,7 @@ function startReorder(e) {
   };
   grip.addEventListener('pointermove', onMove); grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
 }
-function clearSelection() { selected = []; slotOf.clear(); playerOrder = null; closePop(); renderLegend(); renderTable(); drawChart(); }
+function clearSelection() { selected = []; slotOf.clear(); hiddenP.clear(); playerOrder = null; closePop(); renderLegend(); renderTable(); drawChart(); renderCmpBar(); }
 $('clear').onclick = () => { $('ppreset').value = ''; clearSelection(); };
 
 const hexCtx = document.createElement('canvas').getContext('2d');
@@ -1254,22 +1396,25 @@ function applyGroup(key) {
   const ids = g.ids().filter(id => byId.has(id)).sort(bySeniority).slice(0, MAXSEL);
   const keep = selected.filter(id => byId.get(id)?.isGroup); // group lines stay on
   playerOrder = null;
-  selected = []; slotOf.clear(); closePop();
+  selected = []; slotOf.clear(); hiddenP.clear(); closePop();
   [...keep, ...ids].slice(0, MAXSEL).forEach((id, k) => { slotOf.set(id, k + 1); selected.push(id); });
   // fit the window to the group: from the January before the earliest member's first top-20 week, to the latest list
   const first = Math.min(...ids.map(id => Date.parse(byId.get(id).p.first_top20) || T0));
   win = { a: Math.max(T0, g.from ?? Date.UTC(new Date(first).getUTCFullYear(), 0, 1)), b: END }; syncInputs(); fitDom(true);
-  commit(); renderLegend();
+  if (cmp) cmp.ids = new Set(ids);
+  commit(); renderLegend(); renderCmpBar();
   if (ids[0]) focus(ids[0]);
 }
 $('ppreset').onchange = e => applyGroup(e.target.value);
 
 // ---------- save / export (current selection, current window)
 function renderSaveScope() {
-  const n = selected.length;
-  const ng = selected.filter(id => byId.get(id)?.isGroup).length, np = n - ng;
+  const ids = cmp ? cmpPlayers() : shown(), n = ids.length;
+  const ng = ids.filter(id => byId.get(id)?.isGroup).length, np = n - ng;
   const what = [np ? `${np} player${np > 1 ? 's' : ''}` : '', ng ? `${ng} group${ng > 1 ? 's' : ''}` : ''].filter(Boolean).join(' + ');
-  $('save-scope').textContent = n ? `${what}, ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}${trend.on ? ', with trend' : ''}` : 'Select players or groups to export their data.';
+  $('save-scope').textContent = !n ? 'Select players or groups to export their data.'
+    : cmp ? `${what}, years ${yrs(cmp.win.a)}–${yrs(cmp.win.b)} after first ranking${trend.on ? ', with trend' : ''}`
+    : `${what}, ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}${trend.on ? ', with trend' : ''}`;
   document.querySelectorAll('[data-save]').forEach(b => b.disabled = !n);
 }
 const csvCell = v => v == null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
@@ -1280,12 +1425,13 @@ function download(name, data, type) {
   if (!url.startsWith('data:')) setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function exportRows() {
-  const [i0, i1] = windowIdx(), ids = [...selected].sort(bySeniority), only = $('save-ranked').checked, idx = [];
+  const [i0, i1] = windowIdx(), ids = shown().sort(bySeniority), only = $('save-ranked').checked, idx = [];
   for (let i = i0; i <= i1; i++) if (!only || ids.some(id => rankAt(byId.get(id), i))) idx.push(i);
   return { i0, i1, ids, idx };
 }
 function save(kind) {
-  if (!selected.length) return;
+  if (cmp) { saveCompare(kind); return; }
+  if (!shown().length) return;
   const { i0, i1, ids, idx } = exportRows(), ps = ids.map(id => byId.get(id));
   const stem = `atp_${ids.length === 1 ? ps[0].n.replace(/\W+/g, '_') : ids.length + 'lines'}_${iso(win.a)}_${iso(Math.min(win.b, END - DAY))}`;
   const stat = p => statsFor(p, i0, i1);
@@ -1308,21 +1454,54 @@ function save(kind) {
   }, null, 1), 'application/json');
   else if (kind === 'png') download(stem + '.png', chartPng(ps), 'image/png');
 }
-function chartPng(ps) {
+// career comparison exports: one row per week since first ranking, each player read at their own date
+function saveCompare(kind) {
+  const ps = cmpPlayers().sort(bySeniority).map(id => byId.get(id)), only = $('save-ranked').checked;
+  if (!ps.length) return;
+  const at = (p, k) => rankAtTime(p, debutOf(p) + k * WEEK);
+  const ks = [];
+  for (let k = Math.ceil(cmp.win.a / WEEK); k * WEEK <= cmp.win.b; k++) if (!only || ps.some(p => at(p, k))) ks.push(k);
+  const yk = k => +(k * WEEK / YEAR).toFixed(3), listDate = (p, k) => iso(T[lastIdxAtOrBefore(debutOf(p) + k * WEEK)]);
+  const tv = (p, k) => { const v = trendAt(p, debutOf(p) + k * WEEK); return v == null ? '' : +v.toFixed(2); };
+  const span = p => { const d = debutOf(p), a = d + cmp.win.a, b = d + cmp.win.b; return statsFor(p, lastIdxAtOrBefore(a), lastIdxAtOrBefore(b), a, b); };
+  const toHigh = p => p.p.career_high_first_date ? +((Date.parse(p.p.career_high_first_date) - debutOf(p)) / YEAR).toFixed(2) : '';
+  const stem = `atp_careers_${ps.length === 1 ? ps[0].n.replace(/\W+/g, '_') : ps.length + 'players'}_${yrs(cmp.win.a)}-${yrs(cmp.win.b)}y`;
+  const head = ['weeks_since_first_ranking', 'years_since_first_ranking'];
+  if (kind === 'wide') download(stem + '_weekly.csv', toCsv([[...head, ...ps.map(p => p.n), ...(trend.on ? ps.map(p => p.n + ' (trend)') : [])],
+    ...ks.map(k => [k, yk(k), ...ps.map(p => at(p, k) || ''), ...(trend.on ? ps.map(p => tv(p, k)) : [])])]), 'text/csv');
+  else if (kind === 'long') download(stem + '_weekly_long.csv', toCsv([[...head, 'list_date', 'player_id', 'name', 'rank'],
+    ...ks.flatMap(k => ps.filter(p => at(p, k)).map(p => [k, yk(k), listDate(p, k), p.id, p.n, at(p, k)]))]), 'text/csv');
+  else if (kind === 'summary') download(stem + '_summary.csv', toCsv([
+    ['id', 'name', 'country', 'first_ranked', 'years_to_career_high', 'career_high', 'career_high_first_date', 'weeks_at_no1', 'weeks_in_top20_career', 'best_in_span', 'weeks_in_top20_in_span', 'ranked_on_first_atp_list', 'year_end_top20_finishes'],
+    ...ps.map(p => { const st = span(p); return [p.id, p.n, p.c, iso(debutOf(p)), toHigh(p), p.hi, p.p.career_high_first_date, +p.w1.toFixed(1), +p.w20.toFixed(1), st.best, +st.w20.toFixed(1), debutOf(p) <= T0 ? 'yes' : 'no', Object.entries(p.ye).map(([y, r]) => `${y}:${r}`).join(' ')]; })]), 'text/csv');
+  else if (kind === 'json') download(stem + '.json', JSON.stringify({
+    source: 'ATP Top 20 Explorer', exported: new Date().toISOString(), data_generated: DATA.generated,
+    view: 'career comparison', aligned_on: 'first week ranked (players on the first ATP list, Aug 1973, may have started earlier)',
+    span: { from_years: yrs(cmp.win.a), to_years: yrs(cmp.win.b) },
+    players: ps.map(p => { const st = span(p); return { id: p.id, name: p.n, country: p.c, first_ranked: iso(debutOf(p)), years_to_career_high: toHigh(p), career_high: p.hi, weeks_at_no1: p.w1, weeks_in_top20_career: p.w20, best_in_span: st.best, weeks_in_top20_in_span: +st.w20.toFixed(1), line: { ...styleOf(p.id), color: colorOf(p.id) }, profile: p.p }; }),
+    trend: trend.on ? { average: trend.ma, period_weeks: trend.n, momentum: trend.mom, lead_weeks: trend.lead, axis: ylog ? 'log rank' : 'rank' } : null,
+    trend_values: trend.on ? Object.fromEntries(ps.map(p => [p.id, ks.map(k => { const v = trendAt(p, debutOf(p) + k * WEEK); return v == null ? null : +v.toFixed(3); })])) : undefined,
+    weeks_since_first_ranking: ks,
+    ranks: Object.fromEntries(ps.map(p => [p.id, ks.map(k => at(p, k) || null)])),
+    list_dates: Object.fromEntries(ps.map(p => [p.id, ks.map(k => listDate(p, k))])),
+  }, null, 1), 'application/json');
+  else if (kind === 'png') download(stem + '.png', chartPng(ps, `ATP rankings · careers aligned on first ranking, years ${yrs(cmp.win.a)}–${yrs(cmp.win.b)}`), 'image/png');
+}
+function chartPng(ps, title) {
   const dpr = chart.width / chart.clientWidth || 1, LW = Math.round(200 * FS), TH = Math.round(34 * FS), w = chart.clientWidth, rowH = Math.round(19 * FS);
   const h = Math.max(chart.clientHeight, ps.length * rowH + 16) + TH;
   const cv = document.createElement('canvas'); cv.width = Math.round((LW + w) * dpr); cv.height = Math.round(h * dpr);
   const g = cv.getContext('2d'); g.scale(dpr, dpr);
   g.fillStyle = css('--panel'); g.fillRect(0, 0, LW + w, h);
   g.fillStyle = css('--ink'); g.textBaseline = 'middle'; g.font = '600 ' + fpx(16) + css('--body');
-  g.fillText(`ATP rankings · ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}`, 12, TH / 2);
+  g.fillText(title || `ATP rankings · ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}`, 12, TH / 2);
   g.drawImage(chart, LW, TH, w, chart.clientHeight);
   g.font = fpx(13.5) + css('--body');
   ps.forEach((p, k) => {
     const y = TH + 10 + k * rowH, st = styleOf(p.id);
     g.globalAlpha = st.alpha; g.strokeStyle = colorOf(p.id); g.lineWidth = Math.max(2, st.width); g.lineCap = 'round';
     g.setLineDash(dashFor(st.dash, Math.max(2, st.width))); g.beginPath(); g.moveTo(12, y); g.lineTo(28, y); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
-    let nm = p.n; while (nm.length > 3 && g.measureText(nm).width > LW - 100) nm = nm.slice(0, -2) + '…';
+    let nm = p.n + (cmp && debutOf(p) <= T0 ? '*' : ''); while (nm.length > 3 && g.measureText(nm).width > LW - 100) nm = nm.slice(0, -2) + '…';
     g.fillStyle = css('--ink'); g.fillText(nm, 36, y);
     g.fillStyle = css('--ink-3'); g.textAlign = 'right'; g.fillText(`#${p.hi}${p.w1 ? ' · ' + Math.round(p.w1) + 'w' : ''}`, LW - 8, y); g.textAlign = 'left';
   });
@@ -1374,6 +1553,7 @@ function placePop(id) {
 function renderPop() {
   if (!popEl || !popIds.length) return;
   const ids = popIds, multi = ids.length > 1, sts = ids.map(styleOf), cols = ids.map(colorOf);
+  const cmpIds = ids.filter(id => !byId.get(id).isGroup);
   const same = k => sts.every(st => st[k] === sts[0][k]), st = sts[0], c = cols[0];
   const sameCol = cols.every(x => x === c);
   const slots = [1, 2, 3, 4, 5, 6, 7, 8].map(slotColor);
@@ -1391,8 +1571,9 @@ function renderPop() {
     <div class="row" style="grid-template-columns:62px 1fr"><span>Colour</span><div class="swatches">${slots.map(s => `<button type="button" data-color="${s}" style="background:${s}" aria-pressed="${sameCol && s === c}" aria-label="Colour ${s}"></button>`).join('')}<input type="color" value="${toHex(c)}" aria-label="Custom colour"></div></div>
     ${!multi && byId.get(ids[0]).isGroup ? `${groupCtlHtml(byId.get(ids[0]).gd, (lab, ctl) => `<label class="row" style="grid-template-columns:62px 1fr"><span>${lab}</span>${ctl}</label>`)}
     ${byId.get(ids[0]).dyn ? `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:calc(13px * var(--fs))">Whoever is ranked 1–10 on each list (hover the line to see them)</span></div>` : `<div class="row" style="grid-template-columns:62px 1fr"><span>Members</span><span style="color:var(--ink-2);font-size:calc(13px * var(--fs))">${esc(byId.get(ids[0]).gd.members.map(m => (byId.get(m)?.n || m).split(' ').slice(-1)[0]).join(', '))} <button type="button" class="chip-btn" data-act="editgroup" style="margin-left:4px">Edit…</button></span></div>`}` : ''}
+    ${cmpIds.length >= 2 ? `<div class="cmp-row"><button type="button" class="chip-btn" data-act="compare" title="Plot these players against time since their first ranking">Compare careers (${cmpIds.length} players)</button></div>` : ''}
     <div class="foot"><button type="button" class="chip-btn" data-act="reset">${multi ? 'Reset all' : 'Reset'}</button><button type="button" class="chip-btn" data-act="close">Done</button></div>
-    <div class="pop-hint">Ctrl+click bubbles to edit several · Shift+click for a range</div>`;
+    <div class="pop-hint">Ctrl+click bubbles to edit several · Shift+click for a range${multi ? '' : ' · select 2+ players to compare careers'}</div>`;
   popEl.querySelectorAll('input[type=range]').forEach(inp => inp.oninput = () => {
     const k = inp.dataset.k, v = +inp.value; patchAll({ [k]: v });
     inp.nextElementSibling.textContent = k === 'alpha' ? Math.round(v * 100) + '%' : v + 'px';
@@ -1407,6 +1588,7 @@ function renderPop() {
   popEl.querySelectorAll('[data-act=close]').forEach(b => b.onclick = closePop);
   if (!multi && byId.get(ids[0]).isGroup) { const gd = byId.get(ids[0]).gd; wireGroupCtl(popEl, gd, () => refreshGroup(gd)); }
   const eg = popEl.querySelector('[data-act=editgroup]'); if (eg) eg.onclick = () => openGroupEditor(ids[0]);
+  const cb = popEl.querySelector('[data-act=compare]'); if (cb) cb.onclick = () => enterCompare(cmpIds);
   drawPreview();
 }
 function drawPreview() {
@@ -1425,6 +1607,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && popEl) clo
 addEventListener('scroll', () => { if (popEl) closePop(); }, { passive: true });
 
 // ---------- table + finders
+function selBox(p) {
+  const on = slotOf.has(p.id), hid = hiddenP.has(p.id), c = on ? colorOf(p.id) : '';
+  const label = !on ? `Plot ${p.n}` : hid ? `Show ${p.n} again (hidden)` : `Remove ${p.n} from the chart`;
+  return `<button type="button" class="sel${hid ? ' hid' : ''}" aria-pressed="${on && !hid}" aria-label="${esc(label)}" title="${esc(label)}" style="${on ? `background:${c};border-color:${c}` : ''}"></button>`;
+}
+function revealRow(id) { $('rows').querySelector(`tr[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest' }); }
 function renderTable() {
   const rows = [...inWin];
   const k = sortK, d = sortDir;
@@ -1434,11 +1622,16 @@ function renderTable() {
     return d * ((va ?? 1e9) - (vb ?? 1e9)) || A.p.key.localeCompare(B.p.key);
   });
   $('rows').innerHTML = rows.map(({ p, best, w20 }) => `<tr data-id="${esc(p.id)}" class="${p.id === focusId ? 'focus' : ''}">
-    <td><span class="sel" style="${slotOf.has(p.id) ? `background:${colorOf(p.id)};border-color:${colorOf(p.id)}` : ''}"></span>${esc(p.n)}<span class="country">${esc(p.c || '')}</span></td>
+    <td>${selBox(p)}${esc(p.n)}<span class="country">${esc(p.c || '')}</span></td>
     <td class="num">${best ?? '—'}</td><td class="num">${w20.toFixed(w20 < 10 ? 1 : 0)}</td><td class="num">${p.hi}</td></tr>`).join('');
   document.querySelectorAll('th[data-k]').forEach(th => { if (th.dataset.k === sortK) th.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort'); });
 }
-$('rows').addEventListener('click', e => { const tr = e.target.closest('tr'); if (!tr) return; toggle(tr.dataset.id); focus(tr.dataset.id); });
+$('rows').addEventListener('click', e => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  const id = tr.dataset.id;
+  if (e.target.closest('.sel')) { if (hiddenP.has(id)) setHidden(id, false); else toggle(id); return; } // the box plots / unplots
+  focus(id); // the rest of the row only shows the profile
+});
 document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => { if (sortK === th.dataset.k) sortDir *= -1; else { sortK = th.dataset.k; sortDir = 1; } renderTable(); }));
 
 function renderPick() {
@@ -1447,7 +1640,7 @@ function renderPick() {
   sel.innerHTML = `<option value="">${inWin.length} players in this window…</option>` +
     ALPHA.filter(p => ids.has(p.id)).map(p => `<option value="${esc(p.id)}">${esc(p.n)}${p.c ? ' · ' + esc(p.c) : ''}</option>`).join('');
 }
-$('pick').addEventListener('change', e => { const id = e.target.value; if (id) { toggle(id, true); focus(id); } e.target.value = ''; });
+$('pick').addEventListener('change', e => { const id = e.target.value; if (id) { focus(id); revealRow(id); } e.target.value = ''; });
 
 // searchable list: players in window first, everyone else in the data set below (picking one widens the window to include them)
 const find = $('find'), list = $('find-list');
@@ -1473,7 +1666,7 @@ function choose(i) {
     const s = T[p.t20[0][0]], e = Math.min(END, T[p.t20[p.t20.length - 1][1]] + 7 * DAY);
     win = { a: Math.min(win.a, s), b: Math.max(win.b, e) }; syncInputs(); fitDom(true); commit();
   }
-  toggle(p.id, true); focus(p.id); find.value = ''; closeFind();
+  focus(p.id); revealRow(p.id); find.value = ''; closeFind();
 }
 find.addEventListener('focus', openFind);
 find.addEventListener('input', () => { active = 0; openFind(); });
@@ -1498,7 +1691,7 @@ function focus(id) {
   const ye = Object.entries(a.year_end_top20_finishes || {}).map(([y, r]) => `<span>${y}<i>#${r}</i></span>`).join('');
   const it = inWin.find(x => x.p.id === id);
   $('profile').innerHTML = `
-    <div class="phead"><div><h2>${esc(p.n)}</h2><div class="meta">${esc([a.country, a.dob ? 'born ' + new Date(a.dob).getUTCFullYear() : null].filter(Boolean).join(' · '))}</div></div>${PHOTOS.has(id) ? `<img src="img/${esc(id)}.png" alt="Portrait of ${esc(p.n)}" width="${PHOTOS.get(id)}" height="300">` : ''}</div>
+    <div class="phead"><div><h2>${esc(p.n)}</h2><div class="meta">${esc([a.country, a.dob ? 'born ' + new Date(a.dob).getUTCFullYear() : null].filter(Boolean).join(' · '))}</div></div>${PHOTOS.has(id) ? (([w, credit, src]) => `<img src="img/${esc(id)}.png" alt="Portrait of ${esc(p.n)}" width="${w}" height="300" title="${esc(credit)}" data-credit="${esc(credit)}" data-source="${esc(src)}">`)(PHOTOS.get(id)) : ''}</div>
     <div class="stats">
       <div class="stat"><b>${a.career_high_rank ?? '—'}</b><span>Career-high rank</span></div>
       <div class="stat"><b>${(a.weeks_at_no1 ?? 0).toFixed(0)}</b><span>Weeks at No. 1</span></div>
@@ -1509,9 +1702,10 @@ function focus(id) {
     <dl class="attrs">${Object.entries(a).filter(([k]) => !SKIP.has(k)).map(([k, v]) => `<dt>${esc(lab(k))}</dt><dd>${esc(String(val(k, v)))}</dd>`).join('')}</dl>`;
   renderTable();
 }
-// portraits (img/<id>.png, made by process_player_photos.py) sit next to the name when the page is served with them
+// portraits (img/<id>.png, made by process_player_photos.py) sit next to the name when the page is served with them;
+// index.json gives each one's width, photo credit and source (the credit is the image's title, shown on hover)
 const PHOTOS = new Map();
-fetch('img/index.json').then(r => r.ok ? r.json() : {}).then(ix => { for (const [k, w] of Object.entries(ix)) PHOTOS.set(k, w); if (focusId && PHOTOS.has(focusId)) focus(focusId); }).catch(() => {});
+fetch('img/index.json').then(r => r.ok ? r.json() : {}).then(ix => { for (const [k, v] of Object.entries(ix)) PHOTOS.set(k, Array.isArray(v) ? v : [v, '', '']); if (focusId && PHOTOS.has(focusId)) focus(focusId); }).catch(() => {});
 function emptyProfile() { $('profile').innerHTML = '<h2 style="font:700 1.4rem var(--display);margin:0">Player profile</h2><p class="empty">Pick a player from the list, the dropdown or the chart to see their profile.</p>'; }
 
 // ---------- data source + downloadable data-quality report
@@ -1537,7 +1731,9 @@ $('stamp').textContent = `${N.toLocaleString()} ranking lists · ${fmt(T0)} – 
 let pending = 0;
 function scheduleRender() { if (pending) return; pending = requestAnimationFrame(() => { pending = 0; inWin = aggregate(); drawChart(); drawBrush(); updateCount(); renderSaveScope(); }); }
 function commit() { inWin = aggregate(); updateCount(); renderSaveScope(); renderTable(); renderPick(); if (!list.hidden) renderFind(); drawChart(); drawBrush(); }
-function updateCount() { $('count').innerHTML = `${inWin.length} players<small>${mode === 'week' ? 'ranked 1–20 on a list in force between' : 'with a year-end top-20 finish between'} ${fmt(win.a)} and ${fmt(Math.min(win.b, END - DAY))}</small>`; }
+function updateCount() {
+  if (cmp) { const n = cmpPlayers().length; $('count').innerHTML = `${n} career${n === 1 ? '' : 's'}<small>ranking by time since first ranking, years ${yrs(cmp.win.a)}–${yrs(cmp.win.b)}</small>`; return; }
+  $('count').innerHTML = `${inWin.length} players<small>${mode === 'week' ? 'ranked 1–20 on a list in force between' : 'with a year-end top-20 finish between'} ${fmt(win.a)} and ${fmt(Math.min(win.b, END - DAY))}</small>`; }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 new ResizeObserver(() => { drawChart(); drawBrush(); }).observe(chart);
@@ -1552,7 +1748,7 @@ seed.forEach(id => toggle(id, true));
 if (seed[0]) focus(seed[0]); else emptyProfile();
 groups = loadGroups() ?? DEFAULT_GROUPS.map(g => ({ ...g, members: [...g.members] }));
 groups.forEach(g => { if (g.id === 'G1' && g.name === 'Big 3') g.name = 'Big Three'; }); // renamed from 'Big 3'
-if (TOP10 && !groups.some(g => g.dyn === 'top10')) groups.push({ id: 'T10', name: 'Top 10', dyn: 'top10', metric: 'prev_avg', members: [] });
+if (TOP10 && !noTop10 && !groups.some(g => g.dyn === 'top10')) groups.push({ id: 'T10', name: 'Top 10', dyn: 'top10', metric: 'prev_avg', members: [] });
 groupSeq = Math.max(0, ...groups.filter(g => /^G\d+$/.test(g.id)).map(g => +g.id.slice(1)));
 groups.forEach(buildGroup);
 const big3 = groups.find(g => g.name === 'Big Three');

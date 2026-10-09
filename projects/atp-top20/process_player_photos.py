@@ -5,7 +5,8 @@
 Per photo: frame Wikipedia photos on the face (OpenCV), remove the background (rembg; skipped when ATP's cut-out already has transparency), crop to
 the player, trim to head-and-shoulders, posterize the luminance to a few tones and map them onto the site's
 warm palette, then save a palette PNG with a hard alpha edge (a few KB each). Writes <out_dir>/<id>.png
-and <out_dir>/index.json ({id: width} for the ids that have a portrait).
+and <out_dir>/index.json ({id: [width, credit line, source url]}); each PNG also carries
+its credit as text chunks (Author, Copyright, Source, Comment).
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ import json
 import os
 import sys
 
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageFilter, ImageOps, PngImagePlugin
 
 # dark -> light, from the site palette (see projects/atp-top20/site_theme.py)
 TONES = [(0x4a, 0x2c, 0x1a), (0x8f, 0x5e, 0x3e), (0xd2, 0xa8, 0x80), (0xff, 0xf2, 0xe6)]
@@ -21,7 +22,7 @@ H = 300          # output height in px (shown at ~150 CSS px, so sharp on 2x scr
 ASPECT = 0.9     # max width / height of the crop
 _session = None
 # photos that don't make a usable portrait (checked by eye on a contact sheet)
-SKIP = {"V232": "Commons photo has a second face beside his"}
+SKIP = {"V232": "Commons photo has a second face beside his", "P050": "Commons photo shows two people"}
 
 
 def cutout(im: Image.Image, force: bool = False) -> Image.Image:
@@ -95,6 +96,12 @@ def posterize(im: Image.Image) -> Image.Image:
     return out
 
 
+def credit_line(c: dict) -> str:
+    if not c: return ""
+    if c.get("author") == "ATP Tour": return "Photo: ATP Tour. Background removed, posterized and recoloured."
+    return f"Photo: {c['author']}, {c['license']}, via Wikimedia Commons. Background removed, posterized and recoloured."
+
+
 def main(src: str, dst: str):
     os.makedirs(dst, exist_ok=True)
     manifest = json.load(open(os.path.join(src, "manifest.json")))
@@ -103,8 +110,16 @@ def main(src: str, dst: str):
         if not m.get("file") or pid in SKIP: continue
         try:
             im = posterize(portrait(os.path.join(src, m["file"])))
-            im.save(os.path.join(dst, f"{pid}.png"), optimize=True)
-            done[pid] = im.width
+            c = m.get("credit") or {}
+            line = credit_line(c)
+            info = PngImagePlugin.PngInfo()  # the credit travels with the file as PNG text chunks
+            info.add_text("Title", f"{m['name']} (posterized portrait)")
+            info.add_text("Author", c.get("author", ""))
+            info.add_text("Copyright", c.get("license", ""))
+            info.add_text("Source", c.get("source", ""))
+            info.add_text("Comment", line)
+            im.save(os.path.join(dst, f"{pid}.png"), optimize=True, pnginfo=info)
+            done[pid] = [im.width, line, c.get("source", "")]
         except Exception as e:  # noqa: BLE001
             print(f"  {pid} {m['name']}: {e}")
     json.dump(done, open(os.path.join(dst, "index.json"), "w"))
