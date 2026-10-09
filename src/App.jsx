@@ -51,17 +51,12 @@ const projects = [
 
 // GizmoElementTracers results/apogee_dtd_conserved: every Ia delay-time-distribution family fit to the same
 // APOGEE DR17 target at the same fixed Ia event count, ranked by chi^2 (9 summary statistics, posterior median).
+// Only the three best of the ten families are shown.
+const DTD_FAMILIES = 10;
 const dtdRuns = [
   { key: "mannucci_prompt", name: "Mannucci prompt + tardy (free shape)", chi2: 18.5, mb: 2.2, blurb: "A prompt Gaussian burst plus a constant tardy rate, with the burst's share, time and width fitted. The best fit of the ten: about 81% of the explosions land in a prompt peak near 43 Myr." },
   { key: "peak_growth", name: "Skewed peak + exponential growth", chi2: 24.4, mb: 3.0, blurb: "A new model: a skewed Gaussian peak followed by a slowly, exponentially growing tail. The peak holds about two thirds of the explosions." },
   { key: "skewnorm", name: "Skew-normal (Strolger et al. 2020)", chi2: 25.2, mb: 2.2, blurb: "A single skewed Gaussian delay-time distribution, with its location, width and skew fitted." },
-  { key: "maoz", name: "Maoz power law", chi2: 26.2, mb: 1.0, blurb: "The standard power-law delay-time distribution, with the slope fitted (about -1.5)." },
-  { key: "long_delay", name: "Power law + long-delay bump", chi2: 26.3, mb: 2.9, blurb: "A power law with an optional late Gaussian bump. The fit gives the bump essentially none of the explosions." },
-  { key: "kink", name: "Broken power law", chi2: 26.3, mb: 2.1, blurb: "A power law whose slope changes at a fitted break time." },
-  { key: "prompt_delayed", name: "Prompt + delayed", chi2: 26.6, mb: 3.0, blurb: "A power law plus an early Gaussian burst. The fit leaves the burst with about 1% of the explosions." },
-  { key: "mannucci", name: "Mannucci (FIRE-2, fixed shape)", chi2: 29.0, mb: 0.7, blurb: "The rate exactly as implemented in FIRE-2 (a third of the explosions in a prompt burst at 50 Myr). Its shape is fixed, so only the zero-points are fitted." },
-  { key: "maoz_onset", name: "Maoz power law + free onset", chi2: 29.8, mb: 1.6, blurb: "The power law with the time of the first Type Ia explosion also fitted." },
-  { key: "exponential", name: "Exponential", chi2: 31.0, mb: 1.1, blurb: "An exponentially declining rate with a fitted timescale (about 270 Myr)." },
 ];
 
 const contactCards = [
@@ -199,7 +194,7 @@ function DtdCarousel() {
         <button className="dtd-arrow next" type="button" onClick={() => go(1)} aria-label="Next fit">›</button>
       </div>
       <div className="dtd-caption" aria-live="polite">
-        <div className="dtd-title"><span className="dtd-rank">#{i + 1} of {n}</span><b>{run.name}</b><span className="dtd-chi">χ² {run.chi2.toFixed(1)}</span></div>
+        <div className="dtd-title"><span className="dtd-rank">#{i + 1} of {DTD_FAMILIES}</span><b>{run.name}</b><span className="dtd-chi">χ² {run.chi2.toFixed(1)}</span></div>
         <p>{run.blurb}</p>
       </div>
       <div className="dtd-dots" role="tablist" aria-label="Choose a fit">
@@ -890,7 +885,7 @@ function HomePage() {
               <p className="tag-line">2026 · Bayesian inference · MCMC · FIRE element tracers · APOGEE DR17</p>
               <p>Type Ia supernovae enrich stars with iron, but how long after star formation they explode (their delay-time distribution) is still uncertain. I built a Bayesian inference pipeline, in my <a href="https://github.com/patelpb96/GizmoElementTracers" target="_blank" rel="noreferrer">GizmoElementTracers</a> fork of the FIRE analysis code, that turns a proposed delay-time distribution into predicted stellar [Mg/Fe] versus [Fe/H] using the element-tracer method, then compares that prediction to real Milky Way disk stars from APOGEE DR17.</p>
               <p>The comparison works on a summary of the data: each of the Milky Way's two disk sequences (the high-alpha thick disk and the low-alpha thin disk) is described by a mean and spread in both abundances. Every fit holds the total number of Type Ia explosions fixed, so a model can only move explosions in time, never add or remove them, and each run starts the simulation one standard deviation away from the Milky Way so you can watch it walk back.</p>
-              <p>I fit ten delay-time-distribution families this way, from the standard power law to a new skewed-peak model, and ranked them. The carousel shows each run, best fit first. A free-shape version of the Mannucci model, which puts most explosions in a prompt burst within about 50 Myr, fits best; almost every family prefers most explosions at short delays. Differences of a few in χ² are not significant.</p>
+              <p>I fit ten delay-time-distribution families this way, from the standard power law to a new skewed-peak model, and ranked them. The carousel shows the three best fits. A free-shape version of the Mannucci model, which puts most explosions in a prompt burst within about 50 Myr, fits best; almost every family prefers most explosions at short delays. Differences of a few in χ² are not significant.</p>
               <p>Along the way I wrote a factorized yield integrator that is about 25 times faster than the original numerical integration (agreeing to about one part in a million).</p>
             </div>
           </div>
