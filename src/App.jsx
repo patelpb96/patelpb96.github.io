@@ -180,7 +180,7 @@ function DtdCarousel() {
   const touch = useRef(null);
   const n = dtdRuns.length, run = dtdRuns[i];
   const go = (d) => setI((k) => (k + d + n) % n);
-  const poster = `${base}/images/dtd/${run.key}.webp`;
+  const poster = `/images/dtd/${run.key}.webp`;
   return (
     <div className="dtd-carousel" role="region" aria-roledescription="carousel" aria-label="APOGEE fits, one per delay-time distribution" tabIndex={0}
       onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); }}
@@ -188,7 +188,7 @@ function DtdCarousel() {
       onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); }}>
       <div className="dtd-stage">
         {playing
-          ? <video key={run.key} className="dtd-video" src={`${base}/videos/dtd/${run.key}.mp4`} poster={poster} controls autoPlay muted loop playsInline title={`${run.name}: MCMC walkers converging on the APOGEE target`} />
+          ? <video key={run.key} className="dtd-video" src={`/videos/dtd/${run.key}.mp4`} poster={poster} controls autoPlay muted loop playsInline title={`${run.name}: MCMC walkers converging on the APOGEE target`} />
           : (
             <button className="dtd-load" type="button" onClick={() => setPlaying(true)} aria-label={`Load the movie for ${run.name}`} style={{ backgroundImage: `url(${poster})` }}>
               <span>▶ Click to load movie</span>
