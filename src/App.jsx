@@ -996,7 +996,7 @@ export default function PreetPatelSite() {
       <div className="bg-scroll-layer" />
       <Topbar route={route} />
       {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <AlchemyPage /> : route === "projects/graphics" ? <GraphicsPage /> : <HomePage />}
-      <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React.</footer>
+      <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React. Built (nearly) in full with Agentic Coding.</footer>
     </main>
   );
 }
