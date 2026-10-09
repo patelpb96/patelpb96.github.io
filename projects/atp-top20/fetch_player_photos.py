@@ -7,15 +7,17 @@ channel="chrome": the installed browser, no download). Per player it tries, in o
   1. player-gladiator-headshot  (waist-up cut-out, transparent background; current-era players)
   2. player-headshot            (head and shoulders)
   3. Wikidata/Commons image    (matched on the ATP id, P536; for players ATP has no photo of)
-Saves <out_dir>/<id>.<kind>.<ext> and manifest.json. Re-running skips players already in the manifest.
+Saves <out_dir>/<id>.<kind>.<ext> and manifest.json (with each photo's credit: author, licence, source). Re-running skips players already in the manifest.
 """
 from __future__ import annotations
 
 import asyncio
 import base64
 import hashlib
+import html
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -53,6 +55,33 @@ def commons_image(file_url: str) -> bytes | None:
     return None
 
 
+def commons_credit(file_url: str) -> dict:
+    """Author, licence and page of a Commons file (attribution for the portrait)."""
+    title = "File:" + urllib.parse.unquote(file_url.split("Special:FilePath/", 1)[1])
+    q = urllib.parse.urlencode({"action": "query", "format": "json", "titles": title, "prop": "imageinfo", "iiprop": "extmetadata|url"})
+    for attempt in range(5):
+        try:
+            time.sleep(1)
+            pages = json.load(urllib.request.urlopen(urllib.request.Request(f"https://commons.wikimedia.org/w/api.php?{q}", headers=WD_UA), timeout=60))["query"]["pages"]
+            break
+        except urllib.error.HTTPError as e:
+            if e.code != 429: raise
+            time.sleep(10 * (attempt + 1))
+    info = next(iter(pages.values()))["imageinfo"][0]
+    meta = info.get("extmetadata", {})
+    text = lambda k: html.unescape(re.sub(r"<[^>]+>", "", meta.get(k, {}).get("value", ""))).strip()
+    return {"author": re.sub(r"\s+", " ", text("Artist")) or "unknown", "license": text("LicenseShortName") or "see source",
+            "source": info.get("descriptionurl") or f"https://commons.wikimedia.org/wiki/{urllib.parse.quote(title)}"}
+
+
+ATP_CREDIT = {"author": "ATP Tour", "license": "© ATP Tour", "source": "https://www.atptour.com/en/players/-/{}/overview"}
+
+
+def credit_for(kind: str, atp_id: str, wd: dict) -> dict:
+    if kind == "wiki": return commons_credit(wd[atp_id.upper()])
+    return {**ATP_CREDIT, "source": ATP_CREDIT["source"].format(atp_id.lower())}
+
+
 async def main(out: str):
     os.makedirs(out, exist_ok=True)
     profiles = json.load(open("profiles.json", encoding="utf-8"))["profiles"]
@@ -70,7 +99,9 @@ async def main(out: str):
             st, _, data = await pg.evaluate(FETCH, f"/-/media/alias/{kind}/ZZ99")
             if st == 200: blank.add(hashlib.sha1(base64.b64decode(data)).hexdigest())
         for i, (pid, a) in enumerate(sorted(profiles.items())):
-            if manifest.get(pid, {}).get("kind"): continue  # misses are retried
+            if manifest.get(pid, {}).get("kind"):  # have it (misses are retried); backfill the credit if missing
+                if "credit" not in manifest[pid]: manifest[pid]["credit"] = credit_for(manifest[pid]["kind"], a["atp_id"], wd)
+                continue
             got = None
             for kind, short in (("player-gladiator-headshot", "gladiator"), ("player-headshot", "headshot")):
                 st, ctype, data = await pg.evaluate(FETCH, f"/-/media/alias/{kind}/{a['atp_id'].lower()}")
@@ -87,7 +118,7 @@ async def main(out: str):
             if got:
                 fn = f"{pid}.{got[0]}.{got[1]}"
                 open(os.path.join(out, fn), "wb").write(got[2])
-                manifest[pid] = {"name": a["name"], "kind": got[0], "file": fn}
+                manifest[pid] = {"name": a["name"], "kind": got[0], "file": fn, "credit": credit_for(got[0], a["atp_id"], wd)}
             else:
                 manifest[pid] = {"name": a["name"], "kind": None, "file": None}
             print(f"{i + 1:3}/{len(profiles)} {a['name']}: {manifest[pid]['kind']}", flush=True)
