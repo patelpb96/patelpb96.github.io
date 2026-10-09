@@ -731,7 +731,7 @@ function HomePage() {
             <div className="content-foreground">
               <p className="eyebrow">M.Sc. in Physics & Astronomy</p>
               <h1 className="hero-title">Preet<br />Patel</h1>
-              <p className="hero-subtitle">Data Scientist | Astrophysicist</p>
+              <p className="hero-subtitle">Astrophysics | Data | AI</p>
 
               <div className="hero-actions">
                 <ButtonLink href="#contact">Contact</ButtonLink>
