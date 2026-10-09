@@ -49,6 +49,21 @@ const projects = [
   },
 ];
 
+// GizmoElementTracers results/apogee_dtd_conserved: every Ia delay-time-distribution family fit to the same
+// APOGEE DR17 target at the same fixed Ia event count, ranked by chi^2 (9 summary statistics, posterior median).
+const dtdRuns = [
+  { key: "mannucci_prompt", name: "Mannucci prompt + tardy (free shape)", chi2: 18.5, mb: 2.2, blurb: "A prompt Gaussian burst plus a constant tardy rate, with the burst's share, time and width fitted. The best fit of the ten: about 81% of the explosions land in a prompt peak near 43 Myr." },
+  { key: "peak_growth", name: "Skewed peak + exponential growth", chi2: 24.4, mb: 3.0, blurb: "A new model: a skewed Gaussian peak followed by a slowly, exponentially growing tail. The peak holds about two thirds of the explosions." },
+  { key: "skewnorm", name: "Skew-normal (Strolger et al. 2020)", chi2: 25.2, mb: 2.2, blurb: "A single skewed Gaussian delay-time distribution, with its location, width and skew fitted." },
+  { key: "maoz", name: "Maoz power law", chi2: 26.2, mb: 1.0, blurb: "The standard power-law delay-time distribution, with the slope fitted (about -1.5)." },
+  { key: "long_delay", name: "Power law + long-delay bump", chi2: 26.3, mb: 2.9, blurb: "A power law with an optional late Gaussian bump. The fit gives the bump essentially none of the explosions." },
+  { key: "kink", name: "Broken power law", chi2: 26.3, mb: 2.1, blurb: "A power law whose slope changes at a fitted break time." },
+  { key: "prompt_delayed", name: "Prompt + delayed", chi2: 26.6, mb: 3.0, blurb: "A power law plus an early Gaussian burst. The fit leaves the burst with about 1% of the explosions." },
+  { key: "mannucci", name: "Mannucci (FIRE-2, fixed shape)", chi2: 29.0, mb: 0.7, blurb: "The rate exactly as implemented in FIRE-2 (a third of the explosions in a prompt burst at 50 Myr). Its shape is fixed, so only the zero-points are fitted." },
+  { key: "maoz_onset", name: "Maoz power law + free onset", chi2: 29.8, mb: 1.6, blurb: "The power law with the time of the first Type Ia explosion also fitted." },
+  { key: "exponential", name: "Exponential", chi2: 31.0, mb: 1.1, blurb: "An exponentially declining rate with a fitted timescale (about 270 Myr)." },
+];
+
 const contactCards = [
   { label: "Email", value: "patelpb96@gmail.com", href: "mailto:patelpb96@gmail.com", icon: "mail" },
   // The phone line (already a factorization of the number) is XOR-encoded here and shown jumbled
@@ -157,18 +172,41 @@ function LazyGraphic({ src, alt, label = "Click to load image", size = "50+ MB",
   return <img src={src} alt={alt} loading="lazy" className={className} />;
 }
 
-// Movies stay unloaded until asked for; the button shows a still of the finished run.
-function LazyVideo({ src, poster, title, label = "Click to load movie", size }) {
-  const [loaded, setLoaded] = useState(false);
-  if (!loaded) {
-    return (
-      <button className="lazy-graphic lazy-video" type="button" onClick={() => setLoaded(true)} aria-label={`Load ${title}`} style={{ backgroundImage: `linear-gradient(rgba(20,10,6,0.7), rgba(20,10,6,0.7)), url(${poster})` }}>
-        <span>▶ {label}</span>
-        <small>{size}</small>
-      </button>
-    );
-  }
-  return <video className="research-video" src={src} poster={poster} controls autoPlay muted loop playsInline title={title} />;
+// One fit per slide. Nothing downloads until a movie is asked for; after that, moving to another slide
+// loads that slide's movie too (the visitor has opted in).
+function DtdCarousel() {
+  const [i, setI] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const touch = useRef(null);
+  const n = dtdRuns.length, run = dtdRuns[i];
+  const go = (d) => setI((k) => (k + d + n) % n);
+  const poster = `${base}/images/dtd/${run.key}.webp`;
+  return (
+    <div className="dtd-carousel" role="region" aria-roledescription="carousel" aria-label="APOGEE fits, one per delay-time distribution" tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); }}
+      onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); }}>
+      <div className="dtd-stage">
+        {playing
+          ? <video key={run.key} className="dtd-video" src={`${base}/videos/dtd/${run.key}.mp4`} poster={poster} controls autoPlay muted loop playsInline title={`${run.name}: MCMC walkers converging on the APOGEE target`} />
+          : (
+            <button className="dtd-load" type="button" onClick={() => setPlaying(true)} aria-label={`Load the movie for ${run.name}`} style={{ backgroundImage: `url(${poster})` }}>
+              <span>▶ Click to load movie</span>
+              <small>MP4 · {run.mb} MB · 11 s</small>
+            </button>
+          )}
+        <button className="dtd-arrow prev" type="button" onClick={() => go(-1)} aria-label="Previous fit">‹</button>
+        <button className="dtd-arrow next" type="button" onClick={() => go(1)} aria-label="Next fit">›</button>
+      </div>
+      <div className="dtd-caption" aria-live="polite">
+        <div className="dtd-title"><span className="dtd-rank">#{i + 1} of {n}</span><b>{run.name}</b><span className="dtd-chi">χ² {run.chi2.toFixed(1)}</span></div>
+        <p>{run.blurb}</p>
+      </div>
+      <div className="dtd-dots" role="tablist" aria-label="Choose a fit">
+        {dtdRuns.map((r, k) => <button key={r.key} type="button" role="tab" aria-selected={k === i} aria-label={`#${k + 1} ${r.name}`} title={`#${k + 1} ${r.name}`} className={k === i ? "on" : ""} onClick={() => setI(k)} />)}
+      </div>
+    </div>
+  );
 }
 
 function assertSiteData() {
@@ -637,10 +675,31 @@ function Css() {
       .resume-image-link { display: none; }
       .resume-image-link img { width: 100%; height: auto; display: block; }
       @media (max-width: 760px), (hover: none) and (pointer: coarse) { .resume-frame { display: none; } .resume-image-link { display: block; } }
-      .lazy-video { aspect-ratio: 968 / 824; width: 100%; background-size: cover; background-position: center; border: 0; border-bottom: 1px solid var(--line); align-content: center; }
-      .lazy-video span, .lazy-video small { background: rgba(20,10,6,0.88); padding: 8px 14px; }
-      .lazy-video span { border: 1px solid rgba(255,170,100,0.5); }
-      .research-video { width: 100%; height: auto; display: block; background: #fff; }
+      .dtd-carousel { border-bottom: 1px solid var(--line); outline: none; }
+      .dtd-carousel:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+      .dtd-stage { position: relative; aspect-ratio: 1374 / 1320; max-height: 78vh; margin: 0 auto; background: #fff; }
+      .dtd-video, .dtd-load { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .dtd-video { object-fit: contain; background: #fff; display: block; }
+      .dtd-load { border: 0; cursor: pointer; font: inherit; color: #fff2e6; background-color: #fff; background-size: contain; background-repeat: no-repeat; background-position: center;
+        display: grid; place-content: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.12em; }
+      .dtd-load::before { content: ""; position: absolute; inset: 0; background: rgba(20,10,6,0.55); transition: background 180ms ease; }
+      .dtd-load:hover::before { background: rgba(20,10,6,0.42); }
+      .dtd-load span, .dtd-load small { position: relative; background: rgba(20,10,6,0.9); padding: 8px 14px; justify-self: center; }
+      .dtd-load span { font-size: 0.86rem; font-weight: 800; border: 1px solid rgba(255,170,100,0.5); }
+      .dtd-load small { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.18em; }
+      .dtd-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 40px; height: 56px; border: 1px solid rgba(255,170,100,0.45); background: rgba(20,10,6,0.82); color: #fff2e6; font-family: inherit; font-size: 30px; line-height: 1; cursor: pointer; }
+      .dtd-arrow:hover { background: rgba(60,30,14,0.95); border-color: var(--accent); }
+      .dtd-arrow.prev { left: 8px; } .dtd-arrow.next { right: 8px; }
+      .dtd-caption { padding: 14px clamp(22px, 4vw, 34px) 4px; }
+      .dtd-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; color: var(--text); }
+      .dtd-title b { font-size: 1.08rem; }
+      .dtd-rank, .dtd-chi { color: var(--dim); font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+      .dtd-chi { margin-left: auto; text-transform: none; letter-spacing: 0.02em; }
+      .dtd-caption p { margin: 6px 0 0; color: var(--muted); font-size: 0.96rem; line-height: 1.7; }
+      .dtd-dots { display: flex; justify-content: center; gap: 8px; padding: 12px 0 16px; }
+      .dtd-dots button { width: 10px; height: 10px; padding: 0; border: 1px solid rgba(255,170,100,0.6); background: transparent; cursor: pointer; }
+      .dtd-dots button.on { background: var(--accent); border-color: var(--accent); }
+      .dtd-dots button:hover { border-color: var(--accent-soft); }
       .research-stack { display: grid; gap: 22px; }
       .tag-line { color: var(--dim); font-size: 0.86rem; letter-spacing: 0.08em; text-transform: uppercase; margin: -10px 0 16px; }
       .resume-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
@@ -825,14 +884,14 @@ function HomePage() {
         <Section id="research" title="Research">
           <div className="research-stack">
           <div className="panel">
-            <LazyVideo src={`${base}/videos/apogee_maoz_walkers.mp4`} poster={`${base}/images/apogee_maoz_walkers_poster.webp`} title="MCMC walkers converging on the APOGEE Milky Way target" size="MP4 · 1.1 MB · 10 s" />
+            <DtdCarousel />
             <div className="panel-body prose">
               <h3 className="subheading">Reading the Type Ia Supernova Clock from Milky Way Stars</h3>
               <p className="tag-line">2026 · Bayesian inference · MCMC · FIRE element tracers · APOGEE DR17</p>
               <p>Type Ia supernovae enrich stars with iron, but how long after star formation they explode (their delay-time distribution) is still uncertain. I built a Bayesian inference pipeline, in my <a href="https://github.com/patelpb96/GizmoElementTracers" target="_blank" rel="noreferrer">GizmoElementTracers</a> fork of the FIRE analysis code, that turns a proposed delay-time distribution into predicted stellar [Mg/Fe] versus [Fe/H] using the element-tracer method, then compares that prediction to real Milky Way disk stars from APOGEE DR17.</p>
-              <p>The comparison works on a summary of the data: each of the Milky Way's two disk sequences (the high-alpha thick disk and the low-alpha thin disk) is described by a mean and spread in both abundances. The MCMC then varies the shape of the delay-time distribution (its power-law slope and the time the first Type Ia explodes) while holding the total number of Type Ia events fixed, so it only moves the explosions in time and never adds or removes them.</p>
-              <p>Along the way I wrote a factorized yield integrator that is about 25 times faster than the original numerical integration (agreeing to about one part in a million), a tunable broken-power-law model and a suite of delay-time distributions from the literature for comparison.</p>
-              <p>The movie shows the run: the simulated abundances moving onto the Milky Way target ellipses, the posterior building up, the walker traces, and the delay-time distribution changing as the walkers move.</p>
+              <p>The comparison works on a summary of the data: each of the Milky Way's two disk sequences (the high-alpha thick disk and the low-alpha thin disk) is described by a mean and spread in both abundances. Every fit holds the total number of Type Ia explosions fixed, so a model can only move explosions in time, never add or remove them, and each run starts the simulation one standard deviation away from the Milky Way so you can watch it walk back.</p>
+              <p>I fit ten delay-time-distribution families this way, from the standard power law to a new skewed-peak model, and ranked them. The carousel shows each run, best fit first. A free-shape version of the Mannucci model, which puts most explosions in a prompt burst within about 50 Myr, fits best; almost every family prefers most explosions at short delays. Differences of a few in χ² are not significant.</p>
+              <p>Along the way I wrote a factorized yield integrator that is about 25 times faster than the original numerical integration (agreeing to about one part in a million).</p>
             </div>
           </div>
           <div className="panel">
