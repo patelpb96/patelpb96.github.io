@@ -9,7 +9,7 @@
 /* Layout: control bar → chart with time brush beneath → players table beside a profile card. Scoreboard type, court-green accent. */
 :root {
   --bg: #f6f7f4;
-  --panel: #ffffff;
+  --panel: #ffffff; --plot: #fbfbfa;
   --ink: #141815;
   --ink-2: #4c544e;
   --ink-3: #7b847d;
@@ -30,7 +30,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #111412; --panel: #181c19; --ink: #f1f4f0; --ink-2: #b9c2bb; --ink-3: #848e86;
+    --bg: #111412; --panel: #181c19; --plot: #121513; --ink: #f1f4f0; --ink-2: #b9c2bb; --ink-3: #848e86;
     --line: #2b322d; --grid: #222823; --accent: #5cbf8f; --accent-ink: #0d1a13; --accent-soft: #1e3328;
     --idle: rgba(185, 194, 187, .26); --idle-hi: #ffffff; --brush: rgba(92, 191, 143, .16);
     --warn: #e0a24a; --err: #ef7a72;
@@ -40,7 +40,7 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #111412; --panel: #181c19; --ink: #f1f4f0; --ink-2: #b9c2bb; --ink-3: #848e86;
+  --bg: #111412; --panel: #181c19; --plot: #121513; --ink: #f1f4f0; --ink-2: #b9c2bb; --ink-3: #848e86;
   --line: #2b322d; --grid: #222823; --accent: #5cbf8f; --accent-ink: #0d1a13; --accent-soft: #1e3328;
   --idle: rgba(185, 194, 187, .26); --idle-hi: #ffffff; --brush: rgba(92, 191, 143, .16);
   --warn: #e0a24a; --err: #ef7a72;
@@ -212,6 +212,9 @@ body.reordering, body.reordering * { cursor: grabbing !important; }
 .linepop .foot { display: flex; justify-content: space-between; }
 .linepop .preview { height: 22px; }
 .canvas-wrap { position: relative; }
+.bgpick { position: absolute; width: 14px; height: 14px; border: 1px solid var(--ink-3); cursor: pointer; opacity: .7; transition: opacity .15s, transform .15s; }
+.bgpick:hover, .bgpick:focus-within { opacity: 1; transform: scale(1.15); }
+.bgpick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
 canvas { display: block; width: 100%; touch-action: none; }
 #chart { height: 440px; cursor: crosshair; }
 #brush { height: 64px; cursor: default; }
@@ -286,7 +289,10 @@ dl.attrs dd { margin: 0; overflow-wrap: anywhere; }
   --line: #4a2c1a; --grid: #2c1a10; --accent: #ffb36b; --accent-ink: #1a0f0a; --accent-soft: #3a2214;
   --idle: rgba(255, 226, 200, .2); --idle-hi: #fff2e6; --brush: rgba(255, 154, 77, .16);
   --warn: #ffb36b; --err: #ff8a7a;
-  --s1: #5aa9ff; --s2: #ff7a45; --s3: #3cc497; --s4: #ffc247; --s5: #ff7fb0; --s6: #9fd36a; --s7: #a99bff; --s8: #ff6b6b;
+  /* line palette: evenly spaced hues at similar brightness, so no line shouts over another.
+     The opening Big Four take 1-4 in order: Federer red, Nadal clay gold, Djokovic blue, Murray green. */
+  --s1: #ef6a5b; --s2: #e9b04f; --s3: #5aa9ff; --s4: #4fc48f; --s5: #b19bff; --s6: #ff8fc4; --s7: #6fd3e0; --s8: #b5d86a;
+  --plot: #110904;  /* chart background: a shade darker than the panel */
   --display: "Playfair Display", Georgia, "Times New Roman", serif;
   --body: "Playfair Display", Georgia, "Times New Roman", serif; /* serif throughout, like the site */
   color-scheme: dark;
@@ -352,11 +358,11 @@ h1 span { color: var(--accent); }
         <h3>Rank axis</h3>
         <div class="ctl-row">
           <div class="seg" role="group" aria-label="Rank axis scale">
-            <button type="button" id="y-top" aria-pressed="true">Linear</button>
-            <button type="button" id="y-log" aria-pressed="false">Log</button>
+            <button type="button" id="y-top" aria-pressed="false">Linear</button>
+            <button type="button" id="y-log" aria-pressed="true">Log</button>
           </div>
           <label class="yr"><span>Ranks</span><input type="number" id="y-lo" min="0.05" max="1999" step="any" value="1" aria-label="Best rank shown"></label>
-          <label class="yr"><span>to</span><input type="number" id="y-hi" min="2" max="2000" step="any" value="30" aria-label="Worst rank shown"></label>
+          <label class="yr"><span>to</span><input type="number" id="y-hi" min="2" max="2000" step="any" value="300" aria-label="Worst rank shown"></label>
         </div>
         <div class="presets">
           <button type="button" class="chip-btn" data-yr="1,10">Top 10</button>
@@ -423,6 +429,7 @@ h1 span { color: var(--accent); }
         <div class="canvas-wrap">
           <canvas id="chart" aria-label="Ranking lines for every player in the window"></canvas>
           <div class="tip" id="tip" hidden></div>
+          <label class="bgpick" id="bgpick" title="Chart background colour (double-click to reset)"><input type="color" id="bg-color" aria-label="Chart background colour"></label>
         </div>
         <canvas id="brush" aria-label="Time window. Drag a handle inward to narrow; drag it past the edge to extend, faster the further out you pull. Drag the shaded band to move the window."></canvas>
         <div class="brush-note">Rank axis: scroll over the rank numbers to zoom, drag them to pan, double-click to reset. Time: drag a handle inward to narrow. Pull it past the edge of the strip to extend: the further out you hold it, the faster it grows. Drag the shaded band to slide the window.</div>
@@ -506,14 +513,17 @@ for (let i = 0; i < N; i++) yearEndIdx[new Date(T[i]).getUTCFullYear()] = i;
 const FINAL = new Set(DATA.finalSeasons);
 
 // ---------- state
-let win = { a: Date.UTC(2000, 0, 1), b: END };
-let mode = 'week', ylog = false, sortK = 'name', sortDir = 1;
+let win = { a: Date.UTC(1998, 0, 1), b: END };   // opens on the Big Four's era
+let mode = 'week', ylog = true, sortK = 'name', sortDir = 1;  // log rank axis: careers read from first ranking to No. 1
+const DEFAULT_YR = { lo: 1, hi: 300 };
+let plotBg = null;               // chart background chosen by the viewer (null = theme default, --plot)
+try { plotBg = localStorage.getItem('atp-top20-plotbg') || null; } catch (e) { /* default */ }
 let outline = false;            // halo behind selected lines; off by default so lines read cleaner
 const trend = { on: false, n: 26 };  // simple moving average over n weeks
 const YMIN = { lin: 1, log: 0.05 };  // log can go below 1 for group values (spreads, counts) that reach 0
 let groups = [];                // { id, name, members: [player ids], agg: peak|avg|median|worst }
 let groupSeq = 0;
-let yr = { lo: 1, hi: 30 };      // visible rank window (floats while zooming; inputs show rounded values)
+let yr = { ...DEFAULT_YR };      // visible rank window (floats while zooming; inputs show rounded values)
 const RMAX = 2000;
 let selected = [];              // ids, in selection order
 const slotOf = new Map();       // id -> colour slot 1..8, follows the player
@@ -547,7 +557,7 @@ const cmpMax = () => Math.max(YEAR, ...cmpPlayers().map(id => careerEnd(byId.get
 const BW = () => cmp ? cmp.win : win, BLO = () => cmp ? 0 : T0, BHI = () => cmp ? cmpMax() : END;
 const rankAtTime = (p, t) => { const i = lastIdxAtOrBefore(t); return t >= T[p.s] && i >= p.s && i <= p.e ? p.r[i - p.s] || 0 : 0; };
 const lineStyle = new Map();    // id -> { alpha, width, dash, color }; kept if a player is deselected and picked again
-const DEF_STYLE = { alpha: 1, width: 2.25, dash: 'solid', color: null };
+const DEF_STYLE = { alpha: .92, width: 1.9, dash: 'solid', color: null };
 const styleOf = id => ({ ...DEF_STYLE, ...lineStyle.get(id) });
 const dashFor = (dash, w) => dash === 'dashed' ? [w * 3.5, w * 2.5] : dash === 'dotted' ? [0.1, w * 2.4] : [];
 
@@ -672,17 +682,21 @@ function fmtSpan(ms) {
 
 function drawChart() {
   const { g, w, h } = setup(chart);
-  M.r = Math.round((w < 600 ? 78 : 112) * FS); M.l = Math.round(44 * FS); M.b = Math.round(26 * FS);
+  M.r = Math.round((w < 600 ? 78 : 112) * FS); M.l = Math.round(50 * FS); M.b = Math.round(26 * FS);
   const C = !!cmp, A = C ? cmp.win.a : win.a, B = C ? cmp.win.b : win.b;
   const x = v => M.l + (v - A) / (B - A) * (w - M.l - M.r); // v: a date, or ms since debut when comparing careers
   const sh = p => C ? debutOf(p) : 0;
   const Y = yScale(h);
   geo = { x, Y, w, h, A, B };
   g.clearRect(0, 0, w, h);
-  g.font = fpx(13.5) + css('--body'); g.textBaseline = 'middle';
-  // grid
-  g.strokeStyle = css('--grid'); g.fillStyle = css('--ink-3'); g.lineWidth = 1;
+  const surf = plotBg || css('--plot');
+  g.fillStyle = surf; g.fillRect(M.l, M.t, w - M.l - M.r, h - M.t - M.b);
+  placeBgPick();
+  g.font = fpx(15) + css('--body'); g.textBaseline = 'middle';
+  // grid: rank lines a touch stronger than the time lines, both quiet
+  g.strokeStyle = css('--grid'); g.fillStyle = css('--ink-2'); g.lineWidth = 1;
   for (const r of Y.ticks) { const y = Math.round(Y.f(r)) + .5; g.beginPath(); g.moveTo(M.l, y); g.lineTo(w - M.r, y); g.stroke(); g.textAlign = 'right'; g.fillText(r < 0 ? '−' + -r : r, M.l - 8, y); }
+  g.font = fpx(13.5) + css('--body'); g.fillStyle = css('--ink-3');
   if (yr.lo < 20.5 && yr.hi > 20.5) { // emphasize the top-20 cut
     const y = Math.round(Y.f(20.5)) + .5; g.save(); g.setLineDash([4, 4]); g.strokeStyle = css('--ink-3'); g.beginPath(); g.moveTo(M.l, y); g.lineTo(w - M.r, y); g.stroke(); g.restore();
     g.textAlign = 'left'; g.fillText('top 20', w - M.r + 6, y);
@@ -694,9 +708,10 @@ function drawChart() {
     g.fillStyle = css('--ink-3'); g.textAlign = 'left'; if (y1 - M.t > 18) g.fillText('beyond No. 1', M.l + 8, M.t + 10);
   }
   g.textAlign = 'center'; g.textBaseline = 'top';
-  for (const [t, lab] of ticksX(A, B, w - M.l - M.r)) { const xx = Math.round(x(t)) + .5; g.strokeStyle = css('--grid'); g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, h - M.b); g.stroke(); g.fillText(lab, xx, h - M.b + 6); }
+  for (const [t, lab] of ticksX(A, B, w - M.l - M.r)) { const xx = Math.round(x(t)) + .5; g.globalAlpha = .6; g.strokeStyle = css('--grid'); g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, h - M.b); g.stroke(); g.globalAlpha = 1; g.fillText(lab, xx, h - M.b + 6); }
   g.textAlign = 'left'; g.textBaseline = 'middle';
-  g.fillStyle = css('--ink-3'); g.save(); g.translate(12, (M.t + h - M.b) / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText('Rank', 0, 0); g.restore();
+  g.fillStyle = css('--ink-2'); g.font = fpx(14.5) + css('--body'); g.save(); g.translate(12, (M.t + h - M.b) / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText('Rank', 0, 0); g.restore();
+  g.font = fpx(13.5) + css('--body');
 
   const [i0, i1] = windowIdx();
   // the lists to draw for one player: the window's, or (comparing) the lists inside the window counted from their debut
@@ -725,7 +740,6 @@ function drawChart() {
     for (const it of inWin) { if (slotOf.has(it.p.id) && !hiddenP.has(it.p.id) || it.p.id === hoverId) continue; pathFor(it.p, true); g.stroke(); }
     g.globalAlpha = 1;
   }
-  const surf = css('--panel');
   const rawK = trend.on ? .28 : 1; // raw lines step back while the moving average is shown
   const strokeSel = (id, hover) => {
     const st = styleOf(id), lw = st.width + (hover ? .5 : 0);
@@ -794,6 +808,20 @@ function drawChart() {
   const empty = C ? (plotIds.length ? '' : 'Select players to compare their careers.') : inWin.length ? '' : 'No player held a top-20 ranking in this window.';
   if (empty) { g.fillStyle = css('--ink-3'); g.textAlign = 'center'; g.font = fpx(15) + css('--body'); g.fillText(empty, w / 2, h / 2); }
 }
+
+// the colour square sits just inside the plot's bottom-left corner
+function placeBgPick() {
+  const el = $('bgpick'); if (!el || !geo) return;
+  el.style.left = (M.l + 6) + 'px'; el.style.top = (geo.h - M.b - 20) + 'px';
+}
+function setPlotBg(c) {
+  plotBg = c || null;
+  try { if (plotBg) localStorage.setItem('atp-top20-plotbg', plotBg); else localStorage.removeItem('atp-top20-plotbg'); } catch (e) { /* not remembered */ }
+  $('bg-color').value = toHex(plotBg || css('--plot'));
+  drawChart();
+}
+$('bg-color').addEventListener('input', e => setPlotBg(e.target.value));
+$('bgpick').addEventListener('dblclick', e => { e.preventDefault(); setPlotBg(null); });
 
 function chartPointer(ev) {
   if (!geo || yDrag) return;
@@ -1072,7 +1100,7 @@ chart.addEventListener('pointermove', ev => {
   chart.style.cursor = inAxis(ev) ? 'ns-resize' : '';
 });
 chart.addEventListener('pointerup', () => { yDrag = null; });
-chart.addEventListener('dblclick', ev => { if (inAxis(ev)) setRange(1, 30); });
+chart.addEventListener('dblclick', ev => { if (inAxis(ev)) setRange(DEFAULT_YR.lo, DEFAULT_YR.hi); });
 $('oth-show').onclick = () => { showOthers = true; seg('oth-show', 'oth-hide', true); $('oth-alpha').disabled = false; drawChart(); };
 $('oth-hide').onclick = () => { showOthers = false; seg('oth-hide', 'oth-show', true); $('oth-alpha').disabled = true; if (hoverId && !slotOf.has(hoverId)) hoverId = null; drawChart(); };
 $('oth-alpha').oninput = e => { othersAlpha = +e.target.value; drawChart(); };
@@ -1753,17 +1781,18 @@ new MutationObserver(() => { drawChart(); drawBrush(); renderLegend(); }).observ
 
 syncInputs(); fitDom(false);
 commit(); renderLegend();
-// open with a realistic working state: the four players who dominated the window
-const seed = [...inWin].sort((a, b) => b.w20 - a.w20).slice(0, 4).map(x => x.p.id);
+// open on the Big Four (Federer, Nadal, Djokovic, Murray), with Federer's profile
+const seed = ['F324', 'N409', 'D643', 'MC10'].filter(id => byId.has(id));
 seed.forEach(id => toggle(id, true));
 if (seed[0]) focus(seed[0]); else emptyProfile();
+setYr(yr.lo, yr.hi);
+$('bg-color').value = toHex(plotBg || css('--plot'));
 groups = loadGroups() ?? DEFAULT_GROUPS.map(g => ({ ...g, members: [...g.members] }));
 groups.forEach(g => { if (g.id === 'G1' && g.name === 'Big 3') g.name = 'Big Three'; }); // renamed from 'Big 3'
 if (TOP10 && !noTop10 && !groups.some(g => g.dyn === 'top10')) groups.push({ id: 'T10', name: 'Top 10', dyn: 'top10', metric: 'prev_avg', members: [] });
 groupSeq = Math.max(0, ...groups.filter(g => /^G\d+$/.test(g.id)).map(g => +g.id.slice(1)));
 groups.forEach(buildGroup);
-const big3 = groups.find(g => g.name === 'Big Three');
-if (big3) toggle(big3.id, true); else renderLegend();
+renderLegend(); // groups start hidden: the opening view is just the four players
 $('ppreset').value = '';
 })();
 </script>

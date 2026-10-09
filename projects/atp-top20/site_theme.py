@@ -17,7 +17,10 @@ THEME = """
   --line: #4a2c1a; --grid: #2c1a10; --accent: #ffb36b; --accent-ink: #1a0f0a; --accent-soft: #3a2214;
   --idle: rgba(255, 226, 200, .2); --idle-hi: #fff2e6; --brush: rgba(255, 154, 77, .16);
   --warn: #ffb36b; --err: #ff8a7a;
-  --s1: #5aa9ff; --s2: #ff7a45; --s3: #3cc497; --s4: #ffc247; --s5: #ff7fb0; --s6: #9fd36a; --s7: #a99bff; --s8: #ff6b6b;
+  /* line palette: evenly spaced hues at similar brightness, so no line shouts over another.
+     The opening Big Four take 1-4 in order: Federer red, Nadal clay gold, Djokovic blue, Murray green. */
+  --s1: #ef6a5b; --s2: #e9b04f; --s3: #5aa9ff; --s4: #4fc48f; --s5: #b19bff; --s6: #ff8fc4; --s7: #6fd3e0; --s8: #b5d86a;
+  --plot: #110904;  /* chart background: a shade darker than the panel */
   --display: "Playfair Display", Georgia, "Times New Roman", serif;
   --body: "Playfair Display", Georgia, "Times New Roman", serif; /* serif throughout, like the site */
   color-scheme: dark;
