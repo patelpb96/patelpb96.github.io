@@ -68,7 +68,33 @@ h1 span { color: var(--accent); }
 .sub { color: var(--ink-2); margin: 4px 0 0; }
 .stamp { color: var(--ink-3); font-size: calc(13px * var(--fs)); font-variant-numeric: tabular-nums; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 0; }
-.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; padding: 12px 14px; }
+.controls { padding: 0; }
+.ctl-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; background: transparent; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ctl-head:hover .ctl-act, .ctl-head:focus-visible .ctl-act { color: var(--ink); border-color: var(--accent); }
+.ctl-head:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.ctl-sum { flex: 1; min-width: 0; color: var(--ink-2); font-size: calc(13.5px * var(--fs)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; visibility: hidden; }
+.ctl-act { flex: none; color: var(--ink-2); font: 500 calc(13px * var(--fs)) var(--body); border: 1px dashed var(--line); padding: 5px 10px; }
+.controls.min .ctl-sum { visibility: visible; }
+.controls.min .ctl-act { color: var(--accent-ink); background: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
+.controls.min .ctl-head:hover .ctl-act { color: var(--accent-ink); filter: brightness(1.08); }
+.controls.min .ctl-body { display: none; }
+.ctl-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px 22px; padding: 2px 14px 14px; border-top: 1px solid var(--line); }
+.ctl-grp { display: grid; gap: 10px; align-content: start; padding-top: 10px; min-width: 0; }
+.ctl-grp h3 { margin: 0; font: 600 calc(15px * var(--fs))/1.1 var(--display); color: var(--ink); }
+.ctl-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: end; }
+.ctl-row .field { flex: 1 1 130px; }
+.ctl-row .field input { width: 100%; }
+.ctl-row .yr { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: calc(13.5px * var(--fs)); }
+.ctl-line { display: grid; grid-template-columns: minmax(96px, auto) 1fr; gap: 10px; align-items: center; }
+.ctl-line select { width: 100%; }
+.ctl-line .yr { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: calc(13.5px * var(--fs)); }
+.ctl-row input[type=number], .ctl-line input[type=number] { width: 66px; font: 500 calc(15px * var(--fs)) var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 7px 6px; min-height: 36px; font-variant-numeric: tabular-nums; }
+.others :disabled { opacity: .4; }
+.ctl-line .others { flex-wrap: wrap; min-width: 0; }
+@media (max-width: 560px) {
+  .ctl-body { grid-template-columns: minmax(0, 1fr); }
+  .ctl-line { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+}
 .field { display: grid; gap: 4px; }
 .lbl { font: 600 calc(12.5px * var(--fs))/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 input[type=date], input[type=search], input[type=number], select {
@@ -138,11 +164,6 @@ body.reordering, body.reordering * { cursor: grabbing !important; }
 .linepop .pop-sub { color: var(--ink-2); font-size: calc(13px * var(--fs)); margin-top: -6px; }
 .linepop .pop-hint { color: var(--ink-3); font-size: calc(12.5px * var(--fs)); }
 .others { display: flex; align-items: center; gap: 10px; }
-.field.wide { flex-basis: 100%; }
-.trend { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
-.trend select, .trend input[type=number] { min-height: 32px; padding: 5px 6px; }
-.trend input[type=number] { width: 64px; font: 500 calc(15px * var(--fs)) var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
-.trend :disabled { opacity: .4; }
 .lg-sec { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-basis: 100%; margin-top: 4px;
   font: 600 calc(12.5px * var(--fs))/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .lg-sec .chip-btn { padding: 4px 8px; text-transform: none; letter-spacing: 0; }
@@ -307,83 +328,81 @@ h1 span { color: var(--accent); }
     </div>
   </header>
 
-  <section class="panel controls" aria-label="Time window">
-    <div class="field"><label class="lbl" for="from">From</label><input type="date" id="from"></div>
-    <div class="field"><label class="lbl" for="to">To</label><input type="date" id="to"></div>
-    <div class="field"><span class="lbl">Who counts</span>
-      <div class="seg" role="group" aria-label="Who counts">
-        <button type="button" id="mode-week" aria-pressed="true" title="Ranked 1-20 on any list in force during the window">Top 20 any week</button>
-        <button type="button" id="mode-ye" aria-pressed="false" title="Finished a season in the year-end top 20, for seasons that end inside the window">Year-end top 20</button>
-      </div>
-    </div>
-    <div class="field"><span class="lbl">Rank axis</span>
-      <div class="yaxis">
-        <div class="seg" role="group" aria-label="Rank axis scale">
-          <button type="button" id="y-top" aria-pressed="true">Linear</button>
-          <button type="button" id="y-log" aria-pressed="false">Log</button>
+  <section class="panel controls" id="controls" aria-label="Chart settings">
+    <button type="button" class="ctl-head" id="ctl-toggle" aria-expanded="true" aria-controls="ctl-body">
+      <span class="lbl">Chart settings</span>
+      <span class="ctl-sum" id="ctl-sum"></span>
+      <span class="ctl-act" id="ctl-act">Collapse ▴</span>
+    </button>
+    <div class="ctl-body" id="ctl-body">
+      <div class="ctl-grp">
+        <h3>Time window</h3>
+        <div class="ctl-row">
+          <div class="field"><label class="lbl" for="from">From</label><input type="date" id="from"></div>
+          <div class="field"><label class="lbl" for="to">To</label><input type="date" id="to"></div>
         </div>
-        <label class="yr"><span>Ranks</span><input type="number" id="y-lo" min="-60" max="1999" step="any" value="1" aria-label="Best rank shown"></label>
-        <label class="yr"><span>to</span><input type="number" id="y-hi" min="2" max="2000" step="any" value="30" aria-label="Worst rank shown"></label>
-      </div>
-      <div class="presets" style="margin-top:6px">
-        <button type="button" class="chip-btn" data-yr="1,10">Top 10</button>
-        <button type="button" class="chip-btn" data-yr="1,20">Top 20</button>
-        <button type="button" class="chip-btn" data-yr="1,30">Top 30</button>
-        <button type="button" class="chip-btn" data-yr="1,100">Top 100</button>
-        <button type="button" class="chip-btn" data-yr="1,2000,log">All (log)</button>
-      </div>
-    </div>
-    <div class="field"><span class="lbl">Line outline</span>
-      <div class="seg" role="group" aria-label="Line outline">
-        <button type="button" id="ol-off" aria-pressed="true">Off</button>
-        <button type="button" id="ol-on" aria-pressed="false">On</button>
-      </div>
-    </div>
-    <div class="field"><span class="lbl">Other players</span>
-      <div class="others">
-        <div class="seg" role="group" aria-label="Other players">
-          <button type="button" id="oth-show" aria-pressed="false">Show</button>
-          <button type="button" id="oth-hide" aria-pressed="true">Hide</button>
+        <div class="field"><span class="lbl">Who counts</span>
+          <div class="seg" role="group" aria-label="Who counts">
+            <button type="button" id="mode-week" aria-pressed="true" title="Ranked 1-20 on any list in force during the window">Top 20 any week</button>
+            <button type="button" id="mode-ye" aria-pressed="false" title="Finished a season in the year-end top 20, for seasons that end inside the window">Year-end top 20</button>
+          </div>
         </div>
-        <input type="range" id="oth-alpha" min="0.05" max="1" step="0.05" value="1" disabled aria-label="Opacity of unselected players' lines" title="Opacity of unselected lines">
       </div>
-    </div>
-    <div class="field"><label class="lbl" for="ppreset">Player groups</label>
-      <select id="ppreset">
-        <option value="">Choose a group…</option>
-        <option value="big3">Big Three (players)</option>
-        <option value="big4">Big 4 (players)</option>
-        <option value="no1">World No. 1 (ever)</option>
-        <option value="no1-2000">World No. 1 since 2000</option>
-        <option value="top10">Current top 10</option>
-        <option value="ye1">Year-end No. 1s</option>
-      </select>
-    </div>
-    <div class="field wide"><span class="lbl">Moving average with momentum</span>
-      <div class="trend">
-        <div class="seg" role="group" aria-label="Trend line">
-          <button type="button" id="tr-off" aria-pressed="true">Off</button>
-          <button type="button" id="tr-on" aria-pressed="false">On</button>
+      <div class="ctl-grp">
+        <h3>Rank axis</h3>
+        <div class="ctl-row">
+          <div class="seg" role="group" aria-label="Rank axis scale">
+            <button type="button" id="y-top" aria-pressed="true">Linear</button>
+            <button type="button" id="y-log" aria-pressed="false">Log</button>
+          </div>
+          <label class="yr"><span>Ranks</span><input type="number" id="y-lo" min="0.05" max="1999" step="any" value="1" aria-label="Best rank shown"></label>
+          <label class="yr"><span>to</span><input type="number" id="y-hi" min="2" max="2000" step="any" value="30" aria-label="Worst rank shown"></label>
         </div>
-        <label class="yr"><span>Average</span><select id="tr-ma">
-          <option value="sma">Simple</option><option value="ema">Exponential</option><option value="wma">Weighted (linear)</option></select></label>
-        <label class="yr"><span>over</span><input type="number" id="tr-n" min="2" max="520" step="1" value="26"><span>weeks</span></label>
-        <label class="yr"><span>Momentum</span><select id="tr-mom">
-          <option value="none">None (plain average)</option>
-          <option value="slope" selected>Slope projection</option>
-          <option value="accel">Velocity + acceleration</option>
-          <option value="holt">Holt trend (double exponential)</option>
-          <option value="zerolag">Zero-lag (2 × fast − slow)</option></select></label>
-        <label class="yr"><span>lead</span><input type="number" id="tr-lead" min="0" max="260" step="1" value="13"><span>weeks</span></label>
-        <label class="yr"><span>Raw lines</span><select id="tr-raw">
-          <option value="normal">Normal</option><option value="faded" selected>Faded</option><option value="hidden">Hidden</option></select></label>
+        <div class="presets">
+          <button type="button" class="chip-btn" data-yr="1,10">Top 10</button>
+          <button type="button" class="chip-btn" data-yr="1,20">Top 20</button>
+          <button type="button" class="chip-btn" data-yr="1,30">Top 30</button>
+          <button type="button" class="chip-btn" data-yr="1,100">Top 100</button>
+          <button type="button" class="chip-btn" data-yr="1,2000,log">All (log)</button>
+        </div>
       </div>
-    </div>
-    <div class="field"><span class="lbl">Jump to</span>
-      <div class="presets">
-        <button type="button" class="chip-btn" data-preset="2000">2000 → latest</button>
-        <button type="button" class="chip-btn" data-preset="all">1973 → latest</button>
-        <button type="button" class="chip-btn" data-preset="1y">Last 12 months</button>
+      <div class="ctl-grp">
+        <h3>Lines</h3>
+        <div class="ctl-line"><span class="lbl">Outline</span>
+          <div class="seg" role="group" aria-label="Line outline">
+            <button type="button" id="ol-off" aria-pressed="true">Off</button>
+            <button type="button" id="ol-on" aria-pressed="false">On</button>
+          </div>
+        </div>
+        <div class="ctl-line"><span class="lbl">Other players</span>
+          <div class="others">
+            <div class="seg" role="group" aria-label="Other players">
+              <button type="button" id="oth-show" aria-pressed="false">Show</button>
+              <button type="button" id="oth-hide" aria-pressed="true">Hide</button>
+            </div>
+            <input type="range" id="oth-alpha" min="0.05" max="1" step="0.05" value="1" disabled aria-label="Opacity of unselected players' lines" title="Opacity of unselected lines">
+          </div>
+        </div>
+        <div class="ctl-line"><span class="lbl">Moving average</span>
+          <div class="others">
+            <div class="seg" role="group" aria-label="Moving average">
+              <button type="button" id="tr-off" aria-pressed="true">Off</button>
+              <button type="button" id="tr-on" aria-pressed="false">On</button>
+            </div>
+            <label class="yr"><span>over</span><input type="number" id="tr-n" min="2" max="520" step="1" value="26" aria-label="Weeks in the moving average"><span>weeks</span></label>
+          </div>
+        </div>
+        <div class="ctl-line"><label class="lbl" for="ppreset">Player groups</label>
+          <select id="ppreset">
+            <option value="">Choose a group…</option>
+            <option value="big3">Big Three (players)</option>
+            <option value="big4">Big 4 (players)</option>
+            <option value="no1">World No. 1 (ever)</option>
+            <option value="no1-2000">World No. 1 since 2000</option>
+            <option value="top10">Current top 10</option>
+            <option value="ye1">Year-end No. 1s</option>
+          </select>
+        </div>
       </div>
     </div>
   </section>
@@ -490,8 +509,8 @@ const FINAL = new Set(DATA.finalSeasons);
 let win = { a: Date.UTC(2000, 0, 1), b: END };
 let mode = 'week', ylog = false, sortK = 'name', sortDir = 1;
 let outline = false;            // halo behind selected lines; off by default so lines read cleaner
-const trend = { on: false, ma: 'sma', n: 26, mom: 'slope', lead: 13, raw: 'faded' };
-const YMIN = { lin: -60, log: 0.05 }; // the axis may run past No. 1 so momentum lines can overshoot the top
+const trend = { on: false, n: 26 };  // simple moving average over n weeks
+const YMIN = { lin: 1, log: 0.05 };  // log can go below 1 for group values (spreads, counts) that reach 0
 let groups = [];                // { id, name, members: [player ids], agg: peak|avg|median|worst }
 let groupSeq = 0;
 let yr = { lo: 1, hi: 30 };      // visible rank window (floats while zooming; inputs show rounded values)
@@ -610,8 +629,8 @@ function yScale(h) {
   const top = M.t, bot = h - M.b, U0 = toU(yr.lo), U1 = toU(yr.hi), pad = (U1 - U0) * .04;
   // ranks outside the window are pinned just past the edge, so lines leave the plot instead of vanishing mid-air
   const f = r => top + (Math.min(U1 + pad, Math.max(U0 - pad, toU(r))) - U0) / (U1 - U0) * (bot - top);
-  // axis-space mapping for trend lines: free to run above the top (they may overshoot No. 1), pinned at the bottom
-  const fu = u => top + (Math.max(U0 - 4 * (U1 - U0), Math.min(U1 + pad, u)) - U0) / (U1 - U0) * (bot - top);
+  // axis-space mapping for moving-average lines (already in rank or log-rank units), pinned like f
+  const fu = u => top + (Math.max(U0 - pad, Math.min(U1 + pad, u)) - U0) / (U1 - U0) * (bot - top);
   return { f, fu, inv: y => fromU(U0 + (y - top) / (bot - top) * (U1 - U0)), ticks: rankTicks(yr.lo, yr.hi), inView: r => r >= yr.lo - .5 && r <= yr.hi + .5 };
 }
 function setYr(lo, hi, opts = {}) {
@@ -624,6 +643,7 @@ function setYr(lo, hi, opts = {}) {
   yr = { lo: Math.max(floor, fromU(U0)), hi: Math.min(RMAX, fromU(U1)) };
   const show = v => Math.abs(v) < 10 ? +v.toFixed(1) : Math.round(v);
   if (!opts.keepInputs) { $('y-lo').value = show(yr.lo); $('y-hi').value = show(yr.hi); }
+  if ($('ctl-sum')) renderCtlSum();
   drawChart();
 }
 function niceTicks(a, b, w) {
@@ -667,7 +687,7 @@ function drawChart() {
     const y = Math.round(Y.f(20.5)) + .5; g.save(); g.setLineDash([4, 4]); g.strokeStyle = css('--ink-3'); g.beginPath(); g.moveTo(M.l, y); g.lineTo(w - M.r, y); g.stroke(); g.restore();
     g.textAlign = 'left'; g.fillText('top 20', w - M.r + 6, y);
   }
-  if (yr.lo < 1) { // shade the band above No. 1 that only momentum lines can reach
+  if (yr.lo < 1) { // log axis only: shade the band above No. 1 (only group values such as spreads reach it)
     const y1 = Math.round(Y.f(1)) + .5;
     g.globalAlpha = .5; g.fillStyle = css('--grid'); g.fillRect(M.l, M.t, w - M.l - M.r, y1 - M.t); g.globalAlpha = 1;
     g.strokeStyle = css('--ink-3'); g.beginPath(); g.moveTo(M.l, y1); g.lineTo(w - M.r, y1); g.stroke();
@@ -706,7 +726,7 @@ function drawChart() {
     g.globalAlpha = 1;
   }
   const surf = css('--panel');
-  const rawK = trend.on ? { normal: 1, faded: .28, hidden: 0 }[trend.raw] : 1; // raw lines step back while a trend line is shown
+  const rawK = trend.on ? .28 : 1; // raw lines step back while the moving average is shown
   const strokeSel = (id, hover) => {
     const st = styleOf(id), lw = st.width + (hover ? .5 : 0);
     if (!hover && !rawK) return;
@@ -723,9 +743,9 @@ function drawChart() {
   }
   g.restore();
 
-  // moving average + momentum: own clip that is open at the top, so overshoots past No. 1 run off the plot instead of being cut
+  // moving average, drawn over the faded raw lines
   if (trend.on) {
-    g.save(); g.beginPath(); g.rect(M.l, 0, w - M.l - M.r, h - M.b + 2); g.clip();
+    g.save(); g.beginPath(); g.rect(M.l, M.t - 2, w - M.l - M.r, h - M.t - M.b + 4); g.clip();
     for (const id of plotIds) {
       const p = byId.get(id), d = sh(p);
       const tr = trendSeries(p), st = styleOf(id);
@@ -822,7 +842,7 @@ function showTip(px, py, i) {
   }
   const until = i + 1 < N ? T[i + 1] : END;
   tip.innerHTML = `<div class="d">List of ${fmt(T[i])}${(until - T[i]) / DAY > 8 ? ` (in force to ${fmt(until - DAY)})` : ''}</div>` +
-    (rows.length ? rows.map(({ p, r }) => { const tv = trend.on && slotOf.has(p.id) ? trendAt(p, T[i]) : null; return `<div class="row"><span class="k" style="background:${colorOf(p.id) || css('--idle-hi')}"></span><span>${esc(p.n)}</span><b>${r ? valText(p, r) : '—'}${tv != null ? `<i title="moving average with momentum">~${fmtR(tv)}</i>` : ''}</b></div>${p.dyn && r ? `<div class="tsub">${esc(top10Names(i).map(n => n.split(' ').slice(-1)[0]).join(', '))}</div>` : ''}`; }).join('')
+    (rows.length ? rows.map(({ p, r }) => { const tv = trend.on && slotOf.has(p.id) ? trendAt(p, T[i]) : null; return `<div class="row"><span class="k" style="background:${colorOf(p.id) || css('--idle-hi')}"></span><span>${esc(p.n)}</span><b>${r ? valText(p, r) : '—'}${tv != null ? `<i title="${trend.n}-week moving average">~${fmtR(tv)}</i>` : ''}</b></div>${p.dyn && r ? `<div class="tsub">${esc(top10Names(i).map(n => n.split(' ').slice(-1)[0]).join(', '))}</div>` : ''}`; }).join('')
       : `<div class="empty">Point at a line to name it</div>`) + (more > 0 ? `<div class="empty">+${more} more ranked</div>` : '');
   placeTip(px, py);
 }
@@ -833,7 +853,7 @@ function showCmpTip(px, py, o) {
   const mon = t => new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', timeZone: 'UTC' });
   tip.innerHTML = `<div class="d">${esc(fmtSpan(o))}</div>` + rows.map(({ p, r, t }) => {
     const tv = trend.on ? trendAt(p, t) : null;
-    return `<div class="row"><span class="k" style="background:${colorOf(p.id) || css('--idle-hi')}"></span><span>${esc(p.n)} <i style="font-style:normal;color:var(--ink-3)">${t <= END ? mon(t) : ''}</i></span><b>${r ? '#' + fmtR(r) : '—'}${tv != null ? `<i title="moving average with momentum">~${fmtR(tv)}</i>` : ''}</b></div>`;
+    return `<div class="row"><span class="k" style="background:${colorOf(p.id) || css('--idle-hi')}"></span><span>${esc(p.n)} <i style="font-style:normal;color:var(--ink-3)">${t <= END ? mon(t) : ''}</i></span><b>${r ? '#' + fmtR(r) : '—'}${tv != null ? `<i title="${trend.n}-week moving average">~${fmtR(tv)}</i>` : ''}</b></div>`;
   }).join('');
   placeTip(px, py);
 }
@@ -990,8 +1010,24 @@ document.addEventListener('keydown', e => {
   exitCompare();
 }, true);
 
+// ---------- settings panel: collapsible, with a one-line summary while collapsed (remembered per browser)
+function renderCtlSum() {
+  $('ctl-sum').textContent = [`${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}`, mode === 'week' ? 'top 20 any week' : 'year-end top 20',
+    `ranks ${fmtR(Math.round(yr.lo * 10) / 10)}–${fmtR(Math.round(yr.hi))}${ylog ? ' (log)' : ''}`, trend.on ? `${trend.n}-week average` : ''].filter(Boolean).join(' · ');
+}
+function setCtlMin(min, save = true) {
+  $('controls').classList.toggle('min', min);
+  $('ctl-toggle').setAttribute('aria-expanded', String(!min));
+  $('ctl-act').textContent = min ? 'Expand ▾' : 'Collapse ▴';
+  $('ctl-toggle').title = min ? 'Show the chart settings' : 'Hide the chart settings';
+  renderCtlSum();
+  if (save) { try { localStorage.setItem('atp-top20-ctl-min', min ? '1' : ''); } catch (e) { /* not remembered */ } }
+}
+$('ctl-toggle').onclick = () => setCtlMin(!$('controls').classList.contains('min'));
+{ let m = false; try { m = !!localStorage.getItem('atp-top20-ctl-min'); } catch (e) { /* default: open */ } setCtlMin(m, false); }
+
 // ---------- inputs
-function syncInputs() { $('from').value = iso(win.a); $('to').value = iso(Math.min(win.b, END - DAY)); }
+function syncInputs() { $('from').value = iso(win.a); $('to').value = iso(Math.min(win.b, END - DAY)); renderCtlSum(); }
 function fromInputs() {
   const a = Date.parse($('from').value), b = Date.parse($('to').value);
   if (isNaN(a) || isNaN(b)) return;
@@ -999,16 +1035,9 @@ function fromInputs() {
   syncInputs(); fitDom(true); commit();
 }
 for (const id of ['from', 'to']) { $(id).min = iso(T0); $(id).max = iso(END); $(id).addEventListener('change', fromInputs); }
-document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
-  const k = b.dataset.preset;
-  if (k === '2000') win = { a: Date.UTC(2000, 0, 1), b: END };
-  else if (k === 'all') win = { a: T0, b: END };
-  else win = { a: END - 365 * DAY, b: END };
-  syncInputs(); fitDom(true); commit();
-}));
 function seg(onId, offId, on) { $(onId).setAttribute('aria-pressed', on); $(offId).setAttribute('aria-pressed', !on); }
-$('mode-week').onclick = () => { mode = 'week'; seg('mode-week', 'mode-ye', true); commit(); };
-$('mode-ye').onclick = () => { mode = 'ye'; seg('mode-ye', 'mode-week', true); commit(); };
+$('mode-week').onclick = () => { mode = 'week'; seg('mode-week', 'mode-ye', true); commit(); renderCtlSum(); };
+$('mode-ye').onclick = () => { mode = 'ye'; seg('mode-ye', 'mode-week', true); commit(); renderCtlSum(); };
 $('y-top').onclick = () => { ylog = false; seg('y-top', 'y-log', true); setYr(yr.lo, yr.hi); };
 $('y-log').onclick = () => { ylog = true; seg('y-log', 'y-top', true); setYr(yr.lo, yr.hi); };
 document.querySelectorAll('[data-yr]').forEach(b => b.addEventListener('click', () => {
@@ -1016,11 +1045,7 @@ document.querySelectorAll('[data-yr]').forEach(b => b.addEventListener('click', 
   if (sc === 'log') { ylog = true; seg('y-log', 'y-top', true); }
   setRange(+lo, +hi);
 }));
-// a range that starts at No. 1 gets headroom above it while a momentum line is showing, so overshoots stay visible
-function setRange(lo, hi) {
-  if (trend.on && trend.mom !== 'none' && lo === 1) { const U1 = toU(hi), U0 = toU(1); lo = fromU(U0 - (U1 - U0) * .15); }
-  setYr(lo, hi);
-}
+function setRange(lo, hi) { setYr(lo, hi); }
 for (const id of ['y-lo', 'y-hi']) $(id).addEventListener('change', () => {
   let lo = Math.round(+$('y-lo').value) || 1, hi = Math.round(+$('y-hi').value) || 30;
   if (lo > hi) [lo, hi] = [hi, lo];
@@ -1054,9 +1079,9 @@ $('oth-alpha').oninput = e => { othersAlpha = +e.target.value; drawChart(); };
 $('ol-off').onclick = () => { outline = false; seg('ol-off', 'ol-on', true); drawChart(); };
 $('ol-on').onclick = () => { outline = true; seg('ol-on', 'ol-off', true); drawChart(); };
 
-// ---------- moving average with momentum
-// Each line is resampled to a weekly grid (lists before 1985 are irregular), smoothed in the current axis space
-// (rank, or log rank), then pushed ahead by its own momentum. Nothing pins the result at No. 1.
+// ---------- moving average
+// Each line is resampled to a weekly grid (lists before 1985 are irregular) and averaged over the last n weeks
+// in the current axis space (rank, or log rank). A week needs at least half the window ranked to get a value.
 const WEEK = 7 * DAY;
 const trendCache = new Map();
 function weeklyU(p) {
@@ -1068,72 +1093,26 @@ function weeklyU(p) {
   }
   return { t0, v };
 }
-function movingAvg(v, n, kind) {
-  const out = new Float64Array(v.length).fill(NaN);
-  if (kind === 'ema') {
-    const a = 2 / (n + 1); let m = NaN, gap = 0;
-    for (let k = 0; k < v.length; k++) {
-      if (isNaN(v[k])) { if (++gap > n) m = NaN; continue; }
-      gap = 0; m = isNaN(m) ? v[k] : m + a * (v[k] - m); out[k] = m;
-    }
-    return out;
-  }
-  const need = Math.max(1, Math.ceil(n / 2)); // at least half the window must be ranked weeks
-  for (let k = 0; k < v.length; k++) {
-    if (isNaN(v[k])) continue;
-    let sw = 0, sv = 0, cnt = 0;
-    for (let j = 0; j < n && k - j >= 0; j++) { const x = v[k - j]; if (isNaN(x)) continue; const wt = kind === 'wma' ? n - j : 1; sw += wt; sv += wt * x; cnt++; }
-    if (cnt >= need) out[k] = sv / sw;
-  }
-  return out;
-}
 function trendSeries(p) {
-  const key = [p.id, p.ver || 0, ylog, trend.ma, trend.n, trend.mom, trend.lead].join('|');
+  const key = [p.id, p.ver || 0, ylog, trend.n].join('|');
   if (trendCache.has(key)) return trendCache.get(key);
-  const { t0, v } = weeklyU(p), n = Math.max(2, Math.round(trend.n)), h = Math.max(0, trend.lead), L = Math.max(1, Math.round(n / 2));
-  let out;
-  if (trend.mom === 'holt') { // level + trend smoothing, projected `lead` weeks ahead
-    const a = 2 / (n + 1), b = a / 2; let lv = NaN, tr = 0, gap = 0;
-    out = new Float64Array(v.length).fill(NaN);
-    for (let k = 0; k < v.length; k++) {
-      if (isNaN(v[k])) { if (++gap > n) { lv = NaN; tr = 0; } continue; }
-      gap = 0;
-      if (isNaN(lv)) { lv = v[k]; tr = 0; } else { const prev = lv; lv = a * v[k] + (1 - a) * (lv + tr); tr = b * (lv - prev) + (1 - b) * tr; }
-      out[k] = lv + h * tr;
-    }
-  } else {
-    const m = movingAvg(v, n, trend.ma);
-    if (trend.mom === 'none') out = m;
-    else if (trend.mom === 'zerolag') { const f = movingAvg(v, L, trend.ma); out = m.map((x, k) => 2 * f[k] - x); }
-    else {
-      out = new Float64Array(v.length).fill(NaN);
-      for (let k = 0; k < v.length; k++) {
-        const x0 = m[k], x1 = m[k - L], x2 = m[k - 2 * L];
-        if (isNaN(x0)) continue;
-        if (x1 === undefined || isNaN(x1)) { out[k] = x0; continue; } // too little history yet: plain average
-        const vel = (x0 - x1) / L;
-        out[k] = trend.mom === 'slope' || x2 === undefined || isNaN(x2) ? x0 + h * vel : x0 + h * vel + .5 * h * h * (x0 - 2 * x1 + x2) / (L * L);
-      }
-    }
+  const { t0, v } = weeklyU(p), n = Math.max(2, Math.round(trend.n)), need = Math.ceil(n / 2);
+  const out = new Float64Array(v.length).fill(NaN);
+  let sum = 0, cnt = 0;
+  for (let k = 0; k < v.length; k++) { // running window sum
+    if (!isNaN(v[k])) { sum += v[k]; cnt++; }
+    if (k >= n && !isNaN(v[k - n])) { sum -= v[k - n]; cnt--; }
+    if (!isNaN(v[k]) && cnt >= need) out[k] = sum / cnt;
   }
   const res = { t0, v: out };
   if (trendCache.size > 400) trendCache.clear();
   trendCache.set(key, res); return res;
 }
 function trendAt(p, t) { const tr = trendSeries(p), k = Math.floor((t - tr.t0) / WEEK), u = tr.v[k]; return k >= 0 && k < tr.v.length && !isNaN(u) ? fromU(u) : null; }
-function syncTrendInputs() {
-  $('tr-lead').disabled = trend.mom === 'none' || trend.mom === 'zerolag';
-  $('tr-ma').disabled = trend.mom === 'holt';
-}
-function setTrend(patch) { Object.assign(trend, patch); syncTrendInputs(); drawChart(); renderSaveScope(); }
-$('tr-on').onclick = () => { seg('tr-on', 'tr-off', true); setTrend({ on: true }); if (yr.lo >= 1 && trend.mom !== 'none') setRange(1, yr.hi); };
-$('tr-off').onclick = () => { seg('tr-off', 'tr-on', true); setTrend({ on: false }); if (yr.lo < 1) setYr(1, yr.hi); };
-$('tr-ma').onchange = e => setTrend({ ma: e.target.value });
-$('tr-mom').onchange = e => { setTrend({ mom: e.target.value }); if (trend.on && trend.mom !== 'none' && yr.lo >= 1) setRange(1, yr.hi); };
-$('tr-raw').onchange = e => setTrend({ raw: e.target.value });
+function setTrend(patch) { Object.assign(trend, patch); drawChart(); renderSaveScope(); renderCtlSum(); }
+$('tr-on').onclick = () => { seg('tr-on', 'tr-off', true); setTrend({ on: true }); };
+$('tr-off').onclick = () => { seg('tr-off', 'tr-on', true); setTrend({ on: false }); };
 $('tr-n').onchange = e => { const v = Math.min(520, Math.max(2, Math.round(+e.target.value) || 26)); e.target.value = v; setTrend({ n: v }); };
-$('tr-lead').onchange = e => { const v = Math.min(260, Math.max(0, Math.round(+e.target.value) || 0)); e.target.value = v; setTrend({ lead: v }); };
-syncTrendInputs();
 
 // ---------- groups: one line built from several players (peak = best rank any member holds that week)
 // What a group line shows each week, computed from its members' ranks that week (sorted best first).
@@ -1445,8 +1424,8 @@ function renderSaveScope() {
   const ng = ids.filter(id => byId.get(id)?.isGroup).length, np = n - ng;
   const what = [np ? `${np} player${np > 1 ? 's' : ''}` : '', ng ? `${ng} group${ng > 1 ? 's' : ''}` : ''].filter(Boolean).join(' + ');
   $('save-scope').textContent = !n ? 'Select players or groups to export their data.'
-    : cmp ? `${what}, years ${yrs(cmp.win.a)}–${yrs(cmp.win.b)} after first ranking${trend.on ? ', with trend' : ''}`
-    : `${what}, ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}${trend.on ? ', with trend' : ''}`;
+    : cmp ? `${what}, years ${yrs(cmp.win.a)}–${yrs(cmp.win.b)} after first ranking${trend.on ? ', with moving average' : ''}`
+    : `${what}, ${fmt(win.a)} – ${fmt(Math.min(win.b, END - DAY))}${trend.on ? ', with moving average' : ''}`;
   document.querySelectorAll('[data-save]').forEach(b => b.disabled = !n);
 }
 const csvCell = v => v == null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
@@ -1468,7 +1447,7 @@ function save(kind) {
   const stem = `atp_${ids.length === 1 ? ps[0].n.replace(/\W+/g, '_') : ids.length + 'lines'}_${iso(win.a)}_${iso(Math.min(win.b, END - DAY))}`;
   const stat = p => statsFor(p, i0, i1);
     const tv = (p, i) => { if (!trend.on) return null; const v = trendAt(p, T[i]); return v == null ? '' : +v.toFixed(2); };
-  if (kind === 'wide') download(stem + '_weekly.csv', toCsv([['date', ...ps.map(p => p.n), ...(trend.on ? ps.map(p => p.n + ' (trend)') : [])],
+  if (kind === 'wide') download(stem + '_weekly.csv', toCsv([['date', ...ps.map(p => p.n), ...(trend.on ? ps.map(p => p.n + ' (moving avg)') : [])],
     ...idx.map(i => [iso(T[i]), ...ps.map(p => rankAt(p, i) || ''), ...(trend.on ? ps.map(p => tv(p, i)) : [])])]), 'text/csv');
   else if (kind === 'long') download(stem + '_weekly_long.csv', toCsv([['date', 'player_id', 'name', 'rank'], ...idx.flatMap(i => ps.filter(p => rankAt(p, i)).map(p => [iso(T[i]), p.id, p.n, rankAt(p, i)]))]), 'text/csv');
   else if (kind === 'summary') download(stem + '_summary.csv', toCsv([
@@ -1479,7 +1458,7 @@ function save(kind) {
     source: 'ATP Top 20 Explorer', exported: new Date().toISOString(), data_generated: DATA.generated,
     window: { from: iso(win.a), to: iso(Math.min(win.b, END - DAY)), who_counts: mode === 'week' ? 'top 20 any week' : 'year-end top 20' },
     players: ps.map(p => { const s = stat(p); return { id: p.id, name: p.n, country: p.c, career_high: p.hi, weeks_at_no1: p.w1, weeks_in_top20_career: p.w20, best_in_window: s.best, weeks_in_top20_in_window: +s.w20.toFixed(1), line: { ...styleOf(p.id), color: colorOf(p.id) }, ...(p.isGroup ? { type: 'group', value: p.dyn ? { metric: p.gd.metric, unit: t10m(p.gd).unit, description: gDescribe(p.gd) } : (({ agg, k, miss, fill }) => ({ agg, k, miss, fill, description: gDescribe(p.gd) }))(gNorm(p.gd)), members: p.dyn ? 'ranked 1-10 on each list' : p.gd.members.map(m => ({ id: m, name: byId.get(m)?.n })) } : { type: 'player', profile: p.p }) }; }),
-    trend: trend.on ? { average: trend.ma, period_weeks: trend.n, momentum: trend.mom, lead_weeks: trend.lead, axis: ylog ? 'log rank' : 'rank' } : null,
+    trend: trend.on ? { average: 'simple moving average', period_weeks: trend.n, axis: ylog ? 'log rank' : 'rank' } : null,
     trend_values: trend.on ? Object.fromEntries(ps.map(p => [p.id, idx.map(i => { const v = trendAt(p, T[i]); return v == null ? null : +v.toFixed(3); })])) : undefined,
     dates: idx.map(i => iso(T[i])),
     ranks: Object.fromEntries(ps.map(p => [p.id, idx.map(i => rankAt(p, i) || null)])),
@@ -1499,7 +1478,7 @@ function saveCompare(kind) {
   const toHigh = p => p.p.career_high_first_date ? +((Date.parse(p.p.career_high_first_date) - debutOf(p)) / YEAR).toFixed(2) : '';
   const stem = `atp_careers_${ps.length === 1 ? ps[0].n.replace(/\W+/g, '_') : ps.length + 'players'}_${yrs(cmp.win.a)}-${yrs(cmp.win.b)}y`;
   const head = ['weeks_since_first_ranking', 'years_since_first_ranking'];
-  if (kind === 'wide') download(stem + '_weekly.csv', toCsv([[...head, ...ps.map(p => p.n), ...(trend.on ? ps.map(p => p.n + ' (trend)') : [])],
+  if (kind === 'wide') download(stem + '_weekly.csv', toCsv([[...head, ...ps.map(p => p.n), ...(trend.on ? ps.map(p => p.n + ' (moving avg)') : [])],
     ...ks.map(k => [k, yk(k), ...ps.map(p => at(p, k) || ''), ...(trend.on ? ps.map(p => tv(p, k)) : [])])]), 'text/csv');
   else if (kind === 'long') download(stem + '_weekly_long.csv', toCsv([[...head, 'list_date', 'player_id', 'name', 'rank'],
     ...ks.flatMap(k => ps.filter(p => at(p, k)).map(p => [k, yk(k), listDate(p, k), p.id, p.n, at(p, k)]))]), 'text/csv');
@@ -1511,7 +1490,7 @@ function saveCompare(kind) {
     view: 'career comparison', aligned_on: 'first week ranked (players on the first ATP list, Aug 1973, may have started earlier)',
     span: { from_years: yrs(cmp.win.a), to_years: yrs(cmp.win.b) },
     players: ps.map(p => { const st = span(p); return { id: p.id, name: p.n, country: p.c, first_ranked: iso(debutOf(p)), years_to_career_high: toHigh(p), career_high: p.hi, weeks_at_no1: p.w1, weeks_in_top20_career: p.w20, best_in_span: st.best, weeks_in_top20_in_span: +st.w20.toFixed(1), line: { ...styleOf(p.id), color: colorOf(p.id) }, profile: p.p }; }),
-    trend: trend.on ? { average: trend.ma, period_weeks: trend.n, momentum: trend.mom, lead_weeks: trend.lead, axis: ylog ? 'log rank' : 'rank' } : null,
+    trend: trend.on ? { average: 'simple moving average', period_weeks: trend.n, axis: ylog ? 'log rank' : 'rank' } : null,
     trend_values: trend.on ? Object.fromEntries(ps.map(p => [p.id, ks.map(k => { const v = trendAt(p, debutOf(p) + k * WEEK); return v == null ? null : +v.toFixed(3); })])) : undefined,
     weeks_since_first_ranking: ks,
     ranks: Object.fromEntries(ps.map(p => [p.id, ks.map(k => at(p, k) || null)])),
