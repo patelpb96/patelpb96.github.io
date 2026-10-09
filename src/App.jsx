@@ -50,11 +50,21 @@ const projects = [
 ];
 
 const contactCards = [
-  { label: "Email", value: "patelpb96@gmail.com", href: "mailto:patelpb96@gmail.com", icon: "mail" },
+  // The address never appears as plain text in the page or the bundle: it is XOR-encoded here and only
+  // decoded when a visitor presses "Unscramble" (keeps simple scrapers from harvesting it).
+  { label: "Email", encoded: [42, 59, 46, 63, 54, 42, 56, 99, 108, 26, 61, 55, 59, 51, 54, 116, 57, 53, 55], href: null, icon: "mail" },
   { label: "Phone", value: "2² × 199 × 7923563", href: null, icon: "phone" },
   { label: "GitHub", value: "patelpb96", href: "https://github.com/patelpb96", icon: "github" },
   { label: "LinkedIn", value: "patelpb96", href: "https://www.linkedin.com/in/patelpb96/", icon: "linkedin" },
 ];
+
+const decodeEmail = (codes) => String.fromCharCode(...codes.map((c) => c ^ 0x5a));
+// a stable jumble of the address's own letters, shown until it is unscrambled
+function jumble(codes) {
+  const chars = codes.map((c) => String.fromCharCode(c ^ 0x5a));
+  for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(seededRandom(i * 7.31 + 3) * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+  return chars.join("");
+}
 
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
@@ -166,7 +176,7 @@ function assertSiteData() {
   console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
   console.assert(assets.introImg === `${base}/images/pic01.webp`, "intro image should use images/pic01.webp");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
-  console.assert(contactCards.some((card) => card.href?.startsWith("mailto:")), "contact cards should include a mailto link");
+  console.assert(contactCards.some((card) => card.encoded && decodeEmail(card.encoded).includes("@")), "contact cards should include the (encoded) email");
   console.assert(contactCards.every((card) => card.label && card.icon), "each contact card should have a label and icon key");
   console.assert(!contactCards.some((card) => card.label === "Twitter"), "Twitter should not be included");
   console.assert(`${base}/assets/Resume_public.pdf`.endsWith("assets/Resume_public.pdf"), "resume link should point to the hosted PDF");
@@ -233,7 +243,43 @@ function ButtonLink({ href, children }) {
   );
 }
 
+function EmailCard({ card }) {
+  const [text, setText] = useState(() => jumble(card.encoded));
+  const [state, setState] = useState("scrambled"); // scrambled | settling | clear
+  const [copied, setCopied] = useState(false);
+  const email = state === "scrambled" ? null : decodeEmail(card.encoded);
+  const unscramble = () => {
+    const target = decodeEmail(card.encoded);
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setText(target); setState("clear"); return; }
+    setState("settling");
+    const pool = target.replace(/[@.]/g, "");
+    let step = 0;
+    const id = setInterval(() => { // letters lock into place left to right; the rest keep shuffling
+      step += 1;
+      const done = Math.floor(step / 2);
+      setText([...target].map((ch, i) => (i < done || ch === "@" || ch === "." ? ch : pool[Math.floor(Math.random() * pool.length)])).join(""));
+      if (done >= target.length) { clearInterval(id); setText(target); setState("clear"); }
+    }, 28);
+  };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(decodeEmail(card.encoded)); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* select the text instead */ }
+  };
+  return (
+    <div className="contact-card email-card">
+      <Icon name={card.icon} className="contact-icon" />
+      <span className="contact-label">{card.label}</span>
+      <span className={`contact-value email-value ${state}`} aria-live="polite">
+        {state === "clear" ? <a href={`mailto:${email}`}>{text}</a> : <span aria-label={state === "scrambled" ? "Email address, scrambled" : undefined}>{text}</span>}
+      </span>
+      {state === "clear"
+        ? <button type="button" className="unscramble" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+        : <button type="button" className="unscramble" onClick={unscramble} disabled={state === "settling"}>Unscramble</button>}
+    </div>
+  );
+}
+
 function ContactCard({ card }) {
+  if (card.encoded) return <EmailCard card={card} />;
   const content = <><Icon name={card.icon} className="contact-icon" /><span className="contact-label">{card.label}</span><span className="contact-value">{card.value}</span></>;
   if (!card.href) return <div className="contact-card">{content}</div>;
   return <a className="contact-card" href={card.href} target={card.href.startsWith("mailto:") ? undefined : "_blank"} rel={card.href.startsWith("mailto:") ? undefined : "noreferrer"}>{content}</a>;
@@ -598,6 +644,17 @@ function Css() {
       .contact-icon { color: var(--cyan); display: block; margin-bottom: 12px; }
       .contact-label { display: block; font-weight: 800; }
       .contact-value { display: block; color: var(--muted); margin-top: 3px; }
+      .email-card { position: relative; }
+      .email-value { font-variant-ligatures: none; overflow-wrap: anywhere; padding-right: 7.5em; }
+      .email-value.scrambled { color: var(--dim); letter-spacing: 0.04em; user-select: none; }
+      .email-value.settling { color: var(--accent-soft); }
+      .email-value.clear, .email-value.clear a { color: var(--text); user-select: text; }
+      .email-value.clear a { text-decoration: none; border-bottom: 1px solid var(--line); }
+      .email-value.clear a:hover { border-bottom-color: var(--accent); }
+      .unscramble { position: absolute; right: 16px; bottom: 16px; font-family: inherit; font-weight: 600; font-size: 13px; line-height: 1; color: var(--bg); background: var(--accent); border: 1px solid var(--accent); border-radius: 0; padding: 7px 10px; cursor: pointer; letter-spacing: 0.02em; }
+      .unscramble:hover { background: var(--accent-soft); }
+      .unscramble:disabled { opacity: 0.6; cursor: default; }
+      @media (max-width: 520px) { .email-value { padding-right: 0; } .unscramble { position: static; margin-top: 10px; } }
 
       .graphics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: center; }
       .graphics-grid.old { grid-template-columns: repeat(3, minmax(0, 1fr)); }
