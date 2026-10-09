@@ -837,7 +837,7 @@ function HomePage() {
               <ButtonLink href={`${base}/assets/Resume_public.pdf`}>Open PDF</ButtonLink>
             </div>
             <div className="resume-frame-shell">
-              <LazyFrame src={`${base}/assets/Resume_public.pdf#view=FitH`} title="Preet Patel Resume" label="Click to load resume preview" size="PDF · 104 KB" />
+              <LazyFrame src={`${base}/assets/Resume_public.pdf#view=FitH`} title="Preet Patel Resume" label="Click to load resume preview" size="PDF · 189 KB" />
             </div>
           </div>
         </Section>
