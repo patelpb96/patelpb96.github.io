@@ -7,7 +7,6 @@ const base = "https://patelpb96.github.io";
 const assets = {
   bg: `${base}/bg.jpg`,
   bgGif: `${base}/assets/bg.gif`,
-  introImg: `${base}/images/pic01.webp`, // WebP re-encodes; originals (pic01.png, pfp.jpg) kept in public/
   pfp: `${base}/pfp.webp`, // 1200px wide, ~230 kB (was a 1.6 MB 1365x2048 JPEG)
   galaxies: `${base}/images/8gals_GIF.gif`,
   graphics: [
@@ -212,7 +211,6 @@ function assertSiteData() {
   console.assert(base.startsWith("https://"), "base URL should be absolute HTTPS");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
   console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
-  console.assert(assets.introImg === `${base}/images/pic01.webp`, "intro image should use images/pic01.webp");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
   console.assert(contactCards.some((card) => card.href?.startsWith("mailto:")), "contact cards should include a mailto link");
   console.assert(contactCards.some((card) => card.encoded && decodeText(card.encoded).includes("199")), "the phone card should carry its (encoded) factorization");
@@ -633,8 +631,6 @@ function Css() {
       .prose a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(255,170,100,0.42); }
       .prose a:hover { border-bottom-color: var(--cyan); }
       .prose a.button-link, .prose a.button-link:hover { color: #000000; border-bottom: 0; } /* buttons inside prose keep button styling */
-      .intro-image-frame { width: 100%; margin: 0 auto; overflow: visible; border-bottom: 1px solid var(--line); background: rgba(30,14,8,0.72); }
-      .profile-image { width: 100%; height: auto; display: block; object-fit: contain; object-position: center; filter: contrast(1.05) saturate(0.98); }
       .galaxy-gif { width: 100%; display: block; background: #160a06; }
       .button-link {
         font-family: inherit;
@@ -865,9 +861,6 @@ function HomePage() {
       <div className="content">
         <Section id="intro" title="Intro">
           <div className="panel">
-            <div className="intro-image-frame">
-              <img src={assets.introImg} alt="Intro image" className="profile-image" />
-            </div>
             <div className="panel-body prose">
               <p>Hello! I am a scientist with a strong background in math, statistics, programming, and technical communication. I honed these skills as an astrophysicist and during my Master's degree in Physics at UC Davis, alongside my dual-Bachelor's in Physics and in Astronomy from the University of Michigan, Ann Arbor (go blue!).</p>
               <p>While Astrophysics has long been a passion of mine, I have always been intrigued by using data-driven methods to glean insight into the many processes in our world.</p>
