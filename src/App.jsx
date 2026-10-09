@@ -50,19 +50,23 @@ const projects = [
 ];
 
 const contactCards = [
-  // The address never appears as plain text in the page or the bundle: it is XOR-encoded here and only
-  // decoded when a visitor presses "Unscramble" (keeps simple scrapers from harvesting it).
-  { label: "Email", encoded: [42, 59, 46, 63, 54, 42, 56, 99, 108, 26, 61, 55, 59, 51, 54, 116, 57, 53, 55], href: null, icon: "mail" },
-  { label: "Phone", value: "2² × 199 × 7923563", href: null, icon: "phone" },
+  { label: "Email", value: "patelpb96@gmail.com", href: "mailto:patelpb96@gmail.com", icon: "mail" },
+  // The phone line (already a factorization of the number) is XOR-encoded here and shown jumbled
+  // until a visitor presses "Unscramble", so it never sits in the page as readable text.
+  { label: "Phone", encoded: [104, 232, 122, 141, 122, 107, 99, 99, 122, 141, 122, 109, 99, 104, 105, 111, 108, 105], href: null, icon: "phone" },
   { label: "GitHub", value: "patelpb96", href: "https://github.com/patelpb96", icon: "github" },
   { label: "LinkedIn", value: "patelpb96", href: "https://www.linkedin.com/in/patelpb96/", icon: "linkedin" },
 ];
 
-const decodeEmail = (codes) => String.fromCharCode(...codes.map((c) => c ^ 0x5a));
-// a stable jumble of the address's own letters, shown until it is unscrambled
+const decodeText = (codes) => String.fromCharCode(...codes.map((c) => c ^ 0x5a));
+const FIXED = /[\s@.×]/; // characters that stay put while the rest are jumbled
+// a stable jumble of the text's own characters (spaces stay where they are), shown until it is unscrambled
 function jumble(codes) {
-  const chars = codes.map((c) => String.fromCharCode(c ^ 0x5a));
-  for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(seededRandom(i * 7.31 + 3) * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+  const chars = [...decodeText(codes)];
+  const idx = chars.map((ch, i) => (FIXED.test(ch) ? -1 : i)).filter((i) => i >= 0);
+  const moved = idx.map((i) => chars[i]);
+  for (let i = moved.length - 1; i > 0; i--) { const j = Math.floor(seededRandom(i * 7.31 + 3) * (i + 1)); [moved[i], moved[j]] = [moved[j], moved[i]]; }
+  idx.forEach((i, k) => { chars[i] = moved[k]; });
   return chars.join("");
 }
 
@@ -153,17 +157,18 @@ function LazyGraphic({ src, alt, label = "Click to load image", size = "50+ MB",
   return <img src={src} alt={alt} loading="lazy" className={className} />;
 }
 
-function LazyFrame({ src, title, label, size }) {
+// Movies stay unloaded until asked for; the button shows a still of the finished run.
+function LazyVideo({ src, poster, title, label = "Click to load movie", size }) {
   const [loaded, setLoaded] = useState(false);
   if (!loaded) {
     return (
-      <button className="lazy-graphic lazy-frame" type="button" onClick={() => setLoaded(true)} aria-label={`Load ${title}`}>
-        <span>{label}</span>
+      <button className="lazy-graphic lazy-video" type="button" onClick={() => setLoaded(true)} aria-label={`Load ${title}`} style={{ backgroundImage: `linear-gradient(rgba(20,10,6,0.7), rgba(20,10,6,0.7)), url(${poster})` }}>
+        <span>▶ {label}</span>
         <small>{size}</small>
       </button>
     );
   }
-  return <iframe className="resume-frame" src={src} title={title} />;
+  return <video className="research-video" src={src} poster={poster} controls autoPlay muted loop playsInline title={title} />;
 }
 
 function assertSiteData() {
@@ -176,7 +181,8 @@ function assertSiteData() {
   console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
   console.assert(assets.introImg === `${base}/images/pic01.webp`, "intro image should use images/pic01.webp");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
-  console.assert(contactCards.some((card) => card.encoded && decodeEmail(card.encoded).includes("@")), "contact cards should include the (encoded) email");
+  console.assert(contactCards.some((card) => card.href?.startsWith("mailto:")), "contact cards should include a mailto link");
+  console.assert(contactCards.some((card) => card.encoded && decodeText(card.encoded).includes("199")), "the phone card should carry its (encoded) factorization");
   console.assert(contactCards.every((card) => card.label && card.icon), "each contact card should have a label and icon key");
   console.assert(!contactCards.some((card) => card.label === "Twitter"), "Twitter should not be included");
   console.assert(`${base}/assets/Resume_public.pdf`.endsWith("assets/Resume_public.pdf"), "resume link should point to the hosted PDF");
@@ -243,43 +249,36 @@ function ButtonLink({ href, children }) {
   );
 }
 
-function EmailCard({ card }) {
+function ScrambleCard({ card }) {
   const [text, setText] = useState(() => jumble(card.encoded));
   const [state, setState] = useState("scrambled"); // scrambled | settling | clear
-  const [copied, setCopied] = useState(false);
-  const email = state === "scrambled" ? null : decodeEmail(card.encoded);
   const unscramble = () => {
-    const target = decodeEmail(card.encoded);
+    const target = decodeText(card.encoded);
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setText(target); setState("clear"); return; }
     setState("settling");
-    const pool = target.replace(/[@.]/g, "");
+    const pool = [...target].filter((ch) => !FIXED.test(ch));
     let step = 0;
-    const id = setInterval(() => { // letters lock into place left to right; the rest keep shuffling
+    const id = setInterval(() => { // characters lock into place left to right; the rest keep shuffling
       step += 1;
       const done = Math.floor(step / 2);
-      setText([...target].map((ch, i) => (i < done || ch === "@" || ch === "." ? ch : pool[Math.floor(Math.random() * pool.length)])).join(""));
+      setText([...target].map((ch, i) => (i < done || FIXED.test(ch) ? ch : pool[Math.floor(Math.random() * pool.length)])).join(""));
       if (done >= target.length) { clearInterval(id); setText(target); setState("clear"); }
-    }, 28);
-  };
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(decodeEmail(card.encoded)); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* select the text instead */ }
+    }, 32);
   };
   return (
-    <div className="contact-card email-card">
+    <div className="contact-card scramble-card">
       <Icon name={card.icon} className="contact-icon" />
       <span className="contact-label">{card.label}</span>
-      <span className={`contact-value email-value ${state}`} aria-live="polite">
-        {state === "clear" ? <a href={`mailto:${email}`}>{text}</a> : <span aria-label={state === "scrambled" ? "Email address, scrambled" : undefined}>{text}</span>}
+      <span className={`contact-value scramble-value ${state}`} aria-live="polite">
+        <span aria-label={state === "scrambled" ? `${card.label}, scrambled` : undefined}>{text}</span>
       </span>
-      {state === "clear"
-        ? <button type="button" className="unscramble" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
-        : <button type="button" className="unscramble" onClick={unscramble} disabled={state === "settling"}>Unscramble</button>}
+      {state !== "clear" && <button type="button" className="unscramble" onClick={unscramble} disabled={state === "settling"}>Unscramble</button>}
     </div>
   );
 }
 
 function ContactCard({ card }) {
-  if (card.encoded) return <EmailCard card={card} />;
+  if (card.encoded) return <ScrambleCard card={card} />;
   const content = <><Icon name={card.icon} className="contact-icon" /><span className="contact-label">{card.label}</span><span className="contact-value">{card.value}</span></>;
   if (!card.href) return <div className="contact-card">{content}</div>;
   return <a className="contact-card" href={card.href} target={card.href.startsWith("mailto:") ? undefined : "_blank"} rel={card.href.startsWith("mailto:") ? undefined : "noreferrer"}>{content}</a>;
@@ -589,7 +588,6 @@ function Css() {
       .lazy-graphic:hover { border-color: rgba(255,255,255,0.6); filter: brightness(1.12); }
       .lazy-graphic span { font-size: 0.86rem; font-weight: 800; }
       .lazy-wide { min-height: 260px; border: 0; border-bottom: 1px solid var(--line); }
-      .lazy-frame { height: 100%; min-height: 320px; border: 0; }
       .lazy-graphic small { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.18em; }
 
       .content { position: relative; z-index: 1; width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 12px 0 76px; }
@@ -636,6 +634,15 @@ function Css() {
         border: 0;
         background: #1a0f0a;
       }
+      .resume-image-link { display: none; }
+      .resume-image-link img { width: 100%; height: auto; display: block; }
+      @media (max-width: 760px), (hover: none) and (pointer: coarse) { .resume-frame { display: none; } .resume-image-link { display: block; } }
+      .lazy-video { aspect-ratio: 968 / 824; width: 100%; background-size: cover; background-position: center; border: 0; border-bottom: 1px solid var(--line); align-content: center; }
+      .lazy-video span, .lazy-video small { background: rgba(20,10,6,0.88); padding: 8px 14px; }
+      .lazy-video span { border: 1px solid rgba(255,170,100,0.5); }
+      .research-video { width: 100%; height: auto; display: block; background: #fff; }
+      .research-stack { display: grid; gap: 22px; }
+      .tag-line { color: var(--dim); font-size: 0.86rem; letter-spacing: 0.08em; text-transform: uppercase; margin: -10px 0 16px; }
       .resume-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 
       .contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -644,17 +651,15 @@ function Css() {
       .contact-icon { color: var(--cyan); display: block; margin-bottom: 12px; }
       .contact-label { display: block; font-weight: 800; }
       .contact-value { display: block; color: var(--muted); margin-top: 3px; }
-      .email-card { position: relative; }
-      .email-value { font-variant-ligatures: none; overflow-wrap: anywhere; padding-right: 7.5em; }
-      .email-value.scrambled { color: var(--dim); letter-spacing: 0.04em; user-select: none; }
-      .email-value.settling { color: var(--accent-soft); }
-      .email-value.clear, .email-value.clear a { color: var(--text); user-select: text; }
-      .email-value.clear a { text-decoration: none; border-bottom: 1px solid var(--line); }
-      .email-value.clear a:hover { border-bottom-color: var(--accent); }
+      .scramble-card { position: relative; }
+      .scramble-value { font-variant-ligatures: none; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; padding-right: 7.5em; white-space: pre-wrap; }
+      .scramble-value.scrambled { color: var(--dim); letter-spacing: 0.04em; user-select: none; }
+      .scramble-value.settling { color: var(--accent-soft); }
+      .scramble-value.clear { color: var(--muted); user-select: text; }
       .unscramble { position: absolute; right: 16px; bottom: 16px; font-family: inherit; font-weight: 600; font-size: 13px; line-height: 1; color: var(--bg); background: var(--accent); border: 1px solid var(--accent); border-radius: 0; padding: 7px 10px; cursor: pointer; letter-spacing: 0.02em; }
       .unscramble:hover { background: var(--accent-soft); }
       .unscramble:disabled { opacity: 0.6; cursor: default; }
-      @media (max-width: 520px) { .email-value { padding-right: 0; } .unscramble { position: static; margin-top: 10px; } }
+      @media (max-width: 520px) { .scramble-value { padding-right: 0; } .unscramble { position: static; margin-top: 10px; } }
 
       .graphics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: center; }
       .graphics-grid.old { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -818,26 +823,43 @@ function HomePage() {
         </Section>
 
         <Section id="research" title="Research">
+          <div className="research-stack">
+          <div className="panel">
+            <LazyVideo src={`${base}/videos/apogee_maoz_walkers.mp4`} poster={`${base}/images/apogee_maoz_walkers_poster.webp`} title="MCMC walkers converging on the APOGEE Milky Way target" size="MP4 · 1.1 MB · 10 s" />
+            <div className="panel-body prose">
+              <h3 className="subheading">Reading the Type Ia Supernova Clock from Milky Way Stars</h3>
+              <p className="tag-line">2026 · Bayesian inference · MCMC · FIRE element tracers · APOGEE DR17</p>
+              <p>Type Ia supernovae enrich stars with iron, but how long after star formation they explode (their delay-time distribution) is still uncertain. I built a Bayesian inference pipeline, in my <a href="https://github.com/patelpb96/GizmoElementTracers" target="_blank" rel="noreferrer">GizmoElementTracers</a> fork of the FIRE analysis code, that turns a proposed delay-time distribution into predicted stellar [Mg/Fe] versus [Fe/H] using the element-tracer method, then compares that prediction to real Milky Way disk stars from APOGEE DR17.</p>
+              <p>The comparison works on a summary of the data: each of the Milky Way's two disk sequences (the high-alpha thick disk and the low-alpha thin disk) is described by a mean and spread in both abundances. The MCMC then varies the shape of the delay-time distribution (its power-law slope and the time the first Type Ia explodes) while holding the total number of Type Ia events fixed, so it only moves the explosions in time and never adds or removes them.</p>
+              <p>Along the way I wrote a factorized yield integrator that is about 25 times faster than the original numerical integration (agreeing to about one part in a million), a tunable broken-power-law model and a suite of delay-time distributions from the literature for comparison.</p>
+              <p>The movie shows the run: the simulated abundances moving onto the Milky Way target ellipses, the posterior building up, the walker traces, and the delay-time distribution changing as the walkers move.</p>
+            </div>
+          </div>
           <div className="panel">
             <LazyGraphic src={assets.galaxies} alt="Animated simulated low-mass galaxies" className="galaxy-gif" label="Click to load animation" size="2.6 MB" />
             <div className="panel-body prose">
               <h3 className="subheading">Elemental Abundances of Simulated Low-Mass Galaxies</h3>
               <p>For research, I previously focused on the elemental abundances of stars in low-mass dwarf galaxies simulated using <a href="https://fire.northwestern.edu/" target="_blank" rel="noreferrer">FIRE-2</a>.</p>
-              <p>In my most recent project, I identified elemental abundance trends, measured in [Mg/Fe] versus [Fe/H], of several galaxies. I found imprints of bursty star formation and satellite accretion in the present-day elemental abundance distributions.</p>
+              <p>In that project, I identified elemental abundance trends, measured in [Mg/Fe] versus [Fe/H], of several galaxies. I found imprints of bursty star formation and satellite accretion in the present-day elemental abundance distributions.</p>
               <p>This work culminated in a first-author publication, accepted by <a href="https://academic.oup.com/mnras" target="_blank" rel="noreferrer">MNRAS</a> in March 2022. The paper can be found on <a href="https://academic.oup.com/mnras/article/512/4/5671/6554259" target="_blank" rel="noreferrer">here</a>.</p>
-              <p>My final project involved the new age-tracer module in FIRE-2 and FIRE-3, which allows one to retroactively test multiple models in rates for core-collapse supernovae, type Ia supernovae, and stellar winds without needing to re-run a simulation with altered models.</p>
+              <p>My final project involved the new age-tracer module in FIRE-2 and FIRE-3, which allows one to retroactively test multiple models in rates for core-collapse supernovae, type Ia supernovae, and stellar winds without needing to re-run a simulation with altered models. The work above builds directly on it.</p>
             </div>
+          </div>
           </div>
         </Section>
 
         <Section id="resume" title="Resume">
           <div className="panel panel-body resume-card">
             <div className="resume-actions prose">
-              <p>Embedded resume preview.</p>
+              <p>My resume, also available as a PDF.</p>
               <ButtonLink href={`${base}/assets/Resume_public.pdf`}>Open PDF</ButtonLink>
             </div>
             <div className="resume-frame-shell">
-              <LazyFrame src={`${base}/assets/Resume_public.pdf#view=FitH`} title="Preet Patel Resume" label="Click to load resume preview" size="PDF · 189 KB" />
+              <iframe className="resume-frame" src={`${base}/assets/Resume_public.pdf#view=FitH`} title="Preet Patel Resume" />
+              {/* phone browsers mostly can't show a PDF inside a page, so they get an image of it that opens the PDF */}
+              <a className="resume-image-link" href={`${base}/assets/Resume_public.pdf`} target="_blank" rel="noreferrer">
+                <img src={`${base}/images/resume_page.webp`} alt="Preet Patel resume, page 1 (opens the PDF)" loading="lazy" width="1347" height="1743" />
+              </a>
             </div>
           </div>
         </Section>
