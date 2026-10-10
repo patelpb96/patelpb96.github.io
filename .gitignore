@@ -17,8 +17,15 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# rs-alchemy updater scratch file
+public/rs-alchemy/data/_update_points_cache.json
+
+# python bytecode (tools/)
+__pycache__/
