@@ -27,5 +27,10 @@ desktop.ini
 # rs-alchemy updater scratch file
 public/rs-alchemy/data/_update_points_cache.json
 
-# python bytecode (tools/)
+# python bytecode (tools/, lambdas/)
 __pycache__/
+
+# CDK build output (infra/)
+infra/cdk.out/
+infra/node_modules/
+infra/.cdk.staging/

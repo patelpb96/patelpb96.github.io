@@ -20,6 +20,49 @@ const DATA_BASE = "/rs-alchemy/data";
 const HISTORY_SHARDS = 256; // must match SHARDS in tools/rs_alchemy_table.py
 const DAY_MS = 86400000;
 
+// Live prices (patelpb.com on AWS only). A Lambda behind POST /api/rs/refresh re-quotes every
+// item and writes live/rs-alchemy/{latest,meta}.json into the site bucket; see infra/ and lambdas/.
+// Anywhere without that backend (GitHub Pages, vite dev) the live files are missing and the
+// dashboard silently falls back to the static export above.
+const LIVE_BASE = "/live/rs-alchemy";
+const REFRESH_URL = "/api/rs/refresh";
+// CloudFront signs the request to the Lambda function URL (OAC), which needs the body hash for POST.
+const EMPTY_BODY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+const POLL_MS = 5000;
+const POLL_GIVE_UP_MS = 4 * 60000;
+
+// Live meta is tiny and changes under us, so always bypass the browser cache.
+function fetchLiveMeta() {
+  return fetch(`${LIVE_BASE}/meta.json`, { cache: "no-store" })
+    .then((r) => (r.ok && (r.headers.get("content-type") || "").includes("json") ? r.json() : null))
+    .catch(() => null);
+}
+
+function fetchRows(url) {
+  return fetch(url, { cache: "no-store" }).then((r) => {
+    if (!r.ok) throw new Error(`${url} ${r.status}`);
+    return r.json();
+  });
+}
+
+// "2026-10-09 14:06:46" (static meta, UTC without zone) or full ISO (live meta) -> ms.
+function parseUtc(text) {
+  if (!text) return null;
+  const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(text) ? text : `${text.replace(" ", "T")}Z`;
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function formatAgo(ms, now) {
+  if (ms == null) return "unknown";
+  const min = Math.max(0, Math.round((now - ms) / 60000));
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `${h} h ago`;
+  return `${Math.round(h / 24)} days ago`;
+}
+
 // One shard holds ~30 items' full histories. Fetch + decode it once, keep every
 // item in it, so opening a neighbour is instant. Failures are dropped from the
 // cache so a retry can succeed.
@@ -364,12 +407,101 @@ function Cell({ column, item, expanded, detailId, onToggle }) {
   return <td className={`alc-td alc-num ${signed}`} title={title}>{text}</td>;
 }
 
+// ---- live refresh ---------------------------------------------------------
+
+// "Refresh live prices" button + "as of" label. Asks the backend for a refresh, then polls the live
+// meta until a newer run lands and hands the new rows up. The backend enforces a shared cooldown and
+// a single-run lock, so a click during either just reports how fresh the data already is.
+function LiveRefresh({ live, asOf, source, onLiveData }) {
+  // idle | requesting | running | fresh | unavailable | error. A refresh someone else started may
+  // already be running when the page loads; the mount effect below follows it.
+  const [state, setState] = useState(() => ({ kind: live?.status === "running" ? "running" : "idle" }));
+  const [now, setNow] = useState(() => Date.now());
+  const pollRef = useRef(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => () => clearTimeout(pollRef.current), []);
+
+  const poll = (baseline, deadline) => {
+    clearTimeout(pollRef.current);
+    pollRef.current = setTimeout(() => {
+      fetchLiveMeta().then((m) => {
+        if (m && m.status === "error") return setState({ kind: "error", text: "The refresh failed. Try again later." });
+        if (m && m.status === "idle" && m.updated_utc && m.updated_utc !== baseline) {
+          return fetchRows(`${LIVE_BASE}/latest.json`)
+            .then((latest) => { onLiveData(latest, m); setState({ kind: "idle" }); })
+            .catch(() => setState({ kind: "error", text: "Fetched new prices but couldn't load them. Reload the page." }));
+        }
+        if (Date.now() > deadline) return setState({ kind: "error", text: "Still running — check back in a few minutes." });
+        setState((s) => (s.kind === "running" ? s : { kind: "running" }));
+        poll(baseline, deadline);
+      });
+    }, POLL_MS);
+  };
+
+  useEffect(() => {
+    if (live?.status === "running") poll(live.updated_utc ?? null, Date.now() + POLL_GIVE_UP_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const refresh = () => {
+    setState({ kind: "requesting" });
+    fetch(REFRESH_URL, { method: "POST", headers: { "x-amz-content-sha256": EMPTY_BODY_SHA256 }, cache: "no-store" })
+      .then((r) => {
+        // 429 = the account's Lambda concurrency is saturated, i.e. a burst of clicks; one of them
+        // has almost certainly started a run, so follow it like "running".
+        if (r.status === 429) return { status: "running" };
+        return r.json().catch(() => ({ status: r.status === 405 || r.status === 404 ? "unavailable" : "error" }));
+      })
+      .then((res) => {
+        if (res.status === "started" || res.status === "running") {
+          setState({ kind: "running" });
+          poll(live?.updated_utc ?? null, Date.now() + POLL_GIVE_UP_MS);
+        } else if (res.status === "fresh") {
+          setState({ kind: "fresh", updated: parseUtc(res.updated_utc), next: parseUtc(res.next_allowed_utc) });
+        } else if (res.status === "unavailable") {
+          setState({ kind: "unavailable" });
+        } else {
+          setState({ kind: "error", text: "The refresh service had a problem. Try again later." });
+        }
+      })
+      .catch(() => setState({ kind: "unavailable" }));
+  };
+
+  const coolingDown = state.kind === "fresh" && state.next != null && now < state.next;
+  const busy = state.kind === "requesting" || state.kind === "running";
+  let note = null;
+  if (state.kind === "running") note = "Re-quoting every item on the Grand Exchange… (~1 min)";
+  else if (coolingDown) note = `Already fresh (${formatAgo(state.updated, now)}) · next refresh in ${Math.max(1, Math.ceil((state.next - now) / 60000))} min`;
+  else if (state.kind === "unavailable") note = "Live refresh isn't available on this copy of the site.";
+  else if (state.kind === "error") note = state.text;
+
+  return (
+    <div className="alc-live" role="status" aria-live="polite">
+      <span className="alc-live-asof">
+        <span className={`alc-live-dot ${source === "live" ? "is-live" : ""}`} aria-hidden="true" />
+        Prices as of <strong title={asOf ? new Date(asOf).toLocaleString() : undefined}>{formatAgo(asOf, now)}</strong>
+        {source === "live" ? " · live" : ""}
+      </span>
+      <button type="button" className="alc-inline-btn alc-live-btn" onClick={refresh} disabled={busy || coolingDown || state.kind === "unavailable"}>
+        {busy ? "Refreshing…" : "Refresh live prices"}
+      </button>
+      {note && <span className="alc-live-note">{note}</span>}
+    </div>
+  );
+}
+
 // ---- dashboard ------------------------------------------------------------
 
 export default function AlchemyDashboard() {
   const [phase, setPhase] = useState("idle"); // idle -> loading -> ready | error
   const [rows, setRows] = useState(null);
   const [meta, setMeta] = useState(null);
+  const [live, setLive] = useState(null); // live/rs-alchemy/meta.json, when the backend exists
+  const [source, setSource] = useState("static"); // which latest.json the rows came from
   const [query, setQuery] = useState("");
   const [membership, setMembership] = useState("all"); // all | members | f2p
   const [profitableOnly, setProfitableOnly] = useState(false);
@@ -378,25 +510,44 @@ export default function AlchemyDashboard() {
   const [selectedId, setSelectedId] = useState(null);
   const historyCache = useRef(new Map());
 
+  // Precompute a lowercased name once so search doesn't re-lowercase
+  // ~7,000 names on every keystroke.
+  const applyRows = (latest) => {
+    const arr = Array.isArray(latest) ? latest : [];
+    setRows(arr.map((r) => ({ ...r, _search: (r.name || "").toLowerCase() })));
+  };
+
   const load = () => {
     setPhase("loading");
     Promise.all([
-      fetch(`${DATA_BASE}/latest.json`).then((r) => {
-        if (!r.ok) throw new Error(`latest ${r.status}`);
-        return r.json();
-      }),
+      fetchLiveMeta(),
       fetch(`${DATA_BASE}/meta.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ])
-      .then(([latest, metaJson]) => {
-        const arr = Array.isArray(latest) ? latest : [];
-        // Precompute a lowercased name once so search doesn't re-lowercase
-        // ~7,000 names on every keystroke.
-        setRows(arr.map((r) => ({ ...r, _search: (r.name || "").toLowerCase() })));
-        setMeta(metaJson);
-        setPhase("ready");
+      .then(([liveMeta, metaJson]) => {
+        // Prefer the live export once one exists; fall back to the static one if it can't be read.
+        const fromLive = liveMeta?.updated_utc
+          ? fetchRows(`${LIVE_BASE}/latest.json`).then((latest) => ({ latest, src: "live" }))
+          : Promise.reject(new Error("no live data"));
+        return fromLive
+          .catch(() => fetchRows(`${DATA_BASE}/latest.json`).then((latest) => ({ latest, src: "static" })))
+          .then(({ latest, src }) => {
+            applyRows(latest);
+            setMeta(metaJson);
+            setLive(liveMeta);
+            setSource(src);
+            setPhase("ready");
+          });
       })
       .catch(() => setPhase("error"));
   };
+
+  const onLiveData = (latest, liveMeta) => {
+    applyRows(latest);
+    setLive(liveMeta);
+    setSource("live");
+  };
+
+  const asOf = source === "live" ? parseUtc(live?.updated_utc) : parseUtc(meta?.last_timestamp);
 
   const filtered = useMemo(() => {
     if (!rows) return [];
@@ -449,10 +600,12 @@ export default function AlchemyDashboard() {
         <>
           <p className="alc-intro prose">
             High Level Alchemy turns an item into gp: <code>profit = high&nbsp;alch − price − nature&nbsp;rune</code>.
-            These are current Grand Exchange prices for {formatFull(rows.length)} items{meta?.last_timestamp ? `, last scraped ${meta.last_timestamp.slice(0, 10)}` : ""}.
+            These are Grand Exchange prices for {formatFull(rows.length)} items.
             Click any row for its full price history. Data via the{" "}
             <a href="https://prices.runescape.wiki/rs/alchemy" target="_blank" rel="noreferrer">RuneScape wiki exchange</a>.
           </p>
+
+          <LiveRefresh live={live} asOf={asOf} source={source} onLiveData={onLiveData} />
 
           <div className="alc-controls">
             <input
@@ -632,6 +785,20 @@ function AlchemyStyles() {
       .alc-chart-range { color: var(--muted); }
       .alc-chart-empty { color: var(--dim); font-size: 0.85rem; padding: 40px 0; text-align: center; border: 1px solid var(--line); background: rgba(20,10,6,0.5); }
       .alc-detail-note { color: var(--dim); font-size: 0.78rem; margin: 16px 0 0; line-height: 1.6; }
+
+      .alc-live {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 16px;
+        padding: 10px 14px; border: 1px solid var(--line); background: rgba(30,14,8,0.5); font-size: 0.88rem;
+      }
+      .alc-live-asof { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+      .alc-live-asof strong { color: var(--text); font-weight: 700; }
+      .alc-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+      .alc-live-dot.is-live { background: var(--alc-pos); box-shadow: 0 0 10px var(--alc-pos); animation: alcPulse 2s ease-in-out infinite; }
+      @keyframes alcPulse { 50% { opacity: 0.45; } }
+      .alc-live-btn { margin-left: auto; }
+      .alc-live-btn:disabled { opacity: 0.5; cursor: default; background: transparent; border-color: var(--line); }
+      .alc-live-note { flex-basis: 100%; color: var(--dim); font-size: 0.8rem; }
+      @media (prefers-reduced-motion: reduce) { .alc-live-dot.is-live { animation: none; } }
 
       .alc-more { text-align: center; margin-top: 16px; }
       .alc-inline-btn {

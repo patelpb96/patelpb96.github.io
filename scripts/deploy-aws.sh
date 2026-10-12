@@ -66,7 +66,9 @@ TYPES=(
   "woff2:font/woff2"
 )
 
-sync() { aws s3 sync "$DIST_DIR" "s3://$BUCKET" --region "$REGION" --delete "${DRY[@]}" "$@"; }
+# live/ is written at runtime by the refresh Lambda (infra/), not by the build. The trailing
+# exclude wins over every include above it, so --delete never removes the live data.
+sync() { aws s3 sync "$DIST_DIR" "s3://$BUCKET" --region "$REGION" --delete "${DRY[@]}" "$@" --exclude "live/*"; }
 
 # Filters excluding every listed extension, for the catch-all syncs.
 HASHED_KNOWN=(); OTHER_KNOWN=()
