@@ -187,7 +187,7 @@ export default function GatewayView() {
     );
   }
   const note = {
-    locked: "This live document is password protected.",
+    locked: "This page is password protected.",
     unlocking: "Unlocking…",
     wrong: "That password didn't work. Try again.",
     changed: "The password has changed. Enter the new one to keep reading.",
