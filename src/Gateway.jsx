@@ -58,7 +58,7 @@ const LiveDoc = memo(function LiveDoc({ html }) {
   useLayoutEffect(() => {
     if (ref.current && ref.current.innerHTML !== html) ref.current.innerHTML = html;
   }, [html]);
-  return <article ref={ref} className="scratch-doc prose" aria-live="polite" />;
+  return <article ref={ref} className="scratch-doc prose gateway-doc" aria-live="polite" />;
 });
 
 export default function GatewayView() {
@@ -66,6 +66,7 @@ export default function GatewayView() {
   const [html, setHtml] = useState("");
   const [updatedAgo, setUpdatedAgo] = useState(null);
   const [pw, setPw] = useState("");
+  const [copied, setCopied] = useState(false);
   const s = useRef({ beatVal: undefined, beatAt: 0, state: null, key: null, hadKey: false, askKid: null, contentAt: 0, busy: false });
 
   const offline = useCallback(() => {
@@ -165,6 +166,23 @@ export default function GatewayView() {
     }
   };
 
+  // Copies the document as it reads on the page (plain text, no markdown syntax).
+  const copyAll = async () => {
+    const doc = document.querySelector(".gateway-doc");
+    if (!doc) return;
+    try {
+      await navigator.clipboard.writeText(doc.innerText);
+    } catch {
+      const range = document.createRange(); // no clipboard access: select it for Ctrl+C instead
+      range.selectNodeContents(doc);
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+      return;
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   const lock = () => {
     s.current.key = null;
     s.current.hadKey = false;
@@ -190,7 +208,10 @@ export default function GatewayView() {
       <>
         <div className="gateway-bar">
           <span className="gateway-chip"><span className="gateway-dot on" aria-hidden="true" />Live{updatedAgo != null ? ` · updated ${updatedAgo < 2 ? "just now" : `${updatedAgo}s ago`}` : ""}</span>
-          <button type="button" className="gateway-lock" onClick={lock}>Lock</button>
+          <span className="gateway-actions">
+            <button type="button" className="gateway-lock" onClick={copyAll}>{copied ? "Copied" : "Copy all"}</button>
+            <button type="button" className="gateway-lock" onClick={lock}>Lock</button>
+          </span>
         </div>
         <LiveDoc html={html} />
       </>

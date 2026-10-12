@@ -510,6 +510,7 @@ function Css() {
       .gateway-go:hover:not(:disabled) { background: var(--accent-soft); }
       .gateway-go:disabled { opacity: 0.6; cursor: default; }
       .gateway-lock { color: var(--muted); background: transparent; border: 1px solid var(--line); padding: 6px 10px; }
+      .gateway-actions { display: inline-flex; gap: 8px; }
       .gateway-lock:hover { color: #fff2e6; border-color: rgba(255,180,120,0.55); }
       .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
       .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
