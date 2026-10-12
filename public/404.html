@@ -36,10 +36,7 @@
     background: var(--bg);
     color: var(--text);
     font: 18px/1.45 var(--serif);
-    display: grid;
-    place-items: center;
     overflow: hidden;
-    padding: 16px;
     -webkit-font-smoothing: antialiased;
   }
   .glow {
@@ -55,11 +52,14 @@
     to { transform: translate(4vmax, -3vmax) rotate(8deg); }
   }
   main {
-    position: relative;
+    position: fixed;
+    inset: 0;
+    padding: 16px;
     text-align: center;
     display: grid;
-    gap: 1.6rem;
+    place-content: center;
     justify-items: center;
+    gap: 1.6rem;
   }
   .code {
     font-weight: 700;
