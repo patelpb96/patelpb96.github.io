@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import AlchemyDashboard from "./Alchemy.jsx";
 import { marked } from "marked";
 
-const base = "https://patelpb96.github.io";
+// Same origin the page was served from (patelpb.com, GitHub Pages or the dev server).
+const base = typeof window !== "undefined" ? window.location.origin : "https://patelpb.com";
 
 const assets = {
   bg: `${base}/bg.jpg`,
@@ -222,7 +223,7 @@ function assertSiteData() {
   console.assert(Array.isArray(sections), "sections should be an array");
   console.assert(sections.length === 4, "expected four home navigation sections");
   console.assert(projects.length === 4 && projects.every((p) => p.title && p.href), "projects portal should list four linked projects");
-  console.assert(base.startsWith("https://"), "base URL should be absolute HTTPS");
+  console.assert(/^https?:\/\//.test(base), "base URL should be absolute");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
   console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
