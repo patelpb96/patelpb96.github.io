@@ -9,7 +9,7 @@
 // performance.now() (so the viewer's wall clock never matters); a newly seen beat is aged with
 // the response's Date + Age headers against `updated`, both server clocks. Anything that isn't
 // a JSON 2xx (the disguised 404 page, GitHub Pages, network errors) reads as "Not live".
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { decrypt, deriveKey } from "./gateway-crypto.js";
@@ -50,6 +50,16 @@ async function getJson(name) {
 }
 
 const render = (md) => DOMPurify.sanitize(marked.parse(md));
+
+// The document body. Its DOM is only touched when the rendered HTML actually changes, so
+// heartbeats, the "updated Xs ago" chip and re-sent identical text never wipe a selection.
+const LiveDoc = memo(function LiveDoc({ html }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    if (ref.current && ref.current.innerHTML !== html) ref.current.innerHTML = html;
+  }, [html]);
+  return <article ref={ref} className="scratch-doc prose" aria-live="polite" />;
+});
 
 export default function GatewayView() {
   const [phase, setPhase] = useState("loading"); // loading|offline|locked|wrong|changed|unlocking|live
@@ -182,7 +192,7 @@ export default function GatewayView() {
           <span className="gateway-chip"><span className="gateway-dot on" aria-hidden="true" />Live{updatedAgo != null ? ` · updated ${updatedAgo < 2 ? "just now" : `${updatedAgo}s ago`}` : ""}</span>
           <button type="button" className="gateway-lock" onClick={lock}>Lock</button>
         </div>
-        <article className="scratch-doc prose" aria-live="polite" dangerouslySetInnerHTML={{ __html: html }} />
+        <LiveDoc html={html} />
       </>
     );
   }
