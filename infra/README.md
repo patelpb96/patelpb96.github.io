@@ -59,3 +59,56 @@ python infra/cloudfront_api.py detach   # FIRST: the OAC can't be deleted while 
 cd infra && npx cdk destroy
 aws s3 rm --recursive s3://patelpb-com-site/live/rs-alchemy/   # optional: live data
 ```
+
+# Scratch "gateway" (live, password-gated markdown)
+
+```
+local editor (npm run gateway, http://127.0.0.1:8737/)
+  -- browser encrypts: PBKDF2-SHA256 310k -> AES-GCM-256, AAD "v|kid|seq" (src/gateway-crypto.js)
+  -> scripts/gateway/server.mjs (adds x-gateway-key from ~/.patelpb-gateway-key; owns heartbeat + end)
+  -> POST https://patelpb.com/api/gateway/{publish,beat,end}
+  -> CloudFront behavior /api/gateway/* (ordered before /api/*): viewer-request CloudFront
+     Function patelpb-gateway-auth (401 unless sha256(x-gateway-key) matches) -> Lambda OAC
+  -> patelpb-gateway (re-checks the key against SSM /patelpb/gateway/writer-key-sha256, 60 s cache)
+  -> s3://patelpb-com-site/live/gateway/{state,beat}.json (Cache-Control: public, max-age=1)
+viewers: #/projects/scratch/gateway (src/Gateway.jsx) poll beat.json every 1 s via the default
+  S3 behavior, fetch state.json when beat.seq moves, decrypt in the browser.
+```
+
+Neither AWS nor viewers without the password ever see the plaintext; `end` overwrites
+`state.json` with `{"live":false}`. Liveness: the relay writes `beat.json` every 10 s while an
+editor tab is connected and Live is on, and sends `end` on Stop, Ctrl+C, or 5 s after the last
+editor tab closes; viewers also show "Not live" if `beat` hasn't changed for 30 s.
+
+## API contract
+
+`POST /api/gateway/publish` `{v:1, seq, kid, salt, iv, ct}`, `POST /api/gateway/beat` `{seq}`,
+`POST /api/gateway/end` `{seq}`; header `x-gateway-key` and `x-amz-content-sha256` (hex SHA-256
+of the body; required by the Lambda OAC). Responses JSON, `Cache-Control: no-store`: 200 ok,
+400 bad request, 401 bad/missing key (from the edge or the Lambda), 405 non-POST, 409
+`{"status":"stale","last_seq":...}`, 413 too large, 500. Never 403/404.
+
+## Setup / deploy
+
+```sh
+npm run gateway -- --no-open     # first run creates ~/.patelpb-gateway-key and prints:
+MSYS_NO_PATHCONV=1 aws ssm put-parameter --region us-east-1 --type String --overwrite \
+  --name /patelpb/gateway/writer-key-sha256 --value "$(npm run -s gateway -- --print-hash)"
+cd infra && npx cdk deploy && cd ..
+python infra/cloudfront_api.py attach   # publishes patelpb-gateway-auth, seeds live/gateway/*, adds the behavior
+npm run deploy:aws                      # the viewer page
+```
+
+Rotate the writer key: delete `~/.patelpb-gateway-key`, run `npm run gateway` once, re-run the
+`put-parameter` command, then `python infra/cloudfront_api.py attach` (the edge function embeds
+the hash; the Lambda picks up the new value within 60 s).
+
+The account's Lambda concurrency limit is 10 (shared with `/api/rs/refresh`); the edge check
+keeps unauthenticated traffic off it, but a quota increase (Service Quotas -> AWS Lambda ->
+Concurrent executions) is free and worth requesting.
+
+## Teardown
+
+`detach` removes both `/api/*` behaviors and origins; the CloudFront Function is left in place
+(`aws cloudfront delete-function --name patelpb-gateway-auth --if-match <etag>` after detach).
+`aws s3 rm --recursive s3://patelpb-com-site/live/gateway/` removes the live files.

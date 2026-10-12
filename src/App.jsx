@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import AlchemyDashboard from "./Alchemy.jsx";
+import GatewayView from "./Gateway.jsx";
 import { marked } from "marked";
 
 // Same origin the page was served from (patelpb.com, GitHub Pages or the dev server).
@@ -59,8 +60,10 @@ const projects = [
 ];
 
 // Scratch files live in public/scratch/<name>.md and are listed here; each opens at #/projects/scratch/<name>.
+// `live` entries render a live view instead (gateway: src/Gateway.jsx, written via `npm run gateway`).
 const scratchFiles = [
   { name: "template", src: "scratch/template.md" },
+  { name: "gateway", live: true },
 ];
 
 // GizmoElementTracers results/apogee_dtd_conserved: every Ia delay-time-distribution family fit to the same
@@ -486,6 +489,28 @@ function Css() {
       .scratch-doc pre code { background: none; padding: 0; }
       .scratch-doc table { border-collapse: collapse; display: block; overflow-x: auto; margin: 0 0 18px; }
       .scratch-doc th, .scratch-doc td { border: 1px solid var(--line); padding: 6px 10px; vertical-align: top; }
+      .gateway-offline { display: flex; gap: 14px; align-items: flex-start; }
+      .gateway-title { margin: 0 0 4px; color: #fff2e6; font-weight: 700; }
+      .gateway-offline .gateway-dot { margin-top: 7px; }
+      .gateway-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+      .gateway-dot.on { background: #5fd38a; box-shadow: 0 0 8px #5fd38a; animation: gateway-pulse 2s ease-in-out infinite; }
+      .gateway-dot.off { background: var(--muted); opacity: 0.6; }
+      @keyframes gateway-pulse { 50% { opacity: 0.45; } }
+      @media (prefers-reduced-motion: reduce) { .gateway-dot.on { animation: none; } }
+      .gateway-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+      .gateway-chip { display: inline-flex; align-items: center; gap: 8px; font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; color: var(--muted); }
+      .gateway-unlock { display: grid; gap: 12px; max-width: 460px; }
+      .gateway-unlock p { margin: 0; }
+      .gateway-err { color: #ff8a7a; }
+      .gateway-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .gateway-row input { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 0.95rem; color: var(--text); background: rgba(0,0,0,0.3); border: 1px solid var(--line); padding: 9px 12px; border-radius: 0; }
+      .gateway-row input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .gateway-go, .gateway-lock { font-family: inherit; font-weight: 600; font-size: 13px; letter-spacing: 0.02em; border-radius: 0; padding: 9px 14px; cursor: pointer; }
+      .gateway-go { color: var(--bg); background: var(--accent); border: 1px solid var(--accent); }
+      .gateway-go:hover:not(:disabled) { background: var(--accent-soft); }
+      .gateway-go:disabled { opacity: 0.6; cursor: default; }
+      .gateway-lock { color: var(--muted); background: transparent; border: 1px solid var(--line); padding: 6px 10px; }
+      .gateway-lock:hover { color: #fff2e6; border-color: rgba(255,180,120,0.55); }
       .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
       .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
       .nav-link.active { color: #fff2e6; box-shadow: inset 0 -2px 0 var(--accent); }
@@ -1087,7 +1112,7 @@ function ScratchPage({ file }) {
   const current = scratchFiles.find((f) => f.name === file);
   const [doc, setDoc] = useState({ name: null, html: "" });
   useEffect(() => {
-    if (!current) return undefined;
+    if (!current || current.live) return undefined;
     let live = true;
     fetch(`${import.meta.env.BASE_URL}${current.src}`)
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(r.status))))
@@ -1106,7 +1131,7 @@ function ScratchPage({ file }) {
               </a>
             ))}
           </div>
-          {current ? (
+          {current?.live ? <GatewayView /> : current ? (
             doc.name === current.name
               ? <article className="scratch-doc prose" dangerouslySetInnerHTML={{ __html: doc.html }} />
               : <p className="prose">Loading…</p>

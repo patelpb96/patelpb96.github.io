@@ -18,7 +18,7 @@ export interface LiveApiStackProps extends cdk.StackProps {
 }
 
 /**
- * RS alchemy "Refresh live prices":
+ * RS alchemy "Refresh live prices" (and, further down, the Scratch "gateway" writer API):
  *   POST https://patelpb.com/api/rs/refresh -> CloudFront (/api/*, Lambda OAC) -> trigger
  *   Function URL (AWS_IAM) -> single-flight S3 lock -> async worker -> s3 live/rs-alchemy/*.
  */
@@ -130,6 +130,53 @@ export class LiveApiStack extends cdk.Stack {
       },
     });
 
+    // ----------------------------------------------------------------- gateway
+    // Scratch "gateway": writer-only API for the live, end-to-end encrypted page.
+    //   POST /api/gateway/{publish,beat,end} -> CloudFront (/api/gateway/*, edge key check
+    //   patelpb-gateway-auth, same Lambda OAC) -> Function URL -> s3 live/gateway/*.
+    // The writer key's SHA-256 lives in SSM (created by hand; see infra/README.md).
+    const gatewayParam = '/patelpb/gateway/writer-key-sha256';
+    const gatewayLogs = new logs.LogGroup(this, 'GatewayLogs', {
+      logGroupName: '/aws/lambda/patelpb-gateway',
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    const gateway = new lambda.Function(this, 'Gateway', {
+      functionName: 'patelpb-gateway',
+      description: 'POST /api/gateway/{publish,beat,end}: write the encrypted live gateway page',
+      runtime: lambda.Runtime.PYTHON_3_13,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'handler.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', '..', 'lambdas', 'gateway'), {
+        exclude: ['__pycache__', '*.pyc'],
+      }),
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(5),
+      environment: { BUCKET: props.bucketName, LIVE_PREFIX: 'live/gateway/', KEY_HASH_PARAM: gatewayParam },
+      logGroup: gatewayLogs,
+    });
+    const gatewayUrl = gateway.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
+    gateway.addPermission('CloudFrontInvokeFunctionUrl', {
+      principal: cfPrincipal,
+      action: 'lambda:InvokeFunctionUrl',
+      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+      sourceArn: distributionArn,
+    });
+    gateway.addPermission('CloudFrontInvokeFunction', {
+      principal: cfPrincipal,
+      action: 'lambda:InvokeFunction',
+      invokedViaFunctionUrl: true,
+      sourceArn: distributionArn,
+    });
+    gateway.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['s3:PutObject'],
+      resources: [`${bucketArn}/live/gateway/*`],
+    }));
+    gateway.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${gatewayParam}`],
+    }));
+
     // ------------------------------------------------------------------ budget
     const subscribers = [{ subscriptionType: 'EMAIL', address: props.budgetEmail }];
     new budgets.CfnBudget(this, 'Budget', {
@@ -158,6 +205,12 @@ export class LiveApiStack extends cdk.Stack {
       value: cdk.Fn.select(2, cdk.Fn.split('/', triggerUrl.url)),
       description: 'Origin domain for the /api/* CloudFront behavior',
     });
+    new cdk.CfnOutput(this, 'GatewayOriginDomain', {
+      value: cdk.Fn.select(2, cdk.Fn.split('/', gatewayUrl.url)),
+      description: 'Origin domain for the /api/gateway/* CloudFront behavior',
+    });
+    new cdk.CfnOutput(this, 'GatewayFunctionName', { value: gateway.functionName });
+    new cdk.CfnOutput(this, 'GatewayKeyHashParam', { value: gatewayParam });
     new cdk.CfnOutput(this, 'OriginAccessControlId', { value: oac.attrId });
     new cdk.CfnOutput(this, 'WorkerFunctionName', { value: worker.functionName });
     new cdk.CfnOutput(this, 'TriggerFunctionName', { value: trigger.functionName });

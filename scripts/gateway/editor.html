@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="gateway-token" content="__GATEWAY_TOKEN__">
+<title>Gateway editor</title>
+<style>
+  :root {
+    --bg: #14100d; --panel: #1d1712; --line: rgba(255, 190, 140, 0.18); --text: #f3e7dc;
+    --muted: #b8a596; --accent: #ff9a4d; --ok: #5fd38a; --warn: #f2c14e; --bad: #ff6b5f;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 1rem; margin: 0 8px 0 0; letter-spacing: 0.04em; }
+  .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  input[type=password], input[type=text] { background: #0f0c0a; color: var(--text); border: 1px solid var(--line); padding: 6px 8px; font: 14px ui-monospace, Consolas, monospace; width: 22rem; max-width: 70vw; }
+  button { background: transparent; color: var(--text); border: 1px solid var(--line); padding: 6px 12px; font: inherit; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.primary { background: rgba(255, 154, 77, 0.18); border-color: var(--accent); }
+  button.stop { background: rgba(255, 107, 95, 0.16); border-color: var(--bad); }
+  .meter { width: 90px; height: 6px; background: #0f0c0a; border: 1px solid var(--line); }
+  .meter > i { display: block; height: 100%; width: 0; background: var(--bad); transition: width 0.15s; }
+  .small { font-size: 12.5px; color: var(--muted); }
+  .light { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; }
+  .light::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .light.ok::before { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .light.warn::before { background: var(--warn); }
+  .light.bad::before { background: var(--bad); }
+  .badge { font-size: 12px; padding: 2px 8px; border: 1px solid var(--warn); color: var(--warn); }
+  .badge[hidden] { display: none; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  textarea { resize: none; border: 0; border-right: 1px solid var(--line); background: #0f0c0a; color: var(--text); padding: 16px; font: 14px/1.6 ui-monospace, Consolas, monospace; outline: none; min-height: 0; }
+  #preview { overflow: auto; padding: 16px 24px; overflow-wrap: anywhere; line-height: 1.7; }
+  #preview h1, #preview h2, #preview h3 { color: #fff2e6; line-height: 1.3; }
+  #preview code { font-family: ui-monospace, Consolas, monospace; background: rgba(255, 154, 77, 0.1); padding: 1px 5px; }
+  #preview pre { background: rgba(0, 0, 0, 0.3); padding: 12px; overflow-x: auto; border: 1px solid var(--line); }
+  #preview pre code { background: none; padding: 0; }
+  #preview blockquote { margin: 0 0 16px; padding: 4px 0 4px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
+  #preview table { border-collapse: collapse; } #preview th, #preview td { border: 1px solid var(--line); padding: 5px 9px; }
+  #preview img { max-width: 100%; }
+  a { color: var(--accent); }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } textarea { border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+<script type="module" src="/editor.js"></script>
+</head>
+<body>
+<header>
+  <h1>GATEWAY</h1>
+  <div class="group">
+    <input id="pw" type="password" autocomplete="off" spellcheck="false" placeholder="viewer password (Enter to apply)" aria-label="Viewer password">
+    <button id="show" type="button" title="Show/hide the password">Show</button>
+    <button id="gen" type="button" title="Fill in a random 5-word passphrase (about 64 bits)">Generate</button>
+    <button id="apply" type="button" disabled>Apply</button>
+    <span class="meter" title="Estimated entropy"><i id="meterbar"></i></span>
+    <span id="bits" class="small"></span>
+  </div>
+  <div class="group">
+    <button id="live" type="button" class="primary" disabled>Go live</button>
+    <span id="light" class="light">Connecting…</span>
+    <span id="badge" class="badge" hidden>Paused: unapplied password</span>
+  </div>
+  <div class="small" id="keynote" style="flex-basis:100%">No password applied yet. Viewers can copy and keep the ciphertext and guess at it offline forever, so use a long passphrase.</div>
+</header>
+<main>
+  <textarea id="src" spellcheck="true" placeholder="# Type markdown here&#10;&#10;It shows up on patelpb.com/#/projects/scratch/gateway while you're live." aria-label="Markdown source"></textarea>
+  <article id="preview" aria-label="Preview"></article>
+</main>
+</body>
+</html>
