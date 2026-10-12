@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>404 · patelpb</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --text: #6b6375;
+    --text-h: #08060d;
+    --bg: #fff;
+    --border: #e5e4e7;
+    --accent: #aa3bff;
+    --accent-bg: rgba(170, 59, 255, 0.1);
+    --serif: "Playfair Display", Georgia, "Times New Roman", serif;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #9ca3af;
+      --text-h: #f3f4f6;
+      --bg: #16171d;
+      --border: #2e303a;
+      --accent: #c084fc;
+      --accent-bg: rgba(192, 132, 252, 0.15);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 18px/1.45 var(--serif);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .glow {
+    position: fixed;
+    inset: -20vmax;
+    background:
+      radial-gradient(40vmax 40vmax at 30% 35%, var(--accent-bg), transparent 70%),
+      radial-gradient(35vmax 35vmax at 72% 68%, var(--accent-bg), transparent 70%);
+    animation: drift 18s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes drift {
+    to { transform: translate(4vmax, -3vmax) rotate(8deg); }
+  }
+  main {
+    position: relative;
+    text-align: center;
+    display: grid;
+    gap: 1.6rem;
+    justify-items: center;
+  }
+  .code {
+    font-weight: 700;
+    font-size: clamp(7rem, 30vw, 16rem);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    user-select: none;
+  }
+  .code span {
+    display: inline-block;
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--accent);
+    background: linear-gradient(180deg, var(--accent-bg), transparent 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: float 6s ease-in-out infinite;
+  }
+  .code span:nth-child(2) { animation-delay: -2s; }
+  .code span:nth-child(3) { animation-delay: -4s; }
+  @keyframes float {
+    50% { transform: translateY(-0.06em); }
+  }
+  p {
+    font-style: italic;
+    font-size: clamp(1.15rem, 3.5vw, 1.6rem);
+    color: var(--text-h);
+  }
+  a {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    transition: color .2s, border-color .2s, background .2s;
+  }
+  a:hover, a:focus-visible {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    outline: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glow, .code span { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="glow" aria-hidden="true"></div>
+<main>
+  <h1 class="code" aria-label="404"><span>4</span><span>0</span><span>4</span></h1>
+  <p>you probably know what this means...</p>
+  <a href="/">&larr; back home</a>
+</main>
+</body>
+</html>
