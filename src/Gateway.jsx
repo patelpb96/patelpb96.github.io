@@ -170,7 +170,7 @@ export default function GatewayView() {
         <span className="gateway-dot off" aria-hidden="true" />
         <div>
           <p className="gateway-title">Not live right now</p>
-          <p className="prose scratch-hint">This page shows a live document while it's being written. Check back later.</p>
+          <p className="prose scratch-hint">Page offline. Check back later.</p>
         </div>
       </div>
     );
