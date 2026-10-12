@@ -4,117 +4,182 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>404 · patelpb</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#1a0f0a">
+<title>404 · Preet Patel</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✦</text></svg>'>
 <style>
+  /* Tokens and pieces copied from the Css() block in src/App.jsx so this page reads as part of the site. */
   :root {
-    --text: #6b6375;
-    --text-h: #08060d;
-    --bg: #fff;
-    --border: #e5e4e7;
-    --accent: #aa3bff;
-    --accent-bg: rgba(170, 59, 255, 0.1);
-    --serif: "Playfair Display", Georgia, "Times New Roman", serif;
-    color-scheme: light dark;
+    --bg: #1a0f0a;
+    --line: rgba(255, 180, 120, 0.18);
+    --text: #fff2e6;
+    --muted: #e6c7a8;
+    --dim: #b08b6b;
+    --accent: #ffb36b;
+    --accent-soft: #ffd9b3;
+    --blue: #ff9a4d;
+    --shadow: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --text: #9ca3af;
-      --text-h: #f3f4f6;
-      --bg: #16171d;
-      --border: #2e303a;
-      --accent: #c084fc;
-      --accent-bg: rgba(192, 132, 252, 0.15);
-    }
-  }
-  * { box-sizing: border-box; margin: 0; }
-  html, body { height: 100%; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
   body {
-    background: var(--bg);
     color: var(--text);
-    font: 18px/1.45 var(--serif);
-    overflow: hidden;
-    -webkit-font-smoothing: antialiased;
-  }
-  .glow {
-    position: fixed;
-    inset: -20vmax;
     background:
-      radial-gradient(40vmax 40vmax at 30% 35%, var(--accent-bg), transparent 70%),
-      radial-gradient(35vmax 35vmax at 72% 68%, var(--accent-bg), transparent 70%);
-    animation: drift 18s ease-in-out infinite alternate;
+      radial-gradient(circle at 50% 0%, rgba(255,160,90,0.10), transparent 28rem),
+      linear-gradient(180deg, #160a06 0%, #1a0f0a 45%, #0f0705 100%);
+    background-color: var(--bg);
+    font-family: "Playfair Display", Georgia, "Times New Roman", Times, serif;
+    overflow: hidden;
+  }
+
+  .stars, .stars::after {
+    position: fixed;
+    inset: 0;
     pointer-events: none;
+    will-change: opacity;
   }
-  @keyframes drift {
-    to { transform: translate(4vmax, -3vmax) rotate(8deg); }
+  .stars {
+    opacity: 0.78;
+    background-position: center;
+    filter: drop-shadow(0 0 3px rgba(255,210,170,0.35));
+    animation: twinkle 1.6s linear infinite;
   }
+  .stars::after {
+    content: "";
+    background-image: var(--front, none);
+    background-size: 100% 100%;
+    opacity: 0.52;
+    filter: drop-shadow(0 0 8px rgba(255,235,215,0.5));
+    animation: twinkleBright 1.2s linear infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.70; } 20% { opacity: 0.68; } 40% { opacity: 0.73; }
+    50% { opacity: 0.81; } 70% { opacity: 0.78; } 90% { opacity: 0.80; }
+  }
+  @keyframes twinkleBright {
+    0%, 100% { opacity: 0.45; } 30% { opacity: 0.49; } 45% { opacity: 0.64; } 75% { opacity: 0.61; }
+  }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 2;
+    border-bottom: 1px solid var(--line);
+    background: rgba(28, 14, 8, 0.84);
+    backdrop-filter: blur(16px);
+  }
+  .topbar a {
+    display: block;
+    width: min(1120px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 16px 0;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .brand-title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.03em; }
+  .brand-subtitle { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+
   main {
     position: fixed;
     inset: 0;
-    padding: 16px;
-    text-align: center;
+    z-index: 1;
     display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 1.6rem;
+    place-items: center;
+    padding: 96px 16px 32px;
   }
-  .code {
-    font-weight: 700;
-    font-size: clamp(7rem, 30vw, 16rem);
-    line-height: 0.85;
-    letter-spacing: -0.04em;
-    user-select: none;
+  .panel {
+    width: min(560px, 100%);
+    padding: clamp(32px, 7vw, 56px) clamp(22px, 5vw, 48px);
+    text-align: center;
+    background: linear-gradient(180deg, rgba(42,20,10,0.88), rgba(22,10,6,0.9));
+    border: 1px solid var(--line);
+    box-shadow: 0 22px 70px var(--shadow);
+    animation: riseIn 0.8s ease both;
   }
-  .code span {
-    display: inline-block;
-    color: transparent;
-    -webkit-text-stroke: 1.5px var(--accent);
-    background: linear-gradient(180deg, var(--accent-bg), transparent 80%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    animation: float 6s ease-in-out infinite;
-  }
-  .code span:nth-child(2) { animation-delay: -2s; }
-  .code span:nth-child(3) { animation-delay: -4s; }
-  @keyframes float {
-    50% { transform: translateY(-0.06em); }
-  }
-  p {
-    font-style: italic;
-    font-size: clamp(1.15rem, 3.5vw, 1.6rem);
-    color: var(--text-h);
-  }
-  a {
-    color: var(--text);
-    text-decoration: none;
-    font-size: 0.95rem;
-    letter-spacing: 0.08em;
-    text-transform: lowercase;
-    padding: 0.5rem 1.1rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    transition: color .2s, border-color .2s, background .2s;
-  }
-  a:hover, a:focus-visible {
+  .eyebrow {
     color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-bg);
-    outline: none;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    font-size: 0.79rem;
+    font-weight: 700;
+    margin: 0 0 18px;
   }
+  h1 {
+    margin: 0;
+    font-size: clamp(5rem, 22vw, 9rem);
+    line-height: 0.88;
+    letter-spacing: -0.055em;
+    color: var(--text);
+    text-shadow: 0 0 44px rgba(255,170,100,0.25);
+  }
+  p.line {
+    margin: 22px 0 0;
+    color: var(--muted);
+    font-style: italic;
+    font-size: clamp(1.05rem, 2.6vw, 1.35rem);
+  }
+  .button-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 28px;
+    color: #000;
+    background: linear-gradient(180deg, #ffe2c2, var(--blue));
+    text-decoration: none;
+    padding: 12px 18px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    box-shadow: 0 10px 28px rgba(255,140,70,0.32);
+    transition: transform 180ms ease, filter 180ms ease;
+  }
+  .button-link:hover, .button-link:focus-visible { transform: translateY(-2px); filter: brightness(1.06); outline: none; }
+
   @media (prefers-reduced-motion: reduce) {
-    .glow, .code span { animation: none; }
+    .stars, .stars::after, .panel { animation: none; }
   }
 </style>
 </head>
 <body>
-<div class="glow" aria-hidden="true"></div>
+<div class="stars" aria-hidden="true"></div>
+<header class="topbar">
+  <a href="/"><div class="brand-title">Preet Patel</div><div class="brand-subtitle">Physics • Astronomy • Data Science</div></a>
+</header>
 <main>
-  <h1 class="code" aria-label="404"><span>4</span><span>0</span><span>4</span></h1>
-  <p>you probably know what this means...</p>
-  <a href="/">&larr; back home</a>
+  <section class="panel">
+    <div class="eyebrow">✦</div>
+    <h1>404</h1>
+    <p class="line">you probably know what this means...</p>
+    <a class="button-link" href="/">Back home</a>
+  </section>
 </main>
+<script>
+  // Same seeded star recipe as makeStarTile / makeStarField in src/App.jsx (same seeds, so it's the same sky).
+  (function () {
+    var rnd = function (s) { var x = Math.sin(s) * 10000; return x - Math.floor(x); };
+    var gauss = function (s) { var u1 = Math.max(rnd(s), 0.0001), u2 = rnd(s + 97.3); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    var star = function (x, y, a, r) { return "radial-gradient(circle at " + x + "% " + y + "%, rgba(255,255,255," + a + ") 0 " + r + "px, transparent " + (r + 0.8) + "px)"; };
+    var img = [], size = [];
+    [[28, 908, 331, .25, .7, .30], [22, 3695, 359, .3, .8, .42], [18, 4397, 383, .35, .9, .52], [15, 5201, 409, .4, 1, .62]].forEach(function (t) {
+      for (var i = 1; i <= t[0]; i++) {
+        img.push(star(2 + rnd(t[1] + i * 3.1) * 96, 2 + rnd(t[1] + i * 5.3) * 96, t[5] * (0.45 + rnd(t[1] + i * 13.1) * 0.55), t[3] + rnd(t[1] + i * 7.9) * (t[4] - t[3])));
+        size.push(t[2] + "px " + t[2] + "px");
+      }
+    });
+    var front = [], seed = 3211.293;
+    for (var i = 1; i <= 14; i++) {
+      var g = rnd(seed + i * 11.7) < 0.12;
+      var x = Math.min(99, Math.max(1, g ? 50 + gauss(seed + i * 2.1) * 18 : rnd(seed + i * 3.1) * 100));
+      var y = Math.min(99, Math.max(1, g ? 50 + gauss(seed + i * 4.7) * 18 : rnd(seed + i * 5.3) * 100));
+      var r = 1.1 + rnd(seed + i * 7.9) * 1.1, a = 0.45 + rnd(seed + i * 13.1) * 0.55;
+      front.push(star(x, y, a, r), "radial-gradient(circle at " + x + "% " + y + "%, rgba(255,255,255," + a * 0.55 + ") 0 " + r * 1.45 + "px, transparent " + (r * 1.35 + 1.35) + "px)");
+    }
+    var el = document.querySelector(".stars");
+    el.style.backgroundImage = img.join(",");
+    el.style.backgroundSize = size.join(",");
+    el.style.setProperty("--front", front.join(","));
+  })();
+</script>
 </body>
 </html>
