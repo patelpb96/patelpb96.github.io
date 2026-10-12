@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import AlchemyDashboard from "./Alchemy.jsx";
+import { marked } from "marked";
 
 const base = "https://patelpb96.github.io";
 
@@ -46,6 +47,19 @@ const projects = [
     tags: ["Animation", "Design"],
     art: "spark",
   },
+  {
+    key: "scratch",
+    title: "Scratch",
+    href: "#/projects/scratch",
+    blurb: "A scratchspace: working files and drafts, rendered as pages.",
+    tags: ["Notes", "Drafts"],
+    art: "whiteboard",
+  },
+];
+
+// Scratch files live in public/scratch/<name>.md and are listed here; each opens at #/projects/scratch/<name>.
+const scratchFiles = [
+  { name: "template", src: "scratch/template.md" },
 ];
 
 // GizmoElementTracers results/apogee_dtd_conserved: every Ia delay-time-distribution family fit to the same
@@ -207,7 +221,7 @@ function assertSiteData() {
   if (typeof console === "undefined" || typeof console.assert !== "function") return;
   console.assert(Array.isArray(sections), "sections should be an array");
   console.assert(sections.length === 4, "expected four home navigation sections");
-  console.assert(projects.length === 3 && projects.every((p) => p.title && p.href), "projects portal should list three linked projects");
+  console.assert(projects.length === 4 && projects.every((p) => p.title && p.href), "projects portal should list four linked projects");
   console.assert(base.startsWith("https://"), "base URL should be absolute HTTPS");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
   console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
@@ -253,6 +267,8 @@ function Icon({ name, size = 20, className = "" }) {
       return <svg {...common}><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg>;
     case "phone":
       return <svg {...common}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.9 19.9 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.9 19.9 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.35 1.89.66 2.79a2 2 0 0 1-.45 2.11L8.05 9.9a16 16 0 0 0 6.05 6.05l1.27-1.27a2 2 0 0 1 2.11-.45c.9.31 1.83.53 2.79.66A2 2 0 0 1 22 16.92z" /></svg>;
+    case "file":
+      return <svg {...common}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>;
     default:
       return null;
   }
@@ -450,6 +466,25 @@ function Css() {
       .project-tags span { border: 1px solid var(--line); color: var(--dim); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; }
       .project-open { align-self: flex-start; font-family: inherit; font-weight: 700; font-size: 0.86rem; color: #000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); padding: 10px 16px; box-shadow: 0 0 22px rgba(255,154,77,0.28); }
       .project-card:hover .project-open { filter: brightness(1.06); }
+      .scratch-files { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 18px; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
+      .scratch-file { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-family: ui-monospace, Consolas, monospace; font-size: 0.9rem; }
+      .scratch-file:hover { border-color: rgba(255,180,120,0.55); color: #fff2e6; }
+      .scratch-file.on { background: rgba(255,154,77,0.16); border-color: var(--blue); color: #fff2e6; }
+      .scratch-doc { overflow-wrap: anywhere; font-size: 0.98rem; line-height: 1.75; }
+      .scratch-doc h1, .scratch-doc h2, .scratch-doc h3, .scratch-doc h4 { color: #fff2e6; line-height: 1.3; margin: 1.6em 0 0.6em; }
+      .scratch-doc h1 { font-size: 1.6rem; margin-top: 0; }
+      .scratch-doc h2 { font-size: 1.35rem; }
+      .scratch-doc h3 { font-size: 1.1rem; }
+      .scratch-doc ul, .scratch-doc ol { padding-left: 1.4em; margin: 0 0 18px; }
+      .scratch-doc li { margin: 4px 0; }
+      .scratch-doc strong { color: #fff2e6; }
+      .scratch-doc blockquote { margin: 0 0 18px; padding: 4px 0 4px 16px; border-left: 3px solid var(--blue); color: var(--accent-soft); }
+      .scratch-doc hr { border: 0; border-top: 1px solid var(--line); margin: 26px 0; }
+      .scratch-doc code { font-family: ui-monospace, Consolas, monospace; font-size: 0.88em; background: rgba(255,154,77,0.1); padding: 1px 5px; }
+      .scratch-doc pre { overflow-x: auto; background: rgba(0,0,0,0.3); padding: 12px; border: 1px solid var(--line); }
+      .scratch-doc pre code { background: none; padding: 0; }
+      .scratch-doc table { border-collapse: collapse; display: block; overflow-x: auto; margin: 0 0 18px; }
+      .scratch-doc th, .scratch-doc td { border: 1px solid var(--line); padding: 6px 10px; vertical-align: top; }
       .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
       .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
       .nav-link.active { color: #fff2e6; box-shadow: inset 0 -2px 0 var(--accent); }
@@ -936,6 +971,18 @@ function ProjectArt({ kind }) {
       </svg>
     );
   }
+  if (kind === "whiteboard") {
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <line x1="96" y1="104" x2="84" y2="118" stroke="#5a2d14" strokeWidth="3" strokeLinecap="round" />
+        <line x1="144" y1="104" x2="156" y2="118" stroke="#5a2d14" strokeWidth="3" strokeLinecap="round" />
+        <rect x="44" y="8" width="152" height="94" rx="3" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="3" />
+        <path d="M60 74 C 78 40, 94 40, 108 60 S 140 84, 156 46 S 176 30, 182 36" fill="none" stroke="#ff9a4d" strokeWidth="3" strokeLinecap="round" />
+        <rect x="88" y="100" width="64" height="5" rx="1.5" fill="#ffb36b" />
+        <rect x="132" y="96" width="14" height="5" rx="1.5" fill="#ff9a4d" />
+      </svg>
+    );
+  }
   if (kind === "coins") {
     return (
       <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
@@ -1035,10 +1082,44 @@ function GraphicsPage() {
   );
 }
 
+function ScratchPage({ file }) {
+  const current = scratchFiles.find((f) => f.name === file);
+  const [doc, setDoc] = useState({ name: null, html: "" });
+  useEffect(() => {
+    if (!current) return undefined;
+    let live = true;
+    fetch(`${import.meta.env.BASE_URL}${current.src}`)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(r.status))))
+      .then((md) => live && setDoc({ name: current.name, html: marked.parse(md) }))
+      .catch(() => live && setDoc({ name: current.name, html: "<p>Could not load this file.</p>" }));
+    return () => { live = false; };
+  }, [current]);
+  return (
+    <ProjectPage>
+      <Section id="scratch" title="Scratch">
+        <div className="panel panel-body">
+          <div className="scratch-files" role="list" aria-label="Scratch files">
+            {scratchFiles.map((f) => (
+              <a key={f.name} role="listitem" href={`#/projects/scratch/${f.name}`} className={`scratch-file${f.name === file ? " on" : ""}`}>
+                <Icon name="file" size={16} />{f.name}
+              </a>
+            ))}
+          </div>
+          {current ? (
+            doc.name === current.name
+              ? <article className="scratch-doc prose" dangerouslySetInnerHTML={{ __html: doc.html }} />
+              : <p className="prose">Loading…</p>
+          ) : <p className="prose scratch-hint">Pick a file to open it.</p>}
+        </div>
+      </Section>
+    </ProjectPage>
+  );
+}
+
 // Minimal hash router: only "#/projects..." paths are routes, so Home's own "#section"
 // scroll anchors keep working untouched. No server rewrite needed on GitHub Pages.
 const routeOf = (hash) => {
-  const m = /^#\/projects(?:\/(alchemy|graphics))?\/?$/.exec(hash || "");
+  const m = /^#\/projects(?:\/(alchemy|graphics|scratch(?:\/[\w-]+)?))?\/?$/.exec(hash || "");
   return m ? (m[1] ? `projects/${m[1]}` : "projects") : "home";
 };
 function useHashRoute() {
@@ -1099,7 +1180,7 @@ function Topbar({ route }) {
               <a href="#/" className="nav-link">Home</a>
               <a href="#/projects" className={`nav-link${route === "projects" ? " active" : ""}`}>Projects</a>
               {projects.map((p) => (
-                <a key={p.key} href={p.href} className={`nav-link${route === `projects/${p.key}` ? " active" : ""}`}>{p.key === "atp" ? "Tennis" : p.title}</a>
+                <a key={p.key} href={p.href} className={`nav-link${(route === `projects/${p.key}` || route.startsWith(`projects/${p.key}/`)) ? " active" : ""}`}>{p.key === "atp" ? "Tennis" : p.title}</a>
               ))}
             </>
           ) : (
@@ -1121,7 +1202,7 @@ export default function PreetPatelSite() {
       <Css />
       <div className="bg-scroll-layer" />
       <Topbar route={route} />
-      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <AlchemyPage /> : route === "projects/graphics" ? <GraphicsPage /> : <HomePage />}
+      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <AlchemyPage /> : route === "projects/graphics" ? <GraphicsPage /> : route.startsWith("projects/scratch") ? <ScratchPage file={route.split("/")[2]} /> : <HomePage />}
       <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React. Built (nearly) in full with Agentic Coding.</footer>
     </main>
   );
