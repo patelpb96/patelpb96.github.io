@@ -61,7 +61,7 @@ Status         { rid, state: "queued"|"running"|"done"|"failed", phase: string, 
 EditionSummary { rid, title, request, created: ISO, state, stories: number }
 Plane          { nodes: PlaneNode[], edges: PlaneEdge[], generatedAt: number }
   PlaneNode    { id, kind: "agent"|"tool"|"doc", label, group, groupLabel,
-                 role?: "role_1"|"role_2"|"role_3"|…, tier?: number, state?: "working"|"idle"|"done" }
+                 role?: "role_1"|"role_2"|"role_3"|"role_4", tier?: number, state?: "working"|"idle"|"done" }
                // agents: id/label "agent_7"; tools: "tool_3" (group "tools"); docs: label "doctype_2",
                // group "doctype_2". No names, models, URLs, paths, extensions, queries or text.
   PlaneEdge    { src, dst, kind: "call"|"reports"|"message", count, active: bool, pulse: bool }
