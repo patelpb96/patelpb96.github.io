@@ -43,6 +43,16 @@ const projects = [
     art: "coins",
   },
   {
+    key: "newsroom",
+    title: "Agent Report",
+    href: "/projects/newsroom/",
+    external: true,
+    cta: "Open newsroom",
+    blurb: "A private, password-locked newsroom: a small team of Claude agents researches a request, checks every quote against its source, and lays out a cited front page.",
+    tags: ["Agents", "Private"],
+    art: "newspaper",
+  },
+  {
     key: "graphics",
     title: "Graphics",
     href: "#/projects/graphics",
@@ -1008,6 +1018,23 @@ function ProjectArt({ kind }) {
         <path d="M60 74 C 78 40, 94 40, 108 60 S 140 84, 156 46 S 176 30, 182 36" fill="none" stroke="#ff9a4d" strokeWidth="3" strokeLinecap="round" />
         <rect x="88" y="100" width="64" height="5" rx="1.5" fill="#ffb36b" />
         <rect x="132" y="96" width="14" height="5" rx="1.5" fill="#ff9a4d" />
+      </svg>
+    );
+  }
+  if (kind === "newspaper") {
+    // a folded broadsheet: masthead, headline, photo block and columns of text
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <rect x="66" y="12" width="118" height="100" fill="#5a2d14" transform="translate(6 4)" />
+        <rect x="66" y="12" width="118" height="100" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2.5" />
+        <rect x="76" y="20" width="98" height="9" fill="#ff9a4d" />
+        <line x1="76" y1="34" x2="174" y2="34" stroke="#5a2d14" strokeWidth="1.5" />
+        <rect x="76" y="39" width="62" height="6" fill="#5a2d14" />
+        <rect x="76" y="50" width="44" height="30" fill="#ffb36b" />
+        {[50, 56, 62, 68, 74, 80].map((y) => <line key={"r" + y} x1="126" x2="174" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
+        {[88, 94, 100].map((y) => <line key={"a" + y} x1="76" x2="121" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
+        {[88, 94, 100].map((y) => <line key={"b" + y} x1="129" x2="174" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
+        <line x1="125" y1="86" x2="125" y2="104" stroke="#ffb36b" strokeWidth="1" />
       </svg>
     );
   }

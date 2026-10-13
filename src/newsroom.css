@@ -51,24 +51,24 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-home { color: var(--muted); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; margin-right: auto; }
 .np-wrap h2 { font-size: 1.25rem; margin: 0 0 8px; }
 
-.np-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; }
-.np-pill i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.np-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 0; font-size: 13px; }
+.np-pill i { width: 9px; height: 9px; border-radius: 0; background: var(--muted); }
 .np-online i { background: var(--ok); }
 .np-busy i { background: var(--warn); }
 .np-offline i { background: var(--bad); }
 
 .np-btn {
-  min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 8px;
+  min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 0;
   background: var(--paper); cursor: pointer;
 }
 .np-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .np-primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; width: 100%; margin-top: 12px; }
 .np-lock { min-height: 36px; padding: 0 12px; }
 
-.np-card { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+.np-card { background: var(--paper); border: 1px solid var(--line); border-radius: 0; padding: 14px 16px; margin: 14px 0; }
 .np-card label { display: block; font-size: 14px; color: var(--muted); margin: 8px 0 4px; }
 .np-unlock input, .np-card textarea, .np-card select {
-  width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 0; background: var(--bg);
 }
 .np-card textarea { resize: vertical; }
 .np-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -83,13 +83,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-hist { list-style: none; margin: 0; padding: 0; }
 .np-histbtn {
   display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 56px; text-align: left; cursor: pointer;
-  padding: 10px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper);
+  padding: 10px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 0; background: var(--paper);
 }
 .np-histreq { color: var(--muted); font-size: 14px; font-style: italic; }
 
 /* progress + plane */
 .np-phase { margin: 0 0 6px; color: var(--muted); }
-.np-bar { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.np-bar { height: 10px; border-radius: 0; background: var(--line); overflow: hidden; }
 .np-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.6s ease; }
 .np-msg { margin: 8px 0 0; font-size: 15px; }
 .np-plane { margin-top: 10px; }
@@ -114,7 +114,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   font-size: 0.7em; font-weight: 700; line-height: 1; color: var(--accent); background: none; border: 0; cursor: pointer;
   padding: 8px 4px; margin: -8px -1px; min-width: 24px; min-height: 24px;
 }
-.np-notes { border: 1px dashed var(--line); border-radius: 8px; padding: 6px 14px; margin: 18px 0; color: var(--muted); font-size: 14px; }
+.np-notes { border: 1px dashed var(--line); border-radius: 0; padding: 6px 14px; margin: 18px 0; color: var(--muted); font-size: 14px; }
 .np-notes h4 { margin: 6px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; }
 .np-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
 
@@ -122,11 +122,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; justify-content: center; z-index: 10; }
 .np-sheet {
   width: 100%; max-width: 700px; max-height: 80vh; overflow-y: auto; background: var(--paper); color: var(--ink);
-  border-radius: 16px 16px 0 0; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); border-top: 3px solid var(--accent);
+  border-radius: 0; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); border-top: 3px solid var(--accent);
 }
 .np-sheet-head { display: flex; align-items: center; gap: 10px; }
 .np-factno { font-weight: 700; }
-.np-scope { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; }
+.np-scope { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border: 1px solid var(--line); border-radius: 0; }
 .np-scope.np-major { color: var(--accent); border-color: var(--accent); }
 .np-close { margin-left: auto; }
 .np-fact { font-size: 1.1rem; font-weight: 600; margin: 10px 0; }
@@ -138,6 +138,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-srcmeta span { font-size: 12px; }
 
 /* Less reliable: stories/facts/sources that rely on social media, forums, listings, etc. */
-.np-low { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px;
+.np-low { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 0; font-size: 11px;
   letter-spacing: .02em; text-transform: none; border: 1px dashed currentColor; color: #c98a1b; vertical-align: middle; }
 .np-fn.np-fn-low { color: #c98a1b; text-decoration: underline dotted; }
+
+/* Square corners everywhere on this page. */
+*, *::before, *::after { border-radius: 0 !important; }  /* this stylesheet only loads on the newsroom page */
