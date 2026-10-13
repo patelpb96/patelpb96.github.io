@@ -4,8 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  * RuneScape 3 high-alchemy dashboard.
  *
  * Reads the JSON exported by the `rs_alchemy` scraper (staged under
- * public/rs-alchemy/data). The big files are fetched lazily, behind a click,
- * the same way the site gates its heavy image graphics:
+ * public/rs-alchemy/data). It is the whole of its own page (/projects/alchemy/,
+ * see src/alchemy-main.jsx), so the table loads on arrival:
  *
  *   latest.json            newest row per item, ranked by alch profit (~1.9 MB)
  *   meta.json              run provenance (tiny)
@@ -618,7 +618,7 @@ function LiveRefresh({ live, asOf, source, onLiveData }) {
 // ---- dashboard ------------------------------------------------------------
 
 export default function AlchemyDashboard() {
-  const [phase, setPhase] = useState("idle"); // idle -> loading -> ready | error
+  const [phase, setPhase] = useState("loading"); // loading -> ready | error
   const [rows, setRows] = useState(null);
   const [meta, setMeta] = useState(null);
   const [live, setLive] = useState(null); // live/rs-alchemy/meta.json, when the backend exists
@@ -645,8 +645,8 @@ export default function AlchemyDashboard() {
     setRows(arr.map(deriveRow));
   };
 
-  const load = () => {
-    setPhase("loading");
+  // Only sets state from promise callbacks, so the mount effect below can call it directly.
+  const fetchData = () => {
     Promise.all([
       fetchLiveMeta(),
       fetch(`${DATA_BASE}/meta.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
@@ -668,6 +668,15 @@ export default function AlchemyDashboard() {
       })
       .catch(() => setPhase("error"));
   };
+  const retry = () => {
+    setPhase("loading");
+    fetchData();
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onLiveData = (latest, liveMeta) => {
     applyRows(latest);
@@ -739,19 +748,12 @@ export default function AlchemyDashboard() {
     <div className="alchemy">
       <AlchemyStyles />
 
-      {phase === "idle" && (
-        <button className="lazy-graphic alc-load" type="button" onClick={load}>
-          <span>Load alchemy data</span>
-          <small>~1.9 MB · 7,000+ items</small>
-        </button>
-      )}
-
       {phase === "loading" && <div className="alc-msg">Fetching current Grand Exchange prices…</div>}
 
       {phase === "error" && (
         <div className="alc-msg">
           Could not load the alchemy data.{" "}
-          <button className="alc-inline-btn" type="button" onClick={load}>Retry</button>
+          <button className="alc-inline-btn" type="button" onClick={retry}>Retry</button>
         </div>
       )}
 
@@ -968,7 +970,6 @@ function AlchemyStyles() {
   return (
     <style>{`
       .alchemy { --alc-pos: #7fdca4; --alc-neg: #ff8a6b; color: var(--text); }
-      .alc-load { margin: 0; }
       .alc-msg { padding: 22px; text-align: center; color: var(--muted); border: 1px solid var(--line); background: rgba(30,14,8,0.6); }
       .alc-intro { margin: 0 0 20px; }
       .alc-intro code { font-family: inherit; font-size: 0.92em; color: var(--accent-soft); background: rgba(255,170,100,0.10); padding: 1px 6px; }

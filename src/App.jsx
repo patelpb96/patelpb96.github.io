@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import AlchemyDashboard from "./Alchemy.jsx";
 import GatewayView from "./Gateway.jsx";
 import { marked } from "marked";
 
@@ -36,7 +35,9 @@ const projects = [
   {
     key: "alchemy",
     title: "Alchemy",
-    href: "#/projects/alchemy",
+    href: "/projects/alchemy/",
+    external: true,
+    cta: "Open dashboard",
     blurb: "A live RuneScape Grand Exchange dashboard: high-alchemy profit for 7,000+ items, with price history back to 2008.",
     tags: ["Dashboard", "Live data"],
     art: "coins",
@@ -1049,7 +1050,7 @@ function ProjectsPortal() {
               <h2 className="project-title">{p.title}</h2>
               <p className="project-blurb">{p.blurb}</p>
               <div className="project-tags">{p.tags.map((t) => <span key={t}>{t}</span>)}</div>
-              <span className="project-open">{p.external ? "Open explorer" : "Open"} <span aria-hidden="true">→</span></span>
+              <span className="project-open">{p.cta || (p.external ? "Open explorer" : "Open")} <span aria-hidden="true">→</span></span>
             </div>
           </a>
         ))}
@@ -1067,17 +1068,11 @@ function ProjectPage({ children }) {
   );
 }
 
-function AlchemyPage() {
-  return (
-    <ProjectPage>
-      <Section id="alchemy" title="Alchemy">
-        <div className="panel panel-body">
-          <AlchemyDashboard />
-        </div>
-      </Section>
-
-    </ProjectPage>
-  );
+// Alchemy moved to its own page (/projects/alchemy/, like the tennis explorer); keep old
+// #/projects/alchemy links and bookmarks working.
+function MovedTo({ href }) {
+  useEffect(() => { window.location.replace(href); }, [href]);
+  return <div className="content"><p className="prose">Moved to <a href={href}>{href}</a>…</p></div>;
 }
 
 function GraphicsPage() {
@@ -1229,7 +1224,7 @@ export default function PreetPatelSite() {
       <Css />
       <div className="bg-scroll-layer" />
       <Topbar route={route} />
-      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <AlchemyPage /> : route === "projects/graphics" ? <GraphicsPage /> : route.startsWith("projects/scratch") ? <ScratchPage file={route.split("/")[2]} /> : <HomePage />}
+      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <MovedTo href="/projects/alchemy/" /> : route === "projects/graphics" ? <GraphicsPage /> : route.startsWith("projects/scratch") ? <ScratchPage file={route.split("/")[2]} /> : <HomePage />}
       <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React. Built (nearly) in full with Agentic Coding.</footer>
     </main>
   );
