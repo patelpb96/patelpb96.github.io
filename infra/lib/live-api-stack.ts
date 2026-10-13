@@ -177,6 +177,57 @@ export class LiveApiStack extends cdk.Stack {
       resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${gatewayParam}`],
     }));
 
+    // ---------------------------------------------------------------- newsroom
+    // Private, password-gated "newsroom" relay (projects/newsroom/PROTOCOL.md): the home
+    // daemon and the phone page both write encrypted envelopes through one endpoint.
+    //   POST /api/newsroom/put -> CloudFront (/api/newsroom/*, edge key check
+    //   patelpb-newsroom-auth, same Lambda OAC) -> Function URL -> s3 live/newsroom/*.
+    // The key's SHA-256 lives in SSM (written by `python -m newsdesk setup`; see infra/README.md).
+    const newsroomParam = '/patelpb/newsroom/key-sha256';
+    const newsroomLogs = new logs.LogGroup(this, 'NewsroomLogs', {
+      logGroupName: '/aws/lambda/patelpb-newsroom',
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    const newsroom = new lambda.Function(this, 'Newsroom', {
+      functionName: 'patelpb-newsroom',
+      description: 'POST /api/newsroom/put: write encrypted newsroom objects + the inbox index',
+      runtime: lambda.Runtime.PYTHON_3_13,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'handler.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', '..', 'lambdas', 'newsroom'), {
+        exclude: ['__pycache__', '*.pyc', 'test_*.py'],
+      }),
+      memorySize: 256,
+      timeout: cdk.Duration.seconds(10),
+      environment: { BUCKET: props.bucketName, LIVE_PREFIX: 'live/newsroom/', KEY_HASH_PARAM: newsroomParam },
+      logGroup: newsroomLogs,
+    });
+    const newsroomUrl = newsroom.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
+    newsroom.addPermission('CloudFrontInvokeFunctionUrl', {
+      principal: cfPrincipal,
+      action: 'lambda:InvokeFunctionUrl',
+      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+      sourceArn: distributionArn,
+    });
+    newsroom.addPermission('CloudFrontInvokeFunction', {
+      principal: cfPrincipal,
+      action: 'lambda:InvokeFunction',
+      invokedViaFunctionUrl: true,
+      sourceArn: distributionArn,
+    });
+    // Get + Put for the inbox/index.json read-modify-write; ListBucket makes a missing
+    // index a 404 NoSuchKey (treated as empty) instead of a 403.
+    newsroom.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject', 's3:PutObject'],
+      resources: [`${bucketArn}/live/newsroom/*`],
+    }));
+    newsroom.addToRolePolicy(new iam.PolicyStatement({ actions: ['s3:ListBucket'], resources: [bucketArn] }));
+    newsroom.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${newsroomParam}`],
+    }));
+
     // ------------------------------------------------------------------ budget
     const subscribers = [{ subscriptionType: 'EMAIL', address: props.budgetEmail }];
     new budgets.CfnBudget(this, 'Budget', {
@@ -211,7 +262,13 @@ export class LiveApiStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'GatewayFunctionName', { value: gateway.functionName });
     new cdk.CfnOutput(this, 'GatewayKeyHashParam', { value: gatewayParam });
-    new cdk.CfnOutput(this, 'OriginAccessControlId', { value: oac.attrId });
+    new cdk.CfnOutput(this, 'NewsroomOriginDomain', {
+      value: cdk.Fn.select(2, cdk.Fn.split('/', newsroomUrl.url)),
+      description: 'Origin domain for the /api/newsroom/* CloudFront behavior',
+    });
+    new cdk.CfnOutput(this, 'NewsroomFunctionName', { value: newsroom.functionName });
+    new cdk.CfnOutput(this, 'NewsroomKeyHashParam', { value: newsroomParam });
+    new cdk.CfnOutput(this, 'OriginAccessControlId',{ value: oac.attrId });
     new cdk.CfnOutput(this, 'WorkerFunctionName', { value: worker.functionName });
     new cdk.CfnOutput(this, 'TriggerFunctionName', { value: trigger.functionName });
   }

@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         alchemy: fileURLToPath(new URL('./projects/alchemy/index.html', import.meta.url)),
+        newsroom: fileURLToPath(new URL('./projects/newsroom/index.html', import.meta.url)),
       },
     },
   },

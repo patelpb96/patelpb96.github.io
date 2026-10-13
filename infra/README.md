@@ -112,3 +112,66 @@ Concurrent executions) is free and worth requesting.
 `detach` removes both `/api/*` behaviors and origins; the CloudFront Function is left in place
 (`aws cloudfront delete-function --name patelpb-gateway-auth --if-match <etag>` after detach).
 `aws s3 rm --recursive s3://patelpb-com-site/live/gateway/` removes the live files.
+
+# Newsroom relay (private, password-gated news desk)
+
+```
+phone page (projects/newsroom/, src/NewsroomPage.jsx)   home daemon (agent-dashboard: python -m newsdesk)
+  -- PBKDF2-SHA256 310k -> AES-GCM-256 envelopes --        -- same password-derived key, never stored --
+  -> POST https://patelpb.com/api/newsroom/put  (header x-newsroom-key = token, {name, doc})
+  -> CloudFront behavior /api/newsroom/* (ordered before /api/*): viewer-request CloudFront
+     Function patelpb-newsroom-auth (401 unless sha256(x-newsroom-key) matches) -> Lambda OAC
+  -> patelpb-newsroom (re-checks the key against SSM /patelpb/newsroom/key-sha256, 60 s cache;
+     name allowlist + envelope validation; inbox puts also update inbox/index.json)
+  -> s3://patelpb-com-site/live/newsroom/** (Cache-Control: public, max-age=1)
+both sides read the same objects with plain GETs via the default S3 behavior (/live/newsroom/...).
+```
+
+AWS only ever stores ciphertext plus a few plain counters (`beat.json`, `inbox/index.json`);
+the password never leaves the phone and the home machine's setup prompt.
+
+## API contract
+
+`POST /api/newsroom/put` `{name, doc}` with headers `x-newsroom-key` and `x-amz-content-sha256`
+(hex SHA-256 of the body; required by the Lambda OAC). Allowed names, envelope format, the
+beat/inbox-index rules and every object's plaintext shape are in
+[`projects/newsroom/PROTOCOL.md`](../projects/newsroom/PROTOCOL.md). Responses JSON,
+`Cache-Control: no-store`: 200 `{"status":"ok"}`, 400 bad request, 401 bad/missing key (from the
+edge or the Lambda), 405 non-POST, 413 body over 900 KB, 500. Never 403/404.
+
+## Setup / deploy
+
+Order matters: the SSM parameter must exist before `attach` publishes the edge function.
+
+```sh
+# 1. Home side (agent-dashboard repo): prompts for the password (refuses weak ones), writes the
+#    SSM hash /patelpb/newsroom/key-sha256 and live/newsroom/config.json {v, salt, iter}.
+python -m newsdesk setup
+# 2. Lambda + Function URL + IAM (the gateway stack, now with patelpb-newsroom).
+cd infra && npx cdk deploy && cd ..
+# 3. Publishes patelpb-newsroom-auth, seeds live/newsroom/{beat,inbox/index}.json, adds the behavior.
+python infra/cloudfront_api.py attach
+# 4. The phone page.
+npm run deploy:aws
+```
+
+If the newsroom SSM parameter or stack output is missing, `attach` still handles the gateway and
+`/api/*`, prints why the newsroom was skipped, and leaves any existing newsroom behavior alone.
+
+Offline checks: `python -m unittest discover lambdas/newsroom` (handler, boto3 stubbed) and
+`python -m unittest discover infra -p "test_*.py"` (CloudFront config building).
+
+## Rotate the password / key
+
+Run `python -m newsdesk setup` again (new salt, new token, new SSM hash), then
+`python infra/cloudfront_api.py attach` (the edge function embeds the hash; the Lambda picks up the
+new value within 60 s). Old ciphertext no longer decrypts, so the phone and daemon must both use
+the new password; previously stored editions are unreadable.
+
+## Teardown
+
+`python infra/cloudfront_api.py detach` first (removes all attached origins and behaviors, the
+gateway's and RS refresh's too), then `cd infra && npx cdk destroy`. The CloudFront Function is
+left in place (`aws cloudfront delete-function --name patelpb-newsroom-auth --if-match <etag>`);
+`aws ssm delete-parameter --name /patelpb/newsroom/key-sha256` and
+`aws s3 rm --recursive s3://patelpb-com-site/live/newsroom/` remove the key hash and the data.

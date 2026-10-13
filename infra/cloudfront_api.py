@@ -5,19 +5,25 @@ The distribution is NOT managed by CDK, so this edits it in place via the AWS CL
 preserving every other setting (aliases, cert, default behavior + viewer-request
 function, custom error responses, the S3 origin + OAC). Idempotent.
 
-    python infra/cloudfront_api.py attach   # add/refresh origins + /api/gateway/* and /api/* behaviors
+    python infra/cloudfront_api.py attach   # add/refresh origins + /api/gateway/*, /api/newsroom/*, /api/* behaviors
     python infra/cloudfront_api.py detach   # remove them (run BEFORE `npx cdk destroy`)
     python infra/cloudfront_api.py status   # print what is attached
 
 attach reads the Function URL domains and the Lambda OAC id from the CloudFormation
-stack outputs (stack PatelpbLiveApi). Both behaviors have: all methods allowed, managed
+stack outputs (stack PatelpbLiveApi). All behaviors have: all methods allowed, managed
 CachingDisabled cache policy, managed AllViewerExceptHostHeader origin request policy.
-/api/* (RS refresh) has no function associations; /api/gateway/* (ordered first) has the
-viewer-request CloudFront Function patelpb-gateway-auth, which rejects requests whose
-x-gateway-key doesn't hash to the SSM value /patelpb/gateway/writer-key-sha256 (so
-unauthenticated floods never reach Lambda). attach (re)publishes that function from SSM,
-so after rotating the writer key just run attach again. attach also seeds
-live/gateway/{state,beat}.json with {"live":false} when they don't exist yet.
+/api/* (RS refresh) has no function associations; the two authed behaviors (ordered first)
+each have a viewer-request CloudFront Function that rejects requests whose key header doesn't
+hash to an SSM value (so unauthenticated floods never reach Lambda):
+
+    /api/gateway/*   patelpb-gateway-auth   x-gateway-key   /patelpb/gateway/writer-key-sha256
+    /api/newsroom/*  patelpb-newsroom-auth  x-newsroom-key  /patelpb/newsroom/key-sha256
+
+attach (re)publishes those functions from SSM, so after rotating a key just run attach again.
+The gateway is required (attach exits if its SSM value is missing); the newsroom is optional:
+if its SSM value or stack output is missing it is skipped with a message, and any existing
+newsroom behavior is left untouched. attach also seeds, when absent, live/gateway/{state,beat}.json
+({"live":false}) and live/newsroom/{beat.json,inbox/index.json}.
 """
 from __future__ import annotations
 
@@ -34,22 +40,42 @@ REGION = os.environ.get("AWS_REGION", "us-east-1")
 BUCKET = os.environ.get("AWS_S3_BUCKET", "patelpb-com-site")
 CACHING_DISABLED = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
 ALL_VIEWER_EXCEPT_HOST = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
-AUTH_FUNCTION = "patelpb-gateway-auth"
-KEY_HASH_PARAM = "/patelpb/gateway/writer-key-sha256"
+
+# Authed behaviors: edge function, key header, SSM param holding sha256(key).
+AUTHS = {
+    "gateway": {"function": "patelpb-gateway-auth", "header": "x-gateway-key", "path": "/api/gateway/*",
+                "param": "/patelpb/gateway/writer-key-sha256", "required": True,
+                "comment": "patelpb.com /api/gateway/* writer-key check",
+                "setup": "run `npm run gateway` once and the `aws ssm put-parameter` command it prints"},
+    "newsroom": {"function": "patelpb-newsroom-auth", "header": "x-newsroom-key", "path": "/api/newsroom/*",
+                 "param": "/patelpb/newsroom/key-sha256", "required": False,
+                 "comment": "patelpb.com /api/newsroom/* key check",
+                 "setup": "run `python -m newsdesk setup` (agent-dashboard repo)"},
+}
 
 # Most specific first: CloudFront matches behaviors in list order.
 ATTACHMENTS = [
     {"origin_id": "lambda-gateway", "path": "/api/gateway/*", "domain_output": "GatewayOriginDomain",
-     "auth": True},
+     "auth": "gateway"},
+    {"origin_id": "lambda-newsroom", "path": "/api/newsroom/*", "domain_output": "NewsroomOriginDomain",
+     "auth": "newsroom"},
     {"origin_id": "lambda-rs-refresh-trigger", "path": "/api/*", "domain_output": "TriggerOriginDomain",
-     "auth": False},
+     "auth": None},
 ]
 
-AUTH_CODE = """// Managed by infra/cloudfront_api.py (attach). Edge check for /api/gateway/*.
+# Seeded when absent, per auth name: bucket key -> document.
+SEEDS = {
+    "gateway": {"live/gateway/state.json": {"v": 1, "live": False, "seq": 1},
+                "live/gateway/beat.json": {"v": 1, "live": False, "seq": 1, "beat": 0, "updated": None}},
+    "newsroom": {"live/newsroom/beat.json": {"v": 1, "beat": 0, "busy": False, "version": None},
+                 "live/newsroom/inbox/index.json": {"v": 1, "seq": 0, "ids": []}},
+}
+
+AUTH_CODE = """// Managed by infra/cloudfront_api.py (attach). Edge check for @PATH@.
 var crypto = require('crypto');
-var WANT = '%s';
+var WANT = '@WANT@';
 function handler(event) {
-  var h = event.request.headers['x-gateway-key'];
+  var h = event.request.headers['@HEADER@'];
   if (h && h.value && crypto.createHash('sha256').update(h.value).digest('hex') === WANT) {
     return event.request;
   }
@@ -64,6 +90,10 @@ function handler(event) {
   };
 }
 """
+
+
+def auth_code(spec: dict, want: str) -> str:
+    return AUTH_CODE.replace("@PATH@", spec["path"]).replace("@HEADER@", spec["header"]).replace("@WANT@", want)
 
 
 def aws_exe() -> str:
@@ -150,45 +180,49 @@ def write_temp(text: str, suffix: str) -> str:
         return f.name
 
 
-def publish_auth_function() -> str:
-    """Create/update + publish patelpb-gateway-auth from the SSM hash; return its LIVE ARN."""
-    p = aws("ssm", "get-parameter", "--name", KEY_HASH_PARAM, check=False)
+def read_hash(spec: dict) -> str | None:
+    """sha256(key) from SSM for an auth spec; None if the parameter doesn't exist."""
+    p = aws("ssm", "get-parameter", "--name", spec["param"], check=False)
     if "__error__" in p:
-        sys.exit(f"SSM parameter {KEY_HASH_PARAM} not found; run `npm run gateway` once and the "
-                 "`aws ssm put-parameter` command it prints, then attach again.")
+        return None
     want = p["Parameter"]["Value"].strip().lower()
     if len(want) != 64 or any(c not in "0123456789abcdef" for c in want):
-        sys.exit(f"{KEY_HASH_PARAM} is not a hex SHA-256")
-    code = AUTH_CODE % want
-    cfg = json.dumps({"Comment": "patelpb.com /api/gateway/* writer-key check", "Runtime": "cloudfront-js-2.0"})
+        sys.exit(f"{spec['param']} is not a hex SHA-256")
+    return want
+
+
+def publish_auth_function(spec: dict, want: str) -> str:
+    """Create/update + publish the spec's edge function from the SSM hash; return its LIVE ARN."""
+    name = spec["function"]
+    code = auth_code(spec, want)
+    cfg = json.dumps({"Comment": spec["comment"], "Runtime": "cloudfront-js-2.0"})
     path = write_temp(code, ".js")
     try:
-        cur = aws("cloudfront", "describe-function", "--name", AUTH_FUNCTION, "--stage", "DEVELOPMENT",
-                  check=False)
+        cur = aws("cloudfront", "describe-function", "--name", name, "--stage", "DEVELOPMENT", check=False)
         if "__error__" in cur:
-            r = aws("cloudfront", "create-function", "--name", AUTH_FUNCTION, "--function-config", cfg,
+            r = aws("cloudfront", "create-function", "--name", name, "--function-config", cfg,
                     "--function-code", "fileb://" + path)
             etag = r["ETag"]
         else:
-            if function_code("LIVE") == code:
-                print(f"{AUTH_FUNCTION}: up to date")
-                return describe_live_arn()
+            if function_code(name, "LIVE") == code:
+                print(f"{name}: up to date")
+                return describe_live_arn(name)
             etag = cur["ETag"]
-            if function_code("DEVELOPMENT") != code:
-                etag = aws("cloudfront", "update-function", "--name", AUTH_FUNCTION, "--if-match", etag,
+            if function_code(name, "DEVELOPMENT") != code:
+                etag = aws("cloudfront", "update-function", "--name", name, "--if-match", etag,
                            "--function-config", cfg, "--function-code", "fileb://" + path)["ETag"]
-        aws("cloudfront", "publish-function", "--name", AUTH_FUNCTION, "--if-match", etag)
-        print(f"{AUTH_FUNCTION}: published")
-        return describe_live_arn()
+        aws("cloudfront", "publish-function", "--name", name, "--if-match", etag)
+        print(f"{name}: published")
+        return describe_live_arn(name)
     finally:
         os.remove(path)
 
 
-def function_code(stage: str) -> str | None:
-    """The auth function's code at a stage (get-function writes it to an outfile); None if absent."""
+def function_code(name: str, stage: str) -> str | None:
+    """An edge function's code at a stage (get-function writes it to an outfile); None if absent."""
     out = write_temp("", ".js")
     try:
-        r = subprocess.run([aws_exe(), "cloudfront", "get-function", "--name", AUTH_FUNCTION, "--stage", stage,
+        r = subprocess.run([aws_exe(), "cloudfront", "get-function", "--name", name, "--stage", stage,
                             "--region", REGION, out], capture_output=True)
         if r.returncode != 0:
             return None
@@ -198,15 +232,13 @@ def function_code(stage: str) -> str | None:
         os.remove(out)
 
 
-def describe_live_arn() -> str:
-    return aws("cloudfront", "describe-function", "--name", AUTH_FUNCTION, "--stage", "LIVE")[
+def describe_live_arn(name: str) -> str:
+    return aws("cloudfront", "describe-function", "--name", name, "--stage", "LIVE")[
         "FunctionSummary"]["FunctionMetadata"]["FunctionARN"]
 
 
-def seed_live_files() -> None:
-    for name, doc in (("state.json", {"v": 1, "live": False, "seq": 1}),
-                      ("beat.json", {"v": 1, "live": False, "seq": 1, "beat": 0, "updated": None})):
-        key = f"live/gateway/{name}"
+def seed_live_files(auth: str) -> None:
+    for key, doc in SEEDS[auth].items():
         if "__error__" not in aws("s3api", "head-object", "--bucket", BUCKET, "--key", key, check=False):
             continue
         path = write_temp(json.dumps(doc), ".json")
@@ -235,14 +267,65 @@ def matches(cur: dict | None, want: dict) -> bool:
     return cur is not None and all(cur.get(k) == v for k, v in want.items())
 
 
+def select_attachments(out: dict, hashes: dict) -> tuple[list[dict], list[str]]:
+    """Attachments attach can manage now, plus a printable reason per skipped one.
+
+    An authed attachment needs its SSM hash; the optional ones (newsroom) are skipped, with
+    their existing CloudFront config left alone, when that hash or the stack output is missing.
+    """
+    active, skipped = [], []
+    for a in ATTACHMENTS:
+        spec = AUTHS.get(a["auth"]) if a["auth"] else None
+        if spec and not spec["required"]:
+            if hashes.get(a["auth"]) is None:
+                skipped.append(f"skipping {a['path']}: SSM {spec['param']} not found; {spec['setup']}, "
+                               "then run attach again")
+                continue
+            if a["domain_output"] not in out:
+                skipped.append(f"skipping {a['path']}: stack output {a['domain_output']} missing; "
+                               "run `cd infra && npx cdk deploy`, then attach again")
+                continue
+        active.append(a)
+    return active, skipped
+
+
+def desired(active: list[dict], out: dict, fn_arns: dict) -> tuple[list[dict], list[dict]]:
+    """(origins, behaviors) to install for the active attachments, behaviors in order."""
+    origins = [origin(a["origin_id"], out[a["domain_output"]], out["OriginAccessControlId"]) for a in active]
+    behaviors = [behavior(a["path"], a["origin_id"], fn_arns.get(a["auth"]) if a["auth"] else None)
+                 for a in active]
+    return origins, behaviors
+
+
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
     d = aws("cloudfront", "get-distribution-config", "--id", DIST_ID)
     cfg, etag = d["DistributionConfig"], d["ETag"]
-    ids = {a["origin_id"] for a in ATTACHMENTS}
-    paths = {a["path"] for a in ATTACHMENTS}
     all_o = cfg["Origins"].get("Items", [])
     all_b = cfg["CacheBehaviors"].get("Items", [])
+    managed = ATTACHMENTS
+    skipped: list[str] = []
+    fn_arns: dict = {}
+    want_o: list[dict] = []
+    want_b: list[dict] = []
+
+    if cmd == "attach":
+        out = stack_outputs()
+        hashes = {n: read_hash(s) for n, s in AUTHS.items()}
+        if hashes["gateway"] is None:
+            s = AUTHS["gateway"]
+            sys.exit(f"SSM parameter {s['param']} not found; {s['setup']}, then attach again.")
+        managed, skipped = select_attachments(out, hashes)
+        for msg in skipped:
+            print(msg)
+        for a in managed:
+            if a["auth"]:
+                fn_arns[a["auth"]] = publish_auth_function(AUTHS[a["auth"]], hashes[a["auth"]])
+                seed_live_files(a["auth"])
+        want_o, want_b = desired(managed, out, fn_arns)
+
+    ids = {a["origin_id"] for a in managed}
+    paths = {a["path"] for a in managed}
     origins = [o for o in all_o if o["Id"] not in ids]
     behaviors = [b for b in all_b if b["PathPattern"] not in paths]
     cur_o = {o["Id"]: o for o in all_o if o["Id"] in ids}
@@ -252,13 +335,7 @@ def main() -> None:
         print(json.dumps({"origins": list(cur_o.values()), "behaviors": list(cur_b.values())}, indent=1))
         return
     if cmd == "attach":
-        out = stack_outputs()
-        fn_arn = publish_auth_function()
-        seed_live_files()
-        want_o = [origin(a["origin_id"], out[a["domain_output"]], out["OriginAccessControlId"])
-                  for a in ATTACHMENTS]
-        want_b = [behavior(a["path"], a["origin_id"], fn_arn if a["auth"] else None) for a in ATTACHMENTS]
-        order_ok = [b["PathPattern"] for b in all_b if b["PathPattern"] in paths] == [a["path"] for a in ATTACHMENTS]
+        order_ok = [b["PathPattern"] for b in all_b if b["PathPattern"] in paths] == [a["path"] for a in managed]
         if order_ok and all(matches(cur_o.get(o["Id"]), o) for o in want_o) \
                 and all(matches(cur_b.get(b["PathPattern"]), b) for b in want_b):
             print("already attached; nothing to do")
