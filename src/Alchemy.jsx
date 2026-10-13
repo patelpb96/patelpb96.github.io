@@ -137,17 +137,135 @@ function formatPct(roi) {
   return `${sign}${pct.toFixed(pct >= 100 || pct <= -100 ? 0 : 1)}%`;
 }
 
+function formatRatio(value) {
+  if (!isNum(value)) return "—";
+  if (value >= 100) return `${formatGp(value)}×`;
+  return `${value.toFixed(value >= 10 ? 1 : 2)}×`;
+}
+
+function formatCell(kind, value) {
+  if (kind === "pct") return formatPct(value);
+  if (kind === "ratio") return formatRatio(value);
+  if (kind === "int") return isNum(value) ? value.toLocaleString() : "—";
+  return formatGp(value);
+}
+
 // ---- column configuration -------------------------------------------------
 
+// `derived` columns are computed client-side in deriveRow; `on` = shown by default.
 const COLUMNS = [
-  { key: "name", label: "Item", align: "left", kind: "text" },
-  { key: "price", label: "Price", align: "right", kind: "gp" },
-  { key: "highalch", label: "High alch", align: "right", kind: "gp" },
-  { key: "alch_profit", label: "Profit", align: "right", kind: "gp", signed: true },
-  { key: "alch_roi", label: "ROI", align: "right", kind: "pct", signed: true },
-  { key: "profit_per_limit", label: "Profit / limit", align: "right", kind: "gp", signed: true },
-  { key: "volume", label: "Volume", align: "right", kind: "gp" },
+  { key: "name", label: "Item", align: "left", kind: "text", on: true },
+  { key: "price", label: "Price", kind: "gp", on: true, help: "Current Grand Exchange price" },
+  { key: "highalch", label: "High alch", kind: "gp", on: true, help: "gp received per High Level Alchemy cast" },
+  { key: "alch_profit", label: "Profit", kind: "gp", signed: true, on: true, help: "High alch − price − nature rune, per cast" },
+  { key: "alch_roi", label: "ROI", kind: "pct", signed: true, on: true, help: "Profit ÷ (price + nature rune)" },
+  { key: "profit_per_limit", label: "Profit / limit", kind: "gp", signed: true, on: true, help: "Profit × buy limit (one 4-hour GE limit)" },
+  { key: "fill_profit", label: "Fillable profit", kind: "gp", signed: true, on: true, derived: true, help: "Profit × min(buy limit, daily volume): what one limit yields when the item trades thinly" },
+  { key: "volume", label: "Volume", kind: "gp", on: true, help: "Units traded on the GE per day" },
+  { key: "vol_per_limit", label: "Vol / limit", kind: "ratio", on: true, derived: true, help: "Daily volume ÷ buy limit. Below 1×, a full limit rarely fills in a day" },
+  { key: "limit", label: "Buy limit", kind: "int", help: "Units you can buy per 4 hours" },
+  { key: "capital", label: "Capital", kind: "gp", derived: true, help: "(Price + nature rune) × buy limit: gp tied up to alch one full limit" },
+  { key: "turnover", label: "GE turnover", kind: "gp", derived: true, help: "Price × daily volume: gp value traded per day" },
+  { key: "nature_price", label: "Nature rune", kind: "gp", help: "Current nature rune price (cost per cast)" },
 ];
+const NUMERIC_COLUMNS = COLUMNS.filter((c) => c.kind !== "text");
+const COLUMN_BY_KEY = Object.fromEntries(COLUMNS.map((c) => [c.key, c]));
+
+function deriveRow(r) {
+  const cost = isNum(r.price) ? r.price + (isNum(r.nature_price) ? r.nature_price : 0) : null;
+  const hasLimit = isNum(r.limit) && r.limit > 0;
+  return {
+    ...r,
+    _search: (r.name || "").toLowerCase(),
+    fill_profit: isNum(r.alch_profit) && hasLimit && isNum(r.volume) ? r.alch_profit * Math.min(r.limit, r.volume) : null,
+    vol_per_limit: hasLimit && isNum(r.volume) ? r.volume / r.limit : null,
+    capital: hasLimit && cost != null ? cost * r.limit : null,
+    turnover: isNum(r.price) && isNum(r.volume) ? r.price * r.volume : null,
+  };
+}
+
+// Threshold box text -> number. Accepts "12,500", "10k", "1.5m", "2b"; percent columns take
+// percent ("5" or "5%" = 0.05). Empty -> null, unparseable -> NaN (flagged in the UI).
+function parseAmount(text, kind) {
+  const s = String(text ?? "").trim().replace(/[,_\s]/g, "");
+  if (!s) return null;
+  const m = /^([-+]?(?:\d+\.?\d*|\.\d+))([kmb%]?)$/i.exec(s);
+  if (!m) return NaN;
+  let v = Number(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9 }[m[2].toLowerCase()] || 1);
+  if (kind === "pct") v /= 100;
+  return v;
+}
+
+// Item search syntax: space-separated terms must all match; `-term` excludes; `a|b` matches
+// either; "quoted phrase" matches literally; /regex/ is a case-insensitive regular expression.
+// Returns a predicate over the lowercased name, or null for an empty query.
+function compileQuery(text) {
+  const tests = [];
+  for (const m of text.matchAll(/(-?)(?:"([^"]*)"?|\/((?:\\.|[^/])+)\/|(\S+))/g)) {
+    const negate = m[1] === "-";
+    let test;
+    if (m[3] != null) {
+      let rx;
+      try { rx = new RegExp(m[3], "i"); } catch { continue; } // half-typed regex: ignore until valid
+      test = (s) => rx.test(s);
+    } else {
+      const raw = (m[2] ?? m[4]).toLowerCase();
+      const alts = m[2] != null ? [raw] : raw.split("|");
+      const terms = alts.filter(Boolean);
+      if (!terms.length) continue;
+      test = (s) => terms.some((t) => s.includes(t));
+    }
+    tests.push(negate ? (s) => !test(s) : test);
+  }
+  return tests.length ? (s) => tests.every((t) => t(s)) : null;
+}
+
+// One-click setups for common questions; each replaces the view's sort/shortlist/thresholds.
+const PRESETS = [
+  {
+    label: "Liquid → profit / limit",
+    help: "Top 100 profitable items by daily volume, ranked by profit per buy limit",
+    view: { profitableOnly: true, shortlist: { on: true, key: "volume", dir: "desc", n: 100 }, sort: { key: "profit_per_limit", dir: "desc" }, ranges: {} },
+  },
+  {
+    label: "Fills every day",
+    help: "Daily volume covers the full buy limit (Vol / limit ≥ 1), ranked by fillable profit",
+    view: { profitableOnly: true, shortlist: { on: false, key: "volume", dir: "desc", n: 100 }, sort: { key: "fill_profit", dir: "desc" }, ranges: { vol_per_limit: { min: "1", max: "" } } },
+  },
+  {
+    label: "Low capital",
+    help: "Profitable items whose full limit costs under 5M gp, ranked by ROI",
+    view: { profitableOnly: true, shortlist: { on: false, key: "volume", dir: "desc", n: 100 }, sort: { key: "alch_roi", dir: "desc" }, ranges: { capital: { min: "", max: "5m" } } },
+  },
+];
+
+const VIEW_STORAGE_KEY = "alc-view-v1";
+const DEFAULT_VIEW = {
+  query: "",
+  membership: "all", // all | members | f2p
+  profitableOnly: false,
+  sort: { key: "alch_profit", dir: "desc" },
+  // Two-stage ranking: keep the top `n` rows by `key`, then order those by the table sort.
+  shortlist: { on: false, key: "volume", dir: "desc", n: 100 },
+  ranges: {}, // column key -> { min, max } as typed
+  columns: COLUMNS.filter((c) => c.on).map((c) => c.key),
+};
+
+// Per-viewer convenience only; a blocked or corrupt store just means the defaults.
+function loadView() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VIEW_STORAGE_KEY) || "null");
+    if (!saved || typeof saved !== "object") return DEFAULT_VIEW;
+    const view = { ...DEFAULT_VIEW, ...saved, shortlist: { ...DEFAULT_VIEW.shortlist, ...saved.shortlist } };
+    view.columns = (Array.isArray(view.columns) ? view.columns : DEFAULT_VIEW.columns).filter((k) => COLUMN_BY_KEY[k]);
+    if (!view.columns.includes("name")) view.columns.unshift("name");
+    if (!COLUMN_BY_KEY[view.sort?.key]) view.sort = DEFAULT_VIEW.sort;
+    if (!COLUMN_BY_KEY[view.shortlist.key]) view.shortlist.key = DEFAULT_VIEW.shortlist.key;
+    return view;
+  } catch {
+    return DEFAULT_VIEW;
+  }
+}
 
 function compareBy(key, dir) {
   const factor = dir === "asc" ? 1 : -1;
@@ -352,6 +470,9 @@ function ItemDetail({ item, cache }) {
         <Stat label="Profit / cast" value={formatGp(item.alch_profit)} signed={item.alch_profit} title={formatFull(item.alch_profit)} />
         <Stat label="Nature cost" value={formatGp(item.nature_price)} title={formatFull(item.nature_price)} />
         <Stat label="Buy limit" value={isNum(item.limit) ? item.limit.toLocaleString() : "—"} />
+        <Stat label="Fillable profit" value={formatGp(item.fill_profit)} signed={item.fill_profit} title={formatFull(item.fill_profit)} />
+        <Stat label="Vol / limit" value={formatRatio(item.vol_per_limit)} />
+        <Stat label="Capital" value={formatGp(item.capital)} title={formatFull(item.capital)} />
         {stats && <Stat label="Days charted" value={stats.days.toLocaleString()} />}
         {stats && <Stat label="Profitable days" value={`${Math.round(stats.profitablePct * 100)}%`} />}
         {stats && <Stat label="Avg volume" value={formatGp(stats.volAvg)} title={formatFull(stats.volAvg)} />}
@@ -402,8 +523,8 @@ function Cell({ column, item, expanded, detailId, onToggle }) {
     );
   }
   const signed = column.signed && isNum(value) ? (value < 0 ? "alc-neg" : "alc-pos") : "";
-  const text = column.kind === "pct" ? formatPct(value) : formatGp(value);
-  const title = column.kind === "pct" ? undefined : formatFull(value);
+  const text = formatCell(column.kind, value);
+  const title = column.kind === "gp" ? formatFull(value) : undefined;
   return <td className={`alc-td alc-num ${signed}`} title={title}>{text}</td>;
 }
 
@@ -502,19 +623,26 @@ export default function AlchemyDashboard() {
   const [meta, setMeta] = useState(null);
   const [live, setLive] = useState(null); // live/rs-alchemy/meta.json, when the backend exists
   const [source, setSource] = useState("static"); // which latest.json the rows came from
-  const [query, setQuery] = useState("");
-  const [membership, setMembership] = useState("all"); // all | members | f2p
-  const [profitableOnly, setProfitableOnly] = useState(false);
-  const [sort, setSort] = useState({ key: "alch_profit", dir: "desc" });
+  const [view, setView] = useState(loadView);
+  const { query, membership, profitableOnly, sort, shortlist, ranges } = view;
   const [limit, setLimit] = useState(PAGE);
   const [selectedId, setSelectedId] = useState(null);
   const historyCache = useRef(new Map());
 
-  // Precompute a lowercased name once so search doesn't re-lowercase
-  // ~7,000 names on every keystroke.
+  // Any filter/sort change reshapes the result set, so snap the window back to the top.
+  const patchView = (patch) => {
+    setView((v) => ({ ...v, ...(typeof patch === "function" ? patch(v) : patch) }));
+    setLimit(PAGE);
+  };
+
+  useEffect(() => {
+    try { localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(view)); } catch { /* storage blocked */ }
+  }, [view]);
+
+  // Precompute derived metrics and a lowercased name once, not per keystroke.
   const applyRows = (latest) => {
     const arr = Array.isArray(latest) ? latest : [];
-    setRows(arr.map((r) => ({ ...r, _search: (r.name || "").toLowerCase() })));
+    setRows(arr.map(deriveRow));
   };
 
   const load = () => {
@@ -549,30 +677,61 @@ export default function AlchemyDashboard() {
 
   const asOf = source === "live" ? parseUtc(live?.updated_utc) : parseUtc(meta?.last_timestamp);
 
-  const filtered = useMemo(() => {
-    if (!rows) return [];
-    const q = query.trim().toLowerCase();
+  // Parsed thresholds; NaN marks a box the user typed garbage into (it's ignored, and outlined).
+  const bounds = useMemo(() => {
+    const out = [];
+    for (const [key, r] of Object.entries(ranges)) {
+      const col = COLUMN_BY_KEY[key];
+      if (!col) continue;
+      const min = parseAmount(r?.min, col.kind);
+      const max = parseAmount(r?.max, col.kind);
+      out.push({ key, min, max });
+    }
+    return out;
+  }, [ranges]);
+  const activeBounds = bounds.filter((b) => isNum(b.min) || isNum(b.max));
+
+  const { filtered, matched } = useMemo(() => {
+    if (!rows) return { filtered: [], matched: 0 };
+    const test = compileQuery(query);
     let out = rows;
-    if (q) out = out.filter((r) => r._search.includes(q));
+    if (test) out = out.filter((r) => test(r._search));
     if (membership === "members") out = out.filter((r) => r.members);
     else if (membership === "f2p") out = out.filter((r) => !r.members);
     if (profitableOnly) out = out.filter((r) => isNum(r.alch_profit) && r.alch_profit > 0);
-    return [...out].sort(compareBy(sort.key, sort.dir));
-  }, [rows, query, membership, profitableOnly, sort]);
+    for (const { key, min, max } of bounds) {
+      if (!isNum(min) && !isNum(max)) continue;
+      // A row with no value for a thresholded column can't satisfy it.
+      out = out.filter((r) => {
+        const v = r[key];
+        if (!isNum(v)) return false;
+        return !(isNum(min) && v < min) && !(isNum(max) && v > max);
+      });
+    }
+    const matchedCount = out.length;
+    if (shortlist.on && shortlist.n > 0) {
+      out = [...out].sort(compareBy(shortlist.key, shortlist.dir)).slice(0, shortlist.n);
+    }
+    return { filtered: [...out].sort(compareBy(sort.key, sort.dir)), matched: matchedCount };
+  },[rows, query, membership, profitableOnly, sort, shortlist, bounds]);
 
   const visible = filtered.slice(0, limit);
+  const shownColumns = COLUMNS.filter((c) => view.columns.includes(c.key));
 
-  // Filter changes shrink/reshape the result set, so snap the window back to the top.
-  const resetWindow = () => setLimit(PAGE);
-  const onQuery = (value) => { setQuery(value); resetWindow(); };
-  const onMembership = (value) => { setMembership(value); resetWindow(); };
-  const onProfitableOnly = (value) => { setProfitableOnly(value); resetWindow(); };
+  const setRange = (key, side, value) =>
+    patchView((v) => ({ ranges: { ...v.ranges, [key]: { ...v.ranges[key], [side]: value } } }));
+  const toggleColumn = (key) =>
+    setView((v) => ({ ...v, columns: v.columns.includes(key) ? v.columns.filter((k) => k !== key) : [...v.columns, key] }));
+  const applyPreset = (preset) => {
+    patchView({ ...preset.view, columns: [...new Set([...view.columns, preset.view.sort.key, ...Object.keys(preset.view.ranges)])] });
+  };
+  const resetView = () => setView({ ...DEFAULT_VIEW, columns: view.columns });
 
   const toggleSort = (key) => {
-    setSort((prev) => {
-      if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+    patchView(({ sort: prev }) => {
+      if (prev.key === key) return { sort: { key, dir: prev.dir === "asc" ? "desc" : "asc" } };
       // Text defaults to A–Z, numbers to high-to-low.
-      return { key, dir: key === "name" ? "asc" : "desc" };
+      return { sort: { key, dir: key === "name" ? "asc" : "desc" } };
     });
   };
 
@@ -612,9 +771,10 @@ export default function AlchemyDashboard() {
               className="alc-search"
               type="search"
               value={query}
-              onChange={(e) => onQuery(e.target.value)}
-              placeholder="Search items…"
+              onChange={(e) => patchView({ query: e.target.value })}
+              placeholder='Search items… e.g. rune -arrow, "dragon bones", sword|axe, /^black/'
               aria-label="Search items by name"
+              aria-describedby="alc-search-help"
             />
             <div className="alc-toggle-group" role="group" aria-label="Membership filter">
               {[["all", "All"], ["members", "P2P"], ["f2p", "F2P"]].map(([value, text]) => (
@@ -622,17 +782,118 @@ export default function AlchemyDashboard() {
                   key={value}
                   type="button"
                   className={`alc-toggle ${membership === value ? "is-active" : ""}`}
-                  onClick={() => onMembership(value)}
+                  onClick={() => patchView({ membership: value })}
                 >
                   {text}
                 </button>
               ))}
             </div>
             <label className="alc-check">
-              <input type="checkbox" checked={profitableOnly} onChange={(e) => onProfitableOnly(e.target.checked)} />
+              <input type="checkbox" checked={profitableOnly} onChange={(e) => patchView({ profitableOnly: e.target.checked })} />
               Profitable only
             </label>
-            <span className="alc-count" role="status" aria-live="polite">{formatFull(filtered.length)} matches</span>
+            <p id="alc-search-help" className="alc-help">
+              Search: all words must match · <code>-word</code> excludes · <code>a|b</code> either · <code>"exact phrase"</code> · <code>/regex/</code>
+            </p>
+          </div>
+
+          <div className="alc-panel">
+            <div className="alc-shortlist">
+              <label className="alc-check">
+                <input type="checkbox" checked={shortlist.on} onChange={(e) => patchView({ shortlist: { ...shortlist, on: e.target.checked } })} />
+                Shortlist
+              </label>
+              <span className={`alc-shortlist-body ${shortlist.on ? "" : "is-off"}`}>
+                take the
+                <select className="alc-select" value={shortlist.dir} onChange={(e) => patchView({ shortlist: { ...shortlist, dir: e.target.value, on: true } })} aria-label="Shortlist direction">
+                  <option value="desc">top</option>
+                  <option value="asc">bottom</option>
+                </select>
+                <input
+                  className="alc-num-input alc-n-input"
+                  type="number"
+                  min="1"
+                  step="10"
+                  value={shortlist.n}
+                  onChange={(e) => patchView({ shortlist: { ...shortlist, n: Math.max(1, Math.floor(Number(e.target.value) || 0)), on: true } })}
+                  aria-label="Shortlist size"
+                />
+                by
+                <select className="alc-select" value={shortlist.key} onChange={(e) => patchView({ shortlist: { ...shortlist, key: e.target.value, on: true } })} aria-label="Shortlist metric">
+                  {NUMERIC_COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+              </span>
+              <span className="alc-shortlist-body">
+                {shortlist.on ? "then rank them by" : "Rank by"}
+                <select className="alc-select" value={sort.key} onChange={(e) => patchView({ sort: { key: e.target.value, dir: e.target.value === "name" ? "asc" : "desc" } })} aria-label="Sort column">
+                  {COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+                <button type="button" className="alc-dir-btn" onClick={() => toggleSort(sort.key)} aria-label={`Sort ${sort.dir === "asc" ? "ascending" : "descending"}; click to flip`}>
+                  {sort.dir === "asc" ? "▲ low → high" : "▼ high → low"}
+                </button>
+              </span>
+            </div>
+
+            <div className="alc-presets" role="group" aria-label="Quick views">
+              <span className="alc-panel-label">Quick views</span>
+              {PRESETS.map((p) => (
+                <button key={p.label} type="button" className="alc-chip" title={p.help} onClick={() => applyPreset(p)}>{p.label}</button>
+              ))}
+              <button type="button" className="alc-chip alc-chip-quiet" onClick={resetView}>Reset filters</button>
+            </div>
+
+            <details className="alc-drawer">
+              <summary>
+                Thresholds{activeBounds.length ? <span className="alc-pill">{activeBounds.length} active</span> : null}
+                <small> — min / max per column; 10k, 1.5m, 2b work; ROI in %</small>
+              </summary>
+              <div className="alc-range-grid">
+                {NUMERIC_COLUMNS.map((col) => {
+                  const b = bounds.find((x) => x.key === col.key) || {};
+                  const r = ranges[col.key] || {};
+                  const active = isNum(b.min) || isNum(b.max);
+                  return (
+                    <div key={col.key} className={`alc-range ${active ? "is-active" : ""}`}>
+                      <span className="alc-range-label" title={col.help}>{col.label}</span>
+                      {["min", "max"].map((side) => (
+                        <input
+                          key={side}
+                          className={`alc-num-input ${Number.isNaN(b[side]) ? "is-bad" : ""}`}
+                          type="text"
+                          inputMode="decimal"
+                          placeholder={side}
+                          value={r[side] ?? ""}
+                          onChange={(e) => setRange(col.key, side, e.target.value)}
+                          aria-label={`${col.label} ${side}imum`}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+              {activeBounds.length > 0 && (
+                <button type="button" className="alc-chip alc-chip-quiet" onClick={() => patchView({ ranges: {} })}>Clear thresholds</button>
+              )}
+            </details>
+
+            <details className="alc-drawer">
+              <summary>Columns <small>— {shownColumns.length} of {COLUMNS.length} shown; hover a header for its definition</small></summary>
+              <div className="alc-col-grid">
+                {COLUMNS.filter((c) => c.key !== "name").map((col) => (
+                  <label key={col.key} className="alc-check" title={col.help}>
+                    <input type="checkbox" checked={view.columns.includes(col.key)} onChange={() => toggleColumn(col.key)} />
+                    {col.label}{col.derived ? <span className="alc-derived">derived</span> : null}
+                  </label>
+                ))}
+              </div>
+            </details>
+
+            <span className="alc-count" role="status" aria-live="polite">
+              {formatFull(matched)} matches
+              {shortlist.on && matched > filtered.length
+                ? ` · ranking the ${shortlist.dir === "desc" ? "top" : "bottom"} ${formatFull(filtered.length)} by ${COLUMN_BY_KEY[shortlist.key].label.toLowerCase()}`
+                : ""}
+            </span>
           </div>
 
           <div className="alc-table-wrap">
@@ -640,11 +901,11 @@ export default function AlchemyDashboard() {
               <thead>
                 <tr>
                   <th className="alc-th alc-th-rank" scope="col">#</th>
-                  {COLUMNS.map((col) => {
+                  {shownColumns.map((col) => {
                     const active = sort.key === col.key;
                     return (
-                      <th key={col.key} scope="col" className={`alc-th alc-th-${col.align}`} aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-                        <button type="button" className={`alc-sort ${active ? "is-active" : ""}`} onClick={() => toggleSort(col.key)}>
+                      <th key={col.key} scope="col" className={`alc-th alc-th-${col.align || "right"}`} aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+                        <button type="button" className={`alc-sort ${active ? "is-active" : ""}`} title={col.help} onClick={() => toggleSort(col.key)}>
                           {col.label}
                           <span className="alc-arrow" aria-hidden="true">{active ? (sort.dir === "asc" ? "▲" : "▼") : ""}</span>
                         </button>
@@ -665,13 +926,13 @@ export default function AlchemyDashboard() {
                     <React.Fragment key={item.item_id}>
                       <tr className={`alc-row ${isOpen ? "is-open" : ""}`} onClick={toggle}>
                         <td className="alc-td alc-num alc-rank">{i + 1}</td>
-                        {COLUMNS.map((col) => (
+                        {shownColumns.map((col) => (
                           <Cell key={col.key} column={col} item={item} expanded={isOpen} detailId={detailId} onToggle={toggle} />
                         ))}
                       </tr>
                       {isOpen && (
                         <tr className="alc-detail-row">
-                          <td colSpan={COLUMNS.length + 1}>
+                          <td colSpan={shownColumns.length + 1}>
                             <div id={detailId} role="region" aria-label={`${item.name} price history`}>
                               <ItemDetail item={item} cache={historyCache} />
                             </div>
@@ -682,7 +943,7 @@ export default function AlchemyDashboard() {
                   );
                 })}
                 {visible.length === 0 && (
-                  <tr><td className="alc-td alc-empty" colSpan={COLUMNS.length + 1}>No items match your filters.</td></tr>
+                  <tr><td className="alc-td alc-empty" colSpan={shownColumns.length + 1}>No items match your filters.</td></tr>
                 )}
               </tbody>
             </table>
@@ -732,7 +993,44 @@ function AlchemyStyles() {
       .alc-toggle.is-active { background: var(--accent-soft); color: #2a1208; font-weight: 700; }
       .alc-check { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 0.85rem; cursor: pointer; }
       .alc-check input { accent-color: var(--accent); width: 15px; height: 15px; }
-      .alc-count { margin-left: auto; color: var(--dim); font-size: 0.82rem; }
+      .alc-count { display: block; margin-top: 12px; color: var(--dim); font-size: 0.82rem; }
+      .alc-help { flex-basis: 100%; margin: 0; color: var(--dim); font-size: 0.76rem; }
+      .alc-help code, .alc-intro code { font-family: inherit; }
+      .alc-help code { color: var(--accent-soft); background: rgba(255,170,100,0.08); padding: 0 4px; }
+
+      .alc-panel { border: 1px solid var(--line); background: rgba(30,14,8,0.5); padding: 12px 14px; margin-bottom: 16px; display: grid; gap: 12px; font-size: 0.86rem; }
+      .alc-shortlist { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+      .alc-shortlist-body { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); transition: opacity 140ms ease; }
+      .alc-shortlist-body.is-off { opacity: 0.45; }
+      .alc-select, .alc-num-input {
+        font: inherit; font-size: 0.84rem; color: var(--text); background: rgba(20,10,6,0.85);
+        border: 1px solid var(--line); padding: 5px 8px; border-radius: 0; min-width: 0;
+      }
+      .alc-select:focus, .alc-num-input:focus { outline: none; border-color: var(--accent); }
+      .alc-num-input.is-bad { border-color: var(--alc-neg); }
+      .alc-n-input { width: 76px; }
+      .alc-dir-btn, .alc-chip {
+        font: inherit; font-size: 0.8rem; color: var(--accent); background: transparent;
+        border: 1px solid var(--line); padding: 5px 10px; cursor: pointer; transition: 140ms ease;
+      }
+      .alc-dir-btn:hover, .alc-chip:hover { border-color: var(--accent); background: rgba(255,170,100,0.1); }
+      .alc-chip-quiet { color: var(--muted); }
+      .alc-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .alc-panel-label { color: var(--dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 4px; }
+      .alc-drawer summary { cursor: pointer; color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      .alc-drawer summary small { text-transform: none; letter-spacing: 0; color: var(--dim); }
+      .alc-drawer summary:hover { color: var(--text); }
+      .alc-drawer[open] summary { margin-bottom: 10px; }
+      .alc-pill { margin-left: 8px; padding: 1px 7px; font-size: 0.7rem; background: var(--accent-soft); color: #2a1208; font-weight: 700; letter-spacing: 0; }
+      .alc-range-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px 16px; margin-bottom: 10px; }
+      .alc-range { display: grid; grid-template-columns: 1fr 78px 78px; gap: 6px; align-items: center; }
+      .alc-range-label { color: var(--muted); font-size: 0.82rem; }
+      .alc-range.is-active .alc-range-label { color: var(--accent); }
+      .alc-col-grid { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+      .alc-derived { margin-left: 4px; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--line); padding: 0 4px; }
+      .alc-th { white-space: nowrap; }
+      .alc-td-name { min-width: 230px; }
+      .alc-select option { background: #1e0e08; color: var(--text); }
 
       .alc-table-wrap { overflow-x: auto; border: 1px solid var(--line); }
       .alc-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
