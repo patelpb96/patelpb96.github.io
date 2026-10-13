@@ -9,11 +9,12 @@
   --accent: #ffb36b;
   --accent-soft: #ffd9b3;
   --cyan: #ffd4a3;
+  --fs: 1; /* text-size preset, set from the site bar (AlchemyPage.jsx) */
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
-html { background: #120a06; }
+html { background: #120a06; font-size: calc(16px * var(--fs)); } /* the dashboard is sized in rem */
 body {
   margin: 0;
   min-height: 100vh;
@@ -34,6 +35,12 @@ button, input, select, textarea, code { font-family: inherit; font-feature-setti
 .sitebar a:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
 .sitebar .who { font-weight: 700; font-size: 15px; color: var(--text); letter-spacing: 0.01em; }
 .sitebar nav { display: flex; gap: 16px; align-items: center; }
+
+.textsize { display: inline-flex; border: 1px solid var(--line); }
+.textsize button { line-height: 1; color: var(--muted); background: var(--bg); border: 0; min-width: 30px; height: 28px; padding: 0 6px; cursor: pointer; }
+.textsize button + button { border-left: 1px solid var(--line); }
+.textsize button:hover { color: var(--text); }
+.textsize button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
 
 .page-head { margin: 26px 0 22px; }
 .page-head h1 { margin: 0; font-size: clamp(1.9rem, 4vw, 2.8rem); line-height: 1.1; font-weight: 700; }
