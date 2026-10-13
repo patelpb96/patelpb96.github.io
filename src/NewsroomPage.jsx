@@ -228,7 +228,7 @@ function Edition({ ed }) {
   return (
     <div className="np-paper">
       <header className="np-mast">
-        <h1>The Daily Plane</h1>
+        <h1>Agent Report</h1>
         <p className="np-dateline">{fmtDay(ed.created)}</p>
       </header>
       <p className="np-edtitle">{ed.title}</p>
@@ -414,14 +414,14 @@ export default function NewsroomPage() {
       </div>
       {!session && (
         <>
-          <header className="np-mast"><h1>The Daily Plane</h1><p className="np-dateline">Private newsroom</p></header>
+          <header className="np-mast"><h1>Agent Report</h1><p className="np-dateline">Private newsroom</p></header>
           <Unlock onUnlock={(s, h) => { setSession(s); setHistory(h); }} />
         </>
       )}
       {session && rid && <RunView key={rid} session={session} rid={rid} onBack={() => { setRid(null); refresh(); }} />}
       {session && !rid && (
         <>
-          <header className="np-mast"><h1>The Daily Plane</h1><p className="np-dateline">{fmtDay()}</p></header>
+          <header className="np-mast"><h1>Agent Report</h1><p className="np-dateline">{fmtDay()}</p></header>
           <Compose session={session} onSent={(r, req) => {
             setHistory((h) => [{ rid: r, title: req.text, request: req.text, created: req.created, state: "queued", stories: 0 }, ...h]);
             setRid(r);
