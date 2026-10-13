@@ -69,10 +69,16 @@ Edition        { rid, request, title, created: ISO, window: {start: ISO, end: IS
                  headline: Article, articles: Article[], sources: Source[], facts: Fact[],
                  notes: string[],            // e.g. "Only 4 stories passed verification."
                  stats: { agents, minutes, cost_usd: number|null, billing: "plan"|"api" } }
-Article        { id, headline, dek, desk, significance: 1..5,
+Article        { id, headline, dek, desk, significance: 1..5, reliability: "verified"|"low",
                  paragraphs: { sentences: { text, facts: string[] }[] }[] }
-Fact           { id, statement, scope: "major"|"minor", sources: { source: string, quote: string }[] }
-Source         { id, url, domain, title, outlet, published: ISO|null, fetched: ISO, kind: "report"|"official"|"opinion" }
+Fact           { id, statement, scope: "major"|"minor", reliability: "verified"|"low",
+                 sources: { source: string, quote: string }[] }
+Source         { id, url, domain, title, outlet, published: ISO|null, fetched: ISO,
+                 kind: "report"|"official"|"opinion"|"other"|"social"|"forum"|"listing"|"aggregator",
+                 reliability: "verified"|"low" }
 ```
 Every sentence cites ≥ 1 fact; every fact has ≥ 1 source quote (≥ 2 independent for "major").
+`headline` + `articles` hold at most 5 stories (whatever passed; fewer is normal). A fact is "low"
+when reliable sources (report/official) alone don't meet its bar; an article is "low" when any of
+its facts is. The phone flags low articles, facts and sources as "less reliable".
 The phone renders sentence → superscript fact numbers → tap shows statement, quotes, links.

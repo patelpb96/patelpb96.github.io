@@ -136,3 +136,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-srcmeta { margin: 0; font-size: 14px; color: var(--muted); }
 .np-srcmeta a { color: var(--accent); }
 .np-srcmeta span { font-size: 12px; }
+
+/* Less reliable: stories/facts/sources that rely on social media, forums, listings, etc. */
+.np-low { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px;
+  letter-spacing: .02em; text-transform: none; border: 1px dashed currentColor; color: #c98a1b; vertical-align: middle; }
+.np-fn.np-fn-low { color: #c98a1b; text-decoration: underline dotted; }

@@ -154,6 +154,7 @@ function FactSheet({ fact, sources, n, onClose }) {
         <div className="np-sheet-head">
           <span className="np-factno">Fact {n}</span>
           <span className={`np-scope np-${fact.scope}`}>{fact.scope}</span>
+          {fact.reliability === "low" && <span className="np-low">less reliable</span>}
           <button ref={btn} className="np-btn np-close" onClick={onClose} aria-label="Close">Close</button>
         </div>
         <p className="np-fact">{fact.statement}</p>
@@ -169,7 +170,7 @@ function FactSheet({ fact, sources, n, onClose }) {
                     {" · "}
                     <a href={/^https?:\/\//i.test(src.url) ? src.url : undefined} target="_blank" rel="noopener noreferrer">{src.title || src.url}</a>
                     <br />
-                    <span>{src.kind}{src.published ? ` · published ${fmt(src.published)}` : ""} · fetched {fmt(src.fetched)}</span>
+                    <span>{src.kind}{src.reliability === "low" ? " (less reliable)" : ""}{src.published ? ` · published ${fmt(src.published)}` : ""} · fetched {fmt(src.fetched)}</span>
                   </p>
                 ) : <p className="np-srcmeta">Source {s.source} unavailable</p>}
               </li>
@@ -181,10 +182,15 @@ function FactSheet({ fact, sources, n, onClose }) {
   );
 }
 
-function ArticleView({ art, big, num, onFact }) {
+function ArticleView({ art, big, num, onFact, isLow }) {
   return (
     <article className={big ? "np-art np-lead" : "np-art np-card"}>
-      {art.desk && <p className="np-desk">{art.desk}</p>}
+      {(art.desk || art.reliability === "low") && (
+        <p className="np-desk">
+          {art.desk}
+          {art.reliability === "low" && <span className="np-low" title="Relies partly on social media, forums, listings or other unverified sites">less reliable sources</span>}
+        </p>
+      )}
       {big ? <h2 className="np-hl">{art.headline}</h2> : <h3 className="np-hl">{art.headline}</h3>}
       {art.dek && <p className="np-dek">{art.dek}</p>}
       {(art.paragraphs || []).map((p, i) => (
@@ -193,7 +199,7 @@ function ArticleView({ art, big, num, onFact }) {
             <span key={j}>
               {s.text}
               {(s.facts || []).map((f) => (
-                <sup key={f}><button className="np-fn" onClick={() => onFact(f)} aria-label={`Fact ${num(f)}`}>{num(f)}</button></sup>
+                <sup key={f}><button className={isLow(f) ? "np-fn np-fn-low" : "np-fn"} onClick={() => onFact(f)} aria-label={`Fact ${num(f)}${isLow(f) ? ", less reliable" : ""}`}>{num(f)}</button></sup>
               ))}{" "}
             </span>
           ))}
@@ -217,6 +223,7 @@ function Edition({ ed }) {
   }, [ed]);
   const num = (id) => numOf[id] ?? "?";
   const onFact = (id) => factMap[id] && setOpen(id);
+  const isLow = (id) => factMap[id]?.reliability === "low";
   const st = ed.stats || {};
   return (
     <div className="np-paper">
@@ -226,8 +233,8 @@ function Edition({ ed }) {
       </header>
       <p className="np-edtitle">{ed.title}</p>
       <p className="np-req">Requested: “{ed.request}”</p>
-      {ed.headline && <ArticleView art={ed.headline} big num={num} onFact={onFact} />}
-      {(ed.articles || []).map((a) => <ArticleView key={a.id} art={a} num={num} onFact={onFact} />)}
+      {ed.headline && <ArticleView art={ed.headline} big num={num} onFact={onFact} isLow={isLow} />}
+      {(ed.articles || []).map((a) => <ArticleView key={a.id} art={a} num={num} onFact={onFact} isLow={isLow} />)}
       {(ed.articles || []).length === 0 && !ed.headline && <p className="np-fine">No stories passed verification.</p>}
       {(ed.notes || []).length > 0 && (
         <aside className="np-notes" aria-label="Editor's notes">
