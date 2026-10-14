@@ -16,6 +16,17 @@ modelled on the Scratch gateway. AWS only ever stores ciphertext (plus a few pla
 - Setup refuses passwords estimated below 60 bits (offline guessing against public ciphertext
   is the main threat, so the password must be strong).
 
+## Day password (optional, one at a time, 24 h)
+- `newsdesk temp` (home) takes a new password (≥ 60 bits, never used before, not the master),
+  picks a fresh `daySalt`, and derives `dayBits` the same way (PBKDF2, same `iter`).
+- `config.json` gains `day: { salt, iter, expires: <epoch s>, iv, ct }` with
+  `ct = AES-GCM(dayBits[0:32], iv, raw master enc key (32 bytes), aad = utf8("1|day|" + expires))`.
+  So the day password reads everything; it writes with `dayToken = hex(dayBits[32:64])`.
+- SSM `/patelpb/newsroom/temp-sha256` = `"<hex sha256(dayToken)>:<expires>"`. The Lambda and the
+  edge check (`cloudfront_api.py auth` bakes it in) accept that token only while `now < expires`.
+- The phone tries `config.day` first when unexpired, else the master password. A new `newsdesk temp`
+  replaces the old one; nothing is valid after expiry until the next `newsdesk temp`.
+
 ## Envelope (every encrypted object)
 ```json
 { "v": 1, "name": "out/r-abc123de/edition.json", "seq": 7, "iv": "<b64 12 bytes>", "ct": "<b64>" }

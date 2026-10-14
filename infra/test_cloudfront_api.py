@@ -23,6 +23,18 @@ class ConfigTest(unittest.TestCase):
         self.assertIn("headers['x-newsroom-key']", n)
         self.assertIn(f"var WANT = '{HASH}';", n)
         self.assertNotIn("@", g + n)
+        self.assertIn("var DAY = '';", n)
+
+    def test_day_key_baked_with_expiry_ms(self):
+        n = c.auth_code(c.AUTHS["newsroom"], HASH, ("b" * 64, 1700000000))
+        self.assertIn(f"var DAY = '{'b' * 64}';", n)
+        self.assertIn("var DAY_UNTIL = 1700000000000;", n)
+        self.assertNotIn("@", n)
+
+    def test_parse_day(self):
+        self.assertEqual(c.parse_day(f"{'B' * 64}:17"), ("b" * 64, 17))
+        for bad in (None, "none", "b" * 64, "zz:1", f"{'b' * 64}:soon"):
+            self.assertIsNone(c.parse_day(bad))
 
     def test_order_most_specific_first_and_default_last(self):
         paths = [a["path"] for a in c.ATTACHMENTS]

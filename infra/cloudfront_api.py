@@ -8,6 +8,7 @@ function, custom error responses, the S3 origin + OAC). Idempotent.
     python infra/cloudfront_api.py attach   # add/refresh origins + /api/gateway/*, /api/newsroom/*, /api/* behaviors
     python infra/cloudfront_api.py detach   # remove them (run BEFORE `npx cdk destroy`)
     python infra/cloudfront_api.py status   # print what is attached
+    python infra/cloudfront_api.py auth     # only republish the edge key checks (after a key or day-key change)
 
 attach reads the Function URL domains and the Lambda OAC id from the CloudFormation
 stack outputs (stack PatelpbLiveApi). All behaviors have: all methods allowed, managed
@@ -19,7 +20,10 @@ hash to an SSM value (so unauthenticated floods never reach Lambda):
     /api/gateway/*   patelpb-gateway-auth   x-gateway-key   /patelpb/gateway/writer-key-sha256
     /api/newsroom/*  patelpb-newsroom-auth  x-newsroom-key  /patelpb/newsroom/key-sha256
 
-attach (re)publishes those functions from SSM, so after rotating a key just run attach again.
+attach (re)publishes those functions from SSM, so after rotating a key just run attach (or auth) again.
+The newsroom check also accepts an optional 24 h day key from /patelpb/newsroom/temp-sha256
+("<sha256>:<expires epoch s>", written by `python -m newsdesk temp`, which then runs `auth`); the
+expiry is baked into the function and checked against the clock at the edge.
 The gateway is required (attach exits if its SSM value is missing); the newsroom is optional:
 if its SSM value or stack output is missing it is skipped with a message, and any existing
 newsroom behavior is left untouched. attach also seeds, when absent, live/gateway/{state,beat}.json
@@ -49,6 +53,7 @@ AUTHS = {
                 "setup": "run `npm run gateway` once and the `aws ssm put-parameter` command it prints"},
     "newsroom": {"function": "patelpb-newsroom-auth", "header": "x-newsroom-key", "path": "/api/newsroom/*",
                  "param": "/patelpb/newsroom/key-sha256", "required": False,
+                 "temp_param": "/patelpb/newsroom/temp-sha256",
                  "comment": "patelpb.com /api/newsroom/* key check",
                  "setup": "run `python -m newsdesk setup` (agent-dashboard repo)"},
 }
@@ -74,10 +79,15 @@ SEEDS = {
 AUTH_CODE = """// Managed by infra/cloudfront_api.py (attach). Edge check for @PATH@.
 var crypto = require('crypto');
 var WANT = '@WANT@';
+var DAY = '@DAY@';
+var DAY_UNTIL = @UNTIL@;
 function handler(event) {
   var h = event.request.headers['@HEADER@'];
-  if (h && h.value && crypto.createHash('sha256').update(h.value).digest('hex') === WANT) {
-    return event.request;
+  if (h && h.value) {
+    var got = crypto.createHash('sha256').update(h.value).digest('hex');
+    if (got === WANT || (DAY && got === DAY && Date.now() < DAY_UNTIL)) {
+      return event.request;
+    }
   }
   return {
     statusCode: 401,
@@ -92,8 +102,19 @@ function handler(event) {
 """
 
 
-def auth_code(spec: dict, want: str) -> str:
-    return AUTH_CODE.replace("@PATH@", spec["path"]).replace("@HEADER@", spec["header"]).replace("@WANT@", want)
+def auth_code(spec: dict, want: str, day: tuple[str, int] | None = None) -> str:
+    """day = (sha256 of the day token, expires epoch seconds) or None."""
+    digest, until = day if day else ("", 0)
+    return (AUTH_CODE.replace("@PATH@", spec["path"]).replace("@HEADER@", spec["header"])
+            .replace("@WANT@", want).replace("@DAY@", digest).replace("@UNTIL@", str(int(until) * 1000)))
+
+
+def parse_day(value: str | None) -> tuple[str, int] | None:
+    """'<sha256>:<expires epoch s>' -> (sha256, expires); None for 'none', garbage or missing."""
+    digest, _, exp = (value or "").strip().lower().partition(":")
+    if len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest) or not exp.isdigit():
+        return None
+    return digest, int(exp)
 
 
 def aws_exe() -> str:
@@ -191,10 +212,17 @@ def read_hash(spec: dict) -> str | None:
     return want
 
 
+def read_day(spec: dict) -> tuple[str, int] | None:
+    if not spec.get("temp_param"):
+        return None
+    p = aws("ssm", "get-parameter", "--name", spec["temp_param"], check=False)
+    return None if "__error__" in p else parse_day(p["Parameter"]["Value"])
+
+
 def publish_auth_function(spec: dict, want: str) -> str:
-    """Create/update + publish the spec's edge function from the SSM hash; return its LIVE ARN."""
+    """Create/update + publish the spec's edge function from the SSM hash(es); return its LIVE ARN."""
     name = spec["function"]
-    code = auth_code(spec, want)
+    code = auth_code(spec, want, read_day(spec))
     cfg = json.dumps({"Comment": spec["comment"], "Runtime": "cloudfront-js-2.0"})
     path = write_temp(code, ".js")
     try:
@@ -299,6 +327,14 @@ def desired(active: list[dict], out: dict, fn_arns: dict) -> tuple[list[dict], l
 
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if cmd == "auth":  # republish the key checks only; the behaviors keep pointing at LIVE
+        for spec in AUTHS.values():
+            want = read_hash(spec)
+            if want is None:
+                print(f"{spec['function']}: no {spec['param']}; skipped")
+                continue
+            publish_auth_function(spec, want)
+        return
     d = aws("cloudfront", "get-distribution-config", "--id", DIST_ID)
     cfg, etag = d["DistributionConfig"], d["ETag"]
     all_o = cfg["Origins"].get("Items", [])

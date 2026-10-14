@@ -56,3 +56,35 @@ export async function decryptDoc(key, envelope, name) {
 export async function sha256Hex(text) {
   return toHex(new Uint8Array(await crypto.subtle.digest("SHA-256", te.encode(text))));
 }
+
+// Day password (PROTOCOL.md "Day password"): config.day = { salt, iter, expires (epoch s), iv, ct } where
+// ct = AES-GCM(day enc key, iv, raw 32-byte master enc key, aad = "1|day|" + expires). The holder gets the
+// master enc key (so it reads everything) but writes with the day token, which the server stops
+// accepting at `expires`.
+const dayAad = (expires) => te.encode(`${VERSION}|day|${expires}`);
+
+/** -> session like deriveSession's (plus { day: expires }), or null if `password` isn't the day password
+ *  or the day password has expired. */
+export async function openDay(password, day, nowMs = Date.now()) {
+  if (!day || !day.salt || !day.iter || !day.ct || !(nowMs < day.expires * 1000)) return null;
+  const bits = await deriveBits(password, day.salt, day.iter);
+  const dayKey = await crypto.subtle.importKey("raw", bits.slice(0, 32), "AES-GCM", false, ["decrypt"]);
+  let raw;
+  try {
+    raw = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(day.iv), additionalData: dayAad(day.expires) },
+      dayKey, fromB64(day.ct));
+  } catch {
+    return null;
+  }
+  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return { key, token: toHex(bits.slice(32, 64)), day: day.expires };
+}
+
+/** Test/fixture helper: wrap a raw master enc key for a day password (home does this in Python). */
+export async function makeDay(password, masterRaw, saltB64, iter, expires) {
+  const bits = await deriveBits(password, saltB64, iter);
+  const dayKey = await crypto.subtle.importKey("raw", bits.slice(0, 32), "AES-GCM", false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: dayAad(expires) }, dayKey, masterRaw);
+  return { salt: saltB64, iter, expires, iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+}

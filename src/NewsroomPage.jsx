@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPlane } from "./newsroom-plane.js";
-import { decryptDoc, deriveSession, encryptDoc, sha256Hex } from "./newsroom-crypto.js";
+import { decryptDoc, deriveSession, encryptDoc, openDay, sha256Hex } from "./newsroom-crypto.js";
 import "./newsroom.css";
 
 const DEFAULT_BASE = "/live/newsroom/";
@@ -82,7 +82,8 @@ function Unlock({ onUnlock }) {
     try {
       const cfg = await getJson("config.json");
       if (!cfg || !cfg.salt || !cfg.iter) throw new Error("The newsroom is not set up yet (no config.json).");
-      const session = await deriveSession(pw, cfg.salt, cfg.iter);
+      // The 24 h day password (if one is live) unwraps the master key; otherwise it's the master password.
+      const session = (await openDay(pw, cfg.day)) || await deriveSession(pw, cfg.salt, cfg.iter);
       const index = await getEnc(session.key, "out/index.json"); // throws WrongPassword if it can't decrypt
       onUnlock(session, index ? index.editions || [] : []);
       setPw("");
@@ -328,6 +329,7 @@ function Compose({ session, onSent }) {
       });
       let j = null;
       try { j = await res.json(); } catch { /* not json */ }
+      if (res.status === 401 && session.day) throw new Error("This day password has expired.");
       if (!res.ok || !j || j.status !== "ok") {
         throw new Error(`Send failed (HTTP ${res.status})${j && (j.error || j.message) ? `: ${j.error || j.message}` : ""}`);
       }

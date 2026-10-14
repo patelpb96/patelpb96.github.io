@@ -13,6 +13,8 @@ import unittest
 
 TOKEN = "a" * 64
 TOKEN_HASH = hashlib.sha256(TOKEN.encode()).hexdigest()
+DAY = "d" * 64
+DAY_HASH = hashlib.sha256(DAY.encode()).hexdigest()
 
 
 class NoSuchKey(Exception):
@@ -37,9 +39,14 @@ class FakeS3:
 class FakeSSM:
     def __init__(self):
         self.calls = 0
+        self.temp = None  # value of the day-key parameter; None = ParameterNotFound
 
     def get_parameter(self, Name):
         self.calls += 1
+        if Name == "/test/temp":
+            if self.temp is None:
+                raise Exception("ParameterNotFound")
+            return {"Parameter": {"Value": self.temp}}
         return {"Parameter": {"Value": TOKEN_HASH + "\n"}}
 
 
@@ -47,7 +54,7 @@ FAKE_S3, FAKE_SSM = FakeS3(), FakeSSM()
 fake_boto3 = types.ModuleType("boto3")
 fake_boto3.client = lambda name: FAKE_S3 if name == "s3" else FAKE_SSM
 sys.modules["boto3"] = fake_boto3
-os.environ.update(BUCKET="test-bucket", KEY_HASH_PARAM="/test/param")
+os.environ.update(BUCKET="test-bucket", KEY_HASH_PARAM="/test/param", TEMP_HASH_PARAM="/test/temp")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import handler as h  # noqa: E402
 
@@ -240,6 +247,40 @@ class HandlerTest(unittest.TestCase):
             self.assertEqual(call("beat.json", {"v": 1, "beat": 1})["statusCode"], 500)
         finally:
             FAKE_S3.put_object = orig
+
+
+class DayKeyTest(unittest.TestCase):
+    def setUp(self):
+        FAKE_S3.objects.clear()
+        h._temp = None
+
+    def tearDown(self):
+        FAKE_SSM.temp = None
+        h._temp = None
+
+    def put_beat(self, key):
+        return call("beat.json", {"v": 1, "beat": 1, "busy": False, "version": "x"}, key=key)["statusCode"]
+
+    def test_no_day_key(self):
+        self.assertEqual(self.put_beat(DAY), 401)
+        self.assertEqual(self.put_beat(TOKEN), 200)
+
+    def test_unexpired_day_key_works_alongside_master(self):
+        import time
+        FAKE_SSM.temp = f"{DAY_HASH}:{time.time() + 3600:.0f}"
+        self.assertEqual(self.put_beat(DAY), 200)
+        self.assertEqual(self.put_beat(TOKEN), 200)
+
+    def test_expired_day_key_rejected(self):
+        import time
+        FAKE_SSM.temp = f"{DAY_HASH}:{time.time() - 1:.0f}"
+        self.assertEqual(self.put_beat(DAY), 401)
+        self.assertEqual(self.put_beat(TOKEN), 200)
+
+    def test_none_and_garbage(self):
+        for v in ("none", "zz:abc", DAY_HASH):
+            FAKE_SSM.temp, h._temp = v, None
+            self.assertEqual(self.put_beat(DAY), 401, v)
 
 
 if __name__ == "__main__":

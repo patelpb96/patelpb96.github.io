@@ -8,7 +8,9 @@ plaintext. Only beat.json (a few plain counters) is stored unencrypted.
 Reached only through CloudFront (Function URL, AuthType AWS_IAM, Lambda OAC). The
 /api/newsroom/* behavior's viewer-request function (patelpb-newsroom-auth) already rejects a
 missing or wrong x-newsroom-key at the edge; the key is checked again here against the SHA-256
-in SSM (cached for 60 s, so a rotation takes effect within a minute).
+in SSM (cached for 60 s, so a rotation takes effect within a minute). A second, optional "day"
+key (TEMP_HASH_PARAM, value "<sha256>:<expires epoch s>", written by `newsdesk temp`) is accepted
+too until it expires; "none" or a missing parameter means no day key.
 
     put {name, doc}   name must match NAME (allowlist; no other key is ever writable)
                       beat.json  -> small plain object {v, beat, busy, version}
@@ -35,6 +37,7 @@ import boto3
 BUCKET = os.environ["BUCKET"]
 PREFIX = os.environ.get("LIVE_PREFIX", "live/newsroom/")
 PARAM = os.environ["KEY_HASH_PARAM"]
+TEMP_PARAM = os.environ.get("TEMP_HASH_PARAM", "")
 ROUTE = "/api/newsroom/put"
 MAX_BODY = 900 * 1024
 MAX_BEAT = 1024
@@ -47,6 +50,7 @@ s3 = boto3.client("s3")
 ssm = boto3.client("ssm")
 
 _hash: tuple[float, str] | None = None  # (fetched_at, hex sha256 of the newsroom token)
+_temp: tuple[float, str, float] | None = None  # (fetched_at, hex sha256 of the day token, expires epoch s)
 NAME = re.compile(r"^(beat\.json|inbox/r-[a-z0-9]{8,32}\.json|out/index\.json"
                   r"|out/r-[a-z0-9]{8,32}/(status|plane|edition)\.json)$")
 INBOX = re.compile(r"^inbox/(r-[a-z0-9]{8,32})\.json$")
@@ -75,10 +79,35 @@ def key_hash() -> str:
     return _hash[1]
 
 
+def temp_hash(now_s: float | None = None) -> str | None:
+    """sha256 of the day token while it is unexpired, else None."""
+    global _temp
+    if not TEMP_PARAM:
+        return None
+    now = time.monotonic()
+    if _temp is None or now - _temp[0] > HASH_TTL:
+        try:
+            value = ssm.get_parameter(Name=TEMP_PARAM)["Parameter"]["Value"].strip().lower()
+        except Exception:  # ParameterNotFound (no day key yet) or SSM trouble: no day key
+            value = "none"
+        digest, _, exp = value.partition(":")
+        try:
+            _temp = (now, digest, float(exp))
+        except ValueError:
+            _temp = (now, "", 0.0)
+    _, digest, exp = _temp
+    return digest if len(digest) == 64 and (now_s if now_s is not None else time.time()) < exp else None
+
+
 def authorized(headers: dict) -> bool:
     key = headers.get("x-newsroom-key") or ""
+    if not key:
+        return False
     got = hashlib.sha256(key.encode()).hexdigest()
-    return bool(key) and hmac.compare_digest(got, key_hash())
+    if hmac.compare_digest(got, key_hash()):
+        return True
+    day = temp_hash()
+    return bool(day) and hmac.compare_digest(got, day)
 
 
 def put(name: str, doc: dict) -> None:

@@ -184,6 +184,8 @@ export class LiveApiStack extends cdk.Stack {
     //   patelpb-newsroom-auth, same Lambda OAC) -> Function URL -> s3 live/newsroom/*.
     // The key's SHA-256 lives in SSM (written by `python -m newsdesk setup`; see infra/README.md).
     const newsroomParam = '/patelpb/newsroom/key-sha256';
+    // Optional 24 h "day" key: "<sha256>:<expires epoch s>" (written by `python -m newsdesk temp`).
+    const newsroomTempParam = '/patelpb/newsroom/temp-sha256';
     const newsroomLogs = new logs.LogGroup(this, 'NewsroomLogs', {
       logGroupName: '/aws/lambda/patelpb-newsroom',
       retention: logs.RetentionDays.TWO_WEEKS,
@@ -200,7 +202,8 @@ export class LiveApiStack extends cdk.Stack {
       }),
       memorySize: 256,
       timeout: cdk.Duration.seconds(10),
-      environment: { BUCKET: props.bucketName, LIVE_PREFIX: 'live/newsroom/', KEY_HASH_PARAM: newsroomParam },
+      environment: { BUCKET: props.bucketName, LIVE_PREFIX: 'live/newsroom/', KEY_HASH_PARAM: newsroomParam,
+        TEMP_HASH_PARAM: newsroomTempParam },
       logGroup: newsroomLogs,
     });
     const newsroomUrl = newsroom.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
@@ -225,7 +228,8 @@ export class LiveApiStack extends cdk.Stack {
     newsroom.addToRolePolicy(new iam.PolicyStatement({ actions: ['s3:ListBucket'], resources: [bucketArn] }));
     newsroom.addToRolePolicy(new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
-      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${newsroomParam}`],
+      resources: [newsroomParam, newsroomTempParam].map(
+        (p) => `arn:aws:ssm:${this.region}:${this.account}:parameter${p}`),
     }));
 
     // ------------------------------------------------------------------ budget
