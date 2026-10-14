@@ -40,6 +40,7 @@ class FakeSSM:
     def __init__(self):
         self.calls = 0
         self.temp = None  # value of the day-key parameter; None = ParameterNotFound
+        self.open = None  # value of the open-key parameter; None = ParameterNotFound
 
     def get_parameter(self, Name):
         self.calls += 1
@@ -47,6 +48,10 @@ class FakeSSM:
             if self.temp is None:
                 raise Exception("ParameterNotFound")
             return {"Parameter": {"Value": self.temp}}
+        if Name == "/test/open":
+            if self.open is None:
+                raise Exception("ParameterNotFound")
+            return {"Parameter": {"Value": self.open}}
         return {"Parameter": {"Value": TOKEN_HASH + "\n"}}
 
 
@@ -54,7 +59,8 @@ FAKE_S3, FAKE_SSM = FakeS3(), FakeSSM()
 fake_boto3 = types.ModuleType("boto3")
 fake_boto3.client = lambda name: FAKE_S3 if name == "s3" else FAKE_SSM
 sys.modules["boto3"] = fake_boto3
-os.environ.update(BUCKET="test-bucket", KEY_HASH_PARAM="/test/param", TEMP_HASH_PARAM="/test/temp")
+os.environ.update(BUCKET="test-bucket", KEY_HASH_PARAM="/test/param", TEMP_HASH_PARAM="/test/temp",
+                  OPEN_HASH_PARAM="/test/open")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import handler as h  # noqa: E402
 
@@ -281,6 +287,75 @@ class DayKeyTest(unittest.TestCase):
         for v in ("none", "zz:abc", DAY_HASH):
             FAKE_SSM.temp, h._temp = v, None
             self.assertEqual(self.put_beat(DAY), 401, v)
+
+
+OPEN = "e" * 64
+OPEN_HASH = hashlib.sha256(OPEN.encode()).hexdigest()
+
+
+class OpenKeyTest(unittest.TestCase):
+    def setUp(self):
+        import time
+        FAKE_S3.objects.clear()
+        h._open = None
+        self.exp = int(time.time() + 3600)
+        FAKE_SSM.open = f"{OPEN_HASH}:{self.exp}:3"
+
+    def tearDown(self):
+        FAKE_SSM.open = None
+        h._open = None
+
+    def stored(self, name):
+        return json.loads(FAKE_S3.objects[PFX + name]["Body"])
+
+    def send(self, rid, key=OPEN):
+        name = f"open/inbox/{rid}.json"
+        return call(name, envelope(name), key=key)["statusCode"]
+
+    def test_open_key_only_sends_requests(self):
+        for name in ("out/index.json", "open/out/index.json", "open/out/r-abcd1234/edition.json",
+                     "inbox/r-abcd1234.json", "out/r-abcd1234/status.json"):
+            self.assertEqual(call(name, envelope(name), key=OPEN)["statusCode"], 401, name)
+        self.assertEqual(call("beat.json", {"v": 1, "beat": 1}, key=OPEN)["statusCode"], 401)
+        self.assertFalse(FAKE_S3.objects)
+
+    def test_open_request_goes_to_open_index(self):
+        self.assertEqual(self.send("r-abcd1234"), 200)
+        idx = self.stored("open/inbox/index.json")
+        self.assertEqual((idx["ids"], idx["period"], idx["seq"]), (["r-abcd1234"], self.exp, 1))
+        self.assertNotIn(PFX + "inbox/index.json", FAKE_S3.objects)
+
+    def test_limit_per_period(self):
+        for i in range(3):
+            self.assertEqual(self.send(f"r-abcd000{i}"), 200)
+        self.assertEqual(self.send("r-abcd0009"), 429)
+        self.assertNotIn(PFX + "open/inbox/r-abcd0009.json", FAKE_S3.objects)
+        # A new open period (new expiry) starts with a fresh allowance.
+        FAKE_SSM.open, h._open = f"{OPEN_HASH}:{self.exp + 60}:3", None
+        self.assertEqual(self.send("r-abcd0009"), 200)
+        self.assertEqual(self.stored("open/inbox/index.json")["ids"], ["r-abcd0009"])
+
+    def test_no_overwrite(self):
+        self.assertEqual(self.send("r-abcd1234"), 200)
+        self.assertEqual(self.send("r-abcd1234"), 409)
+
+    def test_master_still_writes_open_outputs(self):
+        for name in ("open/out/index.json", "open/out/r-abcd1234/status.json"):
+            self.assertEqual(call(name, envelope(name))["statusCode"], 200, name)
+
+    def test_expired_closed_or_garbage(self):
+        import time
+        for v in (f"{OPEN_HASH}:{time.time() - 1:.0f}:3", "none", f"{OPEN_HASH}:{self.exp}", f"{OPEN_HASH}:{self.exp}:0"):
+            FAKE_SSM.open, h._open = v, None
+            self.assertEqual(self.send("r-abcd1234"), 401, v)
+        FAKE_SSM.open, h._open = None, None
+        self.assertEqual(self.send("r-abcd1234"), 401)
+
+    def test_open_body_cap(self):
+        name = "open/inbox/r-abcd1234.json"
+        big = envelope(name, ct=base64.b64encode(b"\x02" * 9000).decode())
+        self.assertEqual(call(name, big, key=OPEN)["statusCode"], 413)
+        self.assertEqual(call(name, big)["statusCode"], 200)   # master may send bigger
 
 
 if __name__ == "__main__":

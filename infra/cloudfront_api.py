@@ -23,7 +23,9 @@ hash to an SSM value (so unauthenticated floods never reach Lambda):
 attach (re)publishes those functions from SSM, so after rotating a key just run attach (or auth) again.
 The newsroom check also accepts an optional 24 h day key from /patelpb/newsroom/temp-sha256
 ("<sha256>:<expires epoch s>", written by `python -m newsdesk temp`, which then runs `auth`); the
-expiry is baked into the function and checked against the clock at the edge.
+expiry is baked into the function and checked against the clock at the edge. Open mode works the same
+way with /patelpb/newsroom/open-sha256 ("<sha256>:<expires>:<limit>", `newsdesk open`/`close`); the
+Lambda then lets that public key send requests only.
 The gateway is required (attach exits if its SSM value is missing); the newsroom is optional:
 if its SSM value or stack output is missing it is skipped with a message, and any existing
 newsroom behavior is left untouched. attach also seeds, when absent, live/gateway/{state,beat}.json
@@ -54,6 +56,7 @@ AUTHS = {
     "newsroom": {"function": "patelpb-newsroom-auth", "header": "x-newsroom-key", "path": "/api/newsroom/*",
                  "param": "/patelpb/newsroom/key-sha256", "required": False,
                  "temp_param": "/patelpb/newsroom/temp-sha256",
+                 "open_param": "/patelpb/newsroom/open-sha256",
                  "comment": "patelpb.com /api/newsroom/* key check",
                  "setup": "run `python -m newsdesk setup` (agent-dashboard repo)"},
 }
@@ -81,11 +84,14 @@ var crypto = require('crypto');
 var WANT = '@WANT@';
 var DAY = '@DAY@';
 var DAY_UNTIL = @UNTIL@;
+var OPEN = '@OPEN@';
+var OPEN_UNTIL = @OPEN_UNTIL@;
 function handler(event) {
   var h = event.request.headers['@HEADER@'];
   if (h && h.value) {
     var got = crypto.createHash('sha256').update(h.value).digest('hex');
-    if (got === WANT || (DAY && got === DAY && Date.now() < DAY_UNTIL)) {
+    if (got === WANT || (DAY && got === DAY && Date.now() < DAY_UNTIL)
+        || (OPEN && got === OPEN && Date.now() < OPEN_UNTIL)) {
       return event.request;
     }
   }
@@ -102,16 +108,20 @@ function handler(event) {
 """
 
 
-def auth_code(spec: dict, want: str, day: tuple[str, int] | None = None) -> str:
-    """day = (sha256 of the day token, expires epoch seconds) or None."""
+def auth_code(spec: dict, want: str, day: tuple[str, int] | None = None,
+              open_: tuple[str, int] | None = None) -> str:
+    """day / open_ = (sha256 of that token, expires epoch seconds) or None."""
     digest, until = day if day else ("", 0)
+    odigest, ountil = open_ if open_ else ("", 0)
     return (AUTH_CODE.replace("@PATH@", spec["path"]).replace("@HEADER@", spec["header"])
-            .replace("@WANT@", want).replace("@DAY@", digest).replace("@UNTIL@", str(int(until) * 1000)))
+            .replace("@WANT@", want).replace("@DAY@", digest).replace("@UNTIL@", str(int(until) * 1000))
+            .replace("@OPEN_UNTIL@", str(int(ountil) * 1000)).replace("@OPEN@", odigest))
 
 
 def parse_day(value: str | None) -> tuple[str, int] | None:
-    """'<sha256>:<expires epoch s>' -> (sha256, expires); None for 'none', garbage or missing."""
+    """'<sha256>:<expires epoch s>[:<limit>]' -> (sha256, expires); None for 'none', garbage or missing."""
     digest, _, exp = (value or "").strip().lower().partition(":")
+    exp = exp.split(":")[0]
     if len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest) or not exp.isdigit():
         return None
     return digest, int(exp)
@@ -212,17 +222,17 @@ def read_hash(spec: dict) -> str | None:
     return want
 
 
-def read_day(spec: dict) -> tuple[str, int] | None:
-    if not spec.get("temp_param"):
+def read_day(spec: dict, field: str = "temp_param") -> tuple[str, int] | None:
+    if not spec.get(field):
         return None
-    p = aws("ssm", "get-parameter", "--name", spec["temp_param"], check=False)
+    p = aws("ssm", "get-parameter", "--name", spec[field], check=False)
     return None if "__error__" in p else parse_day(p["Parameter"]["Value"])
 
 
 def publish_auth_function(spec: dict, want: str) -> str:
     """Create/update + publish the spec's edge function from the SSM hash(es); return its LIVE ARN."""
     name = spec["function"]
-    code = auth_code(spec, want, read_day(spec))
+    code = auth_code(spec, want, read_day(spec), read_day(spec, "open_param"))
     cfg = json.dumps({"Comment": spec["comment"], "Runtime": "cloudfront-js-2.0"})
     path = write_temp(code, ".js")
     try:

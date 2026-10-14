@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPlane } from "./newsroom-plane.js";
-import { decryptDoc, deriveSession, encryptDoc, openDay, sha256Hex } from "./newsroom-crypto.js";
+import { decryptDoc, deriveSession, encryptDoc, openDay, openSession, sha256Hex } from "./newsroom-crypto.js";
 import "./newsroom.css";
 
 const DEFAULT_BASE = "/live/newsroom/";
@@ -46,6 +46,8 @@ const fmt = (iso) => {
   const d = new Date(iso);
   return isNaN(d) ? "" : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 };
+const fmtUntil = (epochS) => new Date(epochS * 1000).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+const pfx = (session) => session.prefix || "";
 const fmtDay = (iso) => {
   const d = iso ? new Date(iso) : new Date();
   return isNaN(d) ? "" : d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -70,7 +72,7 @@ function usePoll(fn, ms, enabled, deps) {
 }
 
 // ------------------------------------------------------------------ unlock
-function Unlock({ onUnlock }) {
+function Unlock({ onUnlock, onCancel }) {
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -101,6 +103,7 @@ function Unlock({ onUnlock }) {
       <button className="np-btn np-primary" disabled={busy || !pw}>{busy ? "Deriving key…" : "Unlock"}</button>
       {err && <p className="np-err" role="alert">{err}</p>}
       <p className="np-fine">The password never leaves this device and is not stored. Everything on the server is ciphertext.</p>
+      {onCancel && <button type="button" className="np-btn" onClick={onCancel}>← Back to the open newsroom</button>}
     </form>
   );
 }
@@ -265,16 +268,16 @@ function RunView({ session, rid, onBack }) {
 
   usePoll(async (alive) => {
     try {
-      const st = await getEnc(session.key, `out/${rid}/status.json`);
+      const st = await getEnc(session.key, `${pfx(session)}out/${rid}/status.json`);
       if (!alive()) return;
       setErr(""); setStatus(st);
       if (st && st.state === "done") {
-        const ed = await getEnc(session.key, `out/${rid}/edition.json`);
+        const ed = await getEnc(session.key, `${pfx(session)}out/${rid}/edition.json`);
         if (alive()) { if (ed) setEdition(ed); else setErr("The edition is not available yet."); }
         return;
       }
       if (!st || st.state === "failed") return;
-      const pl = await getEnc(session.key, `out/${rid}/plane.json`);
+      const pl = await getEnc(session.key, `${pfx(session)}out/${rid}/plane.json`);
       if (alive() && pl) setPlane(pl);
     } catch (x) {
       if (alive()) setErr(x instanceof WrongPassword ? "Could not decrypt (wrong password?)." : "Network error; retrying…");
@@ -306,7 +309,7 @@ function RunView({ session, rid, onBack }) {
 }
 
 // ------------------------------------------------------------------ home
-function Compose({ session, onSent }) {
+function Compose({ session, onSent, left }) {
   const [text, setText] = useState("");
   const [win, setWin] = useState(24);
   const [busy, setBusy] = useState(false);
@@ -318,7 +321,7 @@ function Compose({ session, onSent }) {
     setBusy(true); setErr("");
     try {
       const rid = newRid();
-      const name = `inbox/${rid}.json`;
+      const name = `${pfx(session)}inbox/${rid}.json`;
       const req = { rid, text: text.trim(), created: new Date().toISOString(), opts: { window_hours: win } };
       const doc = await encryptDoc(session.key, name, Date.now(), req);
       const body = JSON.stringify({ name, doc });
@@ -330,6 +333,8 @@ function Compose({ session, onSent }) {
       let j = null;
       try { j = await res.json(); } catch { /* not json */ }
       if (res.status === 401 && session.day) throw new Error("This day password has expired.");
+      if (res.status === 401 && session.open) throw new Error("Open access has ended.");
+      if (res.status === 429) throw new Error("No requests left in this open period.");
       if (!res.ok || !j || j.status !== "ok") {
         throw new Error(`Send failed (HTTP ${res.status})${j && (j.error || j.message) ? `: ${j.error || j.message}` : ""}`);
       }
@@ -354,7 +359,8 @@ function Compose({ session, onSent }) {
           <option value={168}>Last 7 days</option>
         </select>
       </div>
-      <button className="np-btn np-primary" disabled={FIXTURE || busy || !text.trim()}>{busy ? "Sending…" : "Send"}</button>
+      <button className="np-btn np-primary" disabled={FIXTURE || busy || !text.trim() || left === 0}>{busy ? "Sending…" : "Send"}</button>
+      {session.open && <p className="np-fine">{left == null ? `Up to ${session.limit} requests while open.` : `${left} of ${session.limit} requests left while open.`} Anyone with this page can read what is asked here.</p>}
       {FIXTURE && <p className="np-fine">Preview mode: this is a read-only fixture, so Send is disabled.</p>}
       {err && <p className="np-err" role="alert">{err}</p>}
     </form>
@@ -375,7 +381,7 @@ function History({ items, onOpen, onRefresh, refreshing }) {
             <button className="np-histbtn" onClick={() => onOpen(e.rid)}>
               <strong>{e.title || e.request}</strong>
               <span className="np-histreq">{e.request}</span>
-              <span className="np-fine">{fmt(e.created)} · {e.state}{e.state === "done" ? ` · ${e.stories} ${e.stories === 1 ? "story" : "stories"}` : ""}</span>
+              <span className="np-fine">{e.open ? "open · " : ""}{fmt(e.created)} · {e.state}{e.state === "done" ? ` · ${e.stories} ${e.stories === 1 ? "story" : "stories"}` : ""}</span>
             </button>
           </li>
         ))}
@@ -386,47 +392,69 @@ function History({ items, onOpen, onRefresh, refreshing }) {
 
 // ------------------------------------------------------------------ page
 export default function NewsroomPage() {
-  const [session, setSession] = useState(null);
+  const [owner, setOwner] = useState(null);         // master or day password session
+  const [openS, setOpenS] = useState(null);         // open-mode session (no password), if open
+  const [unlocking, setUnlocking] = useState(false); // owner asked for the password form while open
   const [history, setHistory] = useState([]);
+  const [openInfo, setOpenInfo] = useState(null);   // { expires, limit, used } from open/out/index.json
   const [rid, setRid] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState("");
+  const session = owner || (unlocking ? null : openS);
+
+  // Open mode: config.json carries a public key while the owner has the newsroom open.
+  usePoll(async (alive) => {
+    let s = null;
+    try { s = await openSession((await getJson("config.json") || {}).open); } catch { s = null; }
+    if (!alive()) return;
+    setOpenS((cur) => (cur && s && cur.open === s.open ? cur : s));
+  }, 60000, true, []);
 
   const refresh = useCallback(async (s = session) => {
     if (!s) return;
     setRefreshing(true);
     try {
-      const idx = await getEnc(s.key, "out/index.json");
+      const idx = await getEnc(s.key, `${pfx(s)}out/index.json`);
       setHistory(idx ? idx.editions || [] : []); setErr("");
+      if (s.open) setOpenInfo(idx && idx.open ? idx.open : null);
     } catch (x) { setErr(x instanceof WrongPassword ? "Could not decrypt the history." : "Network error loading history."); }
     setRefreshing(false);
   }, [session]);
 
   // History refreshes on its own while the list is showing.
   usePoll(() => refresh(), 20000, !!session && !rid, [session, rid]);
+  useEffect(() => { setHistory([]); setOpenInfo(null); setRid(null); setErr(""); }, [session]);
 
-  function lock() { setSession(null); setHistory([]); setRid(null); setErr(""); }
+  function lock() { setOwner(null); setUnlocking(false); }
+  const left = openInfo && openInfo.expires === (session && session.open)
+    ? Math.max(0, openInfo.limit - openInfo.used) : null;
 
   return (
     <div className="np-wrap">
       <div className="np-bar-top">
         <a href="/" className="np-home">patelpb.com</a>
         <HomeStatus />
-        {session && <button className="np-btn np-lock" onClick={lock}>Lock</button>}
+        {owner && <button className="np-btn np-lock" onClick={lock}>Lock</button>}
+        {!owner && session && session.open && <button className="np-btn np-lock" onClick={() => setUnlocking(true)}>Owner</button>}
       </div>
       {!session && (
         <>
           <header className="np-mast"><h1>Agent Report</h1><p className="np-dateline">Private newsroom</p></header>
-          <Unlock onUnlock={(s, h) => { setSession(s); setHistory(h); }} />
+          <Unlock onUnlock={(s) => { setOwner(s); setUnlocking(false); }}
+            onCancel={openS ? () => setUnlocking(false) : undefined} />
         </>
+      )}
+      {session && session.open && !rid && (
+        <p className="np-open-banner" role="status">Open, no password needed, until {fmtUntil(session.open)}.</p>
       )}
       {session && rid && <RunView key={rid} session={session} rid={rid} onBack={() => { setRid(null); refresh(); }} />}
       {session && !rid && (
         <>
           <header className="np-mast"><h1>Agent Report</h1><p className="np-dateline">{fmtDay()}</p></header>
-          <Compose session={session} onSent={(r, req) => {
+          <Compose session={session} left={left} onSent={(r, req) => {
             setHistory((h) => [{ rid: r, title: req.text, request: req.text, created: req.created, state: "queued", stories: 0 }, ...h]);
             setRid(r);
+            if (session.open) setOpenInfo((o) => (o ? { ...o, used: o.used + 1 } : o));
           }} />
           {err && <p className="np-err" role="alert">{err}</p>}
           <History items={history} onOpen={setRid} onRefresh={() => refresh()} refreshing={refreshing} />

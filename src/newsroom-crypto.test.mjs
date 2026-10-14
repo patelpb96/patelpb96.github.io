@@ -51,3 +51,17 @@ test("day password unwraps the master key until it expires", async () => {
   assert.equal(await openDay("master", day, (expires - 10) * 1000), null);            // not the day password
   assert.equal(await openDay("day pass", { ...day, expires: expires + 1 }, 0), null); // expiry is bound
 });
+
+test("open session: live slot only, reads its own envelopes", async () => {
+  const { openSession } = await import("./newsroom-crypto.js");
+  const raw = new Uint8Array(32).fill(9);
+  const slot = { expires: 2000, limit: 10, key: toB64(raw), token: "a".repeat(64) };
+  const s = await openSession(slot, 1000 * 1000);
+  assert.equal(s.prefix, "open/");
+  assert.equal(s.limit, 10);
+  const env = await encryptDoc(s.key, "open/out/index.json", 1, { editions: [] });
+  assert.deepEqual(await decryptDoc(s.key, env, "open/out/index.json"), { editions: [] });
+  assert.equal(await openSession(slot, 2000 * 1000), null);           // expired
+  assert.equal(await openSession({ ...slot, token: "x" }, 0), null);  // malformed
+  assert.equal(await openSession(undefined), null);
+});

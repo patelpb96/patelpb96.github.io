@@ -27,6 +27,23 @@ modelled on the Scratch gateway. AWS only ever stores ciphertext (plus a few pla
 - The phone tries `config.day` first when unexpired, else the master password. A new `newsdesk temp`
   replaces the old one; nothing is valid after expiry until the next `newsdesk temp`.
 
+## Open mode (optional, no password, limited)
+- `newsdesk open [--hours 24] [--limit 10]` (home) makes a fresh random `openKey` (32 bytes) and
+  `openToken` (64 hex) and publishes them on purpose: `config.json` gains
+  `open: { expires: <epoch s>, limit, key: <b64 openKey>, token: <openToken> }`.
+- SSM `/patelpb/newsroom/open-sha256` = `"<hex sha256(openToken)>:<expires>:<limit>"`. The edge check
+  accepts the token until `expires`; the Lambda lets it write **only** new `open/inbox/<rid>.json`
+  (409 if the rid exists, 429 once `limit` requests arrived this period, 8 KB body cap). The open
+  inbox index `open/inbox/index.json` = `{v, seq, ids, period: <expires>}` restarts with each period.
+- The phone uses an unexpired `config.open` without asking for a password (an "Owner" button still
+  unlocks the private view) and works entirely under `open/`, sealed with `openKey`.
+- Home runs at most `limit` open requests per period (more get a failed status, phase `"limit"`) and
+  writes each one's status/plane/edition both to `open/out/…` (openKey) and to `out/…` (master key),
+  listed in the private history with `open: true`. `open/out/index.json` holds only open editions
+  plus `open: {expires, limit, used}`.
+- The master key is never involved, so private editions stay private; anything made while open is
+  readable by anyone who kept the open key. `newsdesk close` (or expiry) ends it; `setup --apply` too.
+
 ## Envelope (every encrypted object)
 ```json
 { "v": 1, "name": "out/r-abc123de/edition.json", "seq": 7, "iv": "<b64 12 bytes>", "ct": "<b64>" }
@@ -42,7 +59,7 @@ Written only through the Lambda (except `config.json`, written by setup with the
 
 | Name | Encrypted | Written by | Content |
 |---|---|---|---|
-| `config.json` | no | setup | `{v, salt, iter}` |
+| `config.json` | no | setup / temp / open | `{v, salt, iter, day?, open?}` |
 | `beat.json` | no | home, every 20 s | `{v, beat: <ms>, busy: bool, version: "<daemon version>"}` |
 | `inbox/index.json` | no | Lambda (on inbox put) | `{v, seq, ids: ["r-…", …]}` newest last, max 50 |
 | `inbox/<rid>.json` | yes | phone | `Request` |
@@ -50,6 +67,10 @@ Written only through the Lambda (except `config.json`, written by setup with the
 | `out/<rid>/status.json` | yes | home | `Status` |
 | `out/<rid>/plane.json` | yes | home | `Plane` (stripped) |
 | `out/<rid>/edition.json` | yes | home | `Edition` |
+| `open/inbox/index.json` | no | Lambda (on open inbox put) | `{v, seq, ids, period}` |
+| `open/inbox/<rid>.json` | yes (openKey) | anyone, while open | `Request` |
+| `open/out/index.json` | yes (openKey) | home | `{editions, open: {expires, limit, used}}` |
+| `open/out/<rid>/{status,plane,edition}.json` | yes (openKey) | home | as under `out/` |
 
 `rid` = `r-` + 8–32 chars of `[a-z0-9]` (phone generates it).
 
@@ -57,7 +78,8 @@ Written only through the Lambda (except `config.json`, written by setup with the
 `POST https://patelpb.com/api/newsroom/put` with header `x-newsroom-key`, header
 `x-amz-content-sha256` (hex SHA-256 of the body; needed by the Lambda OAC), body
 `{ "name": <name>, "doc": <object> }`.
-- Allowed names (regex): `^(beat\.json|inbox/r-[a-z0-9]{8,32}\.json|out/index\.json|out/r-[a-z0-9]{8,32}/(status|plane|edition)\.json)$`
+- Allowed names (regex): `^(beat\.json|(open/)?inbox/r-[a-z0-9]{8,32}\.json|(open/)?out/index\.json|(open/)?out/r-[a-z0-9]{8,32}/(status|plane|edition)\.json)$`
+  (the open token: `open/inbox/…` only)
 - `beat.json` doc must be a small plain object; every other doc must be a valid envelope whose
   `name` equals the target name.
 - Putting `inbox/<rid>.json` also appends `rid` to `inbox/index.json` (dedup, keep last 50, `seq += 1`).
@@ -69,7 +91,7 @@ Written only through the Lambda (except `config.json`, written by setup with the
 Request        { rid, text, created: ISO, opts?: { window_hours?: number } }
 Status         { rid, state: "queued"|"running"|"done"|"failed", phase: string, progress: 0..1,
                  message: string, updated: ISO, started?: ISO, finished?: ISO }
-EditionSummary { rid, title, request, created: ISO, state, stories: number }
+EditionSummary { rid, title, request, created: ISO, state, stories: number, open?: true }
 Plane          { nodes: PlaneNode[], edges: PlaneEdge[], generatedAt: number }
   PlaneNode    { id, kind: "agent"|"tool"|"doc", label, group, groupLabel,
                  role?: "role_1"|"role_2"|"role_3"|"role_4", tier?: number, state?: "working"|"idle"|"done" }

@@ -88,3 +88,15 @@ export async function makeDay(password, masterRaw, saltB64, iter, expires) {
   const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: dayAad(expires) }, dayKey, masterRaw);
   return { salt: saltB64, iter, expires, iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
 }
+
+// Open mode (PROTOCOL.md "Open mode"): config.open = { expires (epoch s), limit, key (b64, 32 bytes), token (hex) }
+// is public on purpose. It reads and sends only under open/, never the master key's objects.
+/** -> session { key, token, open: expires, limit, prefix: "open/" }, or null when open mode is off/expired. */
+export async function openSession(open, nowMs = Date.now()) {
+  if (!open || !open.key || !/^[0-9a-f]{64}$/.test(open.token || "") || !(nowMs < open.expires * 1000)) return null;
+  let raw;
+  try { raw = fromB64(open.key); } catch { return null; }
+  if (raw.length !== 32) return null;
+  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return { key, token: open.token, open: open.expires, limit: open.limit, prefix: "open/" };
+}

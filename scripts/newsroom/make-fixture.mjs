@@ -1,6 +1,7 @@
 // Writes an encrypted, entirely FAKE newsroom data set for previewing the phone page:
 //   node scripts/newsroom/make-fixture.mjs
 //   npm run dev  ->  http://localhost:5173/projects/newsroom/?base=/live/fixture/newsroom/
+//   node scripts/newsroom/make-fixture.mjs --open   also an open-mode slot (no password) for 2 h
 //
 // Output goes to public/live/fixture/newsroom/. public/live/ is gitignored and deploy-aws.sh
 // excludes live/* from every sync, so the fixture can never be committed or uploaded.
@@ -21,8 +22,14 @@ const H = 3600e3, M = 60e3;
 const salt = toB64(crypto.getRandomValues(new Uint8Array(16)));
 const { key } = await deriveSession(PASSWORD, salt, ITER);
 
-async function put(name, doc, enc = true) {
-  const body = enc ? await encryptDoc(key, name, now, doc) : doc;
+const OPEN = process.argv.includes("--open");
+const openRaw = crypto.getRandomValues(new Uint8Array(32));
+const openKey = await crypto.subtle.importKey("raw", openRaw, "AES-GCM", false, ["encrypt"]);
+const openSlot = { expires: Math.floor(now / 1000) + 2 * 3600, limit: 10, key: toB64(openRaw),
+  token: Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("") };
+
+async function put(name, doc, enc = true, k = key) {
+  const body = enc ? await encryptDoc(k, name, now, doc) : doc;
   const path = join(OUT, name);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(body));
@@ -127,7 +134,7 @@ const status = { rid: RID, state: "running", phase: "verifying", progress: 0.62,
 const doneStatus = { ...status, state: "done", phase: "published", progress: 1, message: "Edition ready.", finished: iso(25 * M) };
 
 // ---------------------------------------------------------------- write
-await put("config.json", { v: 1, salt, iter: ITER }, false);
+await put("config.json", { v: 1, salt, iter: ITER, ...(OPEN ? { open: openSlot } : {}) }, false);
 await put("beat.json", { v: 1, beat: now + 10 * 365 * 24 * H, busy: false, version: "fixture" }, false); // far future = always "online"
 await put("inbox/index.json", { v: 1, seq: 2, ids: [RID, "r-fixture0002"] }, false);
 await put("out/index.json", { editions: [
@@ -139,6 +146,14 @@ await put(`out/${RID}/plane.json`, plane);
 await put(`out/${RID}/edition.json`, edition);
 await put("out/r-fixture0002/status.json", status);
 await put("out/r-fixture0002/plane.json", plane);
+if (OPEN) {
+  await put("open/out/index.json", { editions: [
+    { rid: RID, title: edition.title, request: edition.request, created: edition.created, state: "done", stories: 6 },
+  ], open: { expires: openSlot.expires, limit: 10, used: 3 } }, true, openKey);
+  await put(`open/out/${RID}/status.json`, doneStatus, true, openKey);
+  await put(`open/out/${RID}/plane.json`, plane, true, openKey);
+  await put(`open/out/${RID}/edition.json`, edition, true, openKey);
+}
 
 console.log(`Fixture written to ${OUT}`);
 console.log(`Password: ${PASSWORD}`);

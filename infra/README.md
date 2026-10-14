@@ -130,6 +130,10 @@ both sides read the same objects with plain GETs via the default S3 behavior (/l
 AWS only ever stores ciphertext plus a few plain counters (`beat.json`, `inbox/index.json`);
 the password never leaves the phone and the home machine's setup prompt.
 
+Open mode (`python -m newsdesk open` / `close`, SSM /patelpb/newsroom/open-sha256) publishes a separate,
+public key for a while: anyone can then send up to `limit` requests under `open/` (the Lambda lets that
+key write nothing else) and read the editions they make. The master key is not involved.
+
 ## API contract
 
 `POST /api/newsroom/put` `{name, doc}` with headers `x-newsroom-key` and `x-amz-content-sha256`
@@ -137,7 +141,8 @@ the password never leaves the phone and the home machine's setup prompt.
 beat/inbox-index rules and every object's plaintext shape are in
 [`projects/newsroom/PROTOCOL.md`](../projects/newsroom/PROTOCOL.md). Responses JSON,
 `Cache-Control: no-store`: 200 `{"status":"ok"}`, 400 bad request, 401 bad/missing key (from the
-edge or the Lambda), 405 non-POST, 413 body over 900 KB, 500. Never 403/404.
+edge or the Lambda), 405 non-POST, 409 open rid reused, 413 body over 900 KB (8 KB for the open
+key), 429 open limit used up, 500. Never 403/404.
 
 ## Setup / deploy
 

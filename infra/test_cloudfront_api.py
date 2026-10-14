@@ -31,6 +31,14 @@ class ConfigTest(unittest.TestCase):
         self.assertIn("var DAY_UNTIL = 1700000000000;", n)
         self.assertNotIn("@", n)
 
+    def test_open_key_baked_with_expiry_ms(self):
+        n = c.auth_code(c.AUTHS["newsroom"], HASH, None, ("c" * 64, 1700000001))
+        self.assertIn(f"var OPEN = '{'c' * 64}';", n)
+        self.assertIn("var OPEN_UNTIL = 1700000001000;", n)
+        self.assertIn("var DAY = '';", n)
+        self.assertNotIn("@", n)
+        self.assertEqual(c.parse_day(f"{'c' * 64}:17:10"), ("c" * 64, 17))
+
     def test_parse_day(self):
         self.assertEqual(c.parse_day(f"{'B' * 64}:17"), ("b" * 64, 17))
         for bad in (None, "none", "b" * 64, "zz:1", f"{'b' * 64}:soon"):

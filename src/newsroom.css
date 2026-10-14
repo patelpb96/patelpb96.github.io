@@ -144,3 +144,5 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Square corners everywhere on this page. */
 *, *::before, *::after { border-radius: 0 !important; }  /* this stylesheet only loads on the newsroom page */
+
+.np-open-banner { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 0; font-size: 14px; }
