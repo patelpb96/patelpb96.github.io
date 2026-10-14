@@ -59,14 +59,21 @@ function usePoll(fn, ms, enabled, deps) {
   ref.current = fn;
   useEffect(() => {
     if (!enabled) return undefined;
-    let dead = false, t = 0;
+    let dead = false, t = 0, running = false;
     const loop = async () => {
       if (dead) return;
-      if (!document.hidden) { try { await ref.current(() => !dead); } catch { /* shown by fn */ } }
-      if (!dead) t = setTimeout(loop, ms);
+      if (!document.hidden && !running) {
+        running = true;
+        try { await ref.current(() => !dead); } catch { /* shown by fn */ }
+        running = false;
+      }
+      if (!dead) { clearTimeout(t); t = setTimeout(loop, ms); }
     };
+    // A tab opened in the background polls as soon as it is shown, not up to `ms` later.
+    const onVisible = () => { if (!document.hidden) loop(); };
+    document.addEventListener("visibilitychange", onVisible);
     loop();
-    return () => { dead = true; clearTimeout(t); };
+    return () => { dead = true; clearTimeout(t); document.removeEventListener("visibilitychange", onVisible); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ms, ...deps]);
 }
