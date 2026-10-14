@@ -2,7 +2,7 @@
   "name": "patelpb96.github.io",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://patelpb96.github.io",
+  "homepage": "https://patelpb.com",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,10 +10,15 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "deploy:aws": "bash scripts/deploy-aws.sh",
+    "gateway": "node scripts/gateway/server.mjs"
   },
   "dependencies": {
+    "dompurify": "^3.4.17",
     "framer-motion": "^12.38.0",
+    "hyparquet": "^1.31.2",
+    "marked": "^14.1.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
