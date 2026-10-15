@@ -166,6 +166,7 @@ function FactSheet({ fact, sources, n, onClose }) {
           <span className="np-factno">Fact {n}</span>
           <span className={`np-scope np-${fact.scope}`}>{fact.scope}</span>
           {fact.reliability === "low" && <span className="np-low">less reliable</span>}
+          {fact.reliability === "unverified" && <span className="np-low">unverified</span>}
           <button ref={btn} className="np-btn np-close" onClick={onClose} aria-label="Close">Close</button>
         </div>
         <p className="np-fact">{fact.statement}</p>
@@ -196,10 +197,11 @@ function FactSheet({ fact, sources, n, onClose }) {
 function ArticleView({ art, big, num, onFact, isLow }) {
   return (
     <article className={big ? "np-art np-lead" : "np-art np-card"}>
-      {(art.desk || art.reliability === "low") && (
+      {(art.desk || art.reliability === "low" || art.reliability === "unverified") && (
         <p className="np-desk">
           {art.desk}
           {art.reliability === "low" && <span className="np-low" title="Relies partly on social media, forums, listings or other unverified sites">less reliable sources</span>}
+          {art.reliability === "unverified" && <span className="np-low" title="Quotes are real, but there is no second independent source">unverified</span>}
         </p>
       )}
       {big ? <h2 className="np-hl">{art.headline}</h2> : <h3 className="np-hl">{art.headline}</h3>}
@@ -243,7 +245,7 @@ function Edition({ ed }) {
   }, [ed]);
   const num = (id) => numOf[id] ?? "?";
   const onFact = (id) => factMap[id] && setOpen(id);
-  const isLow = (id) => factMap[id]?.reliability === "low";
+  const isLow = (id) => ["low", "unverified"].includes(factMap[id]?.reliability);
   const st = ed.stats || {};
   return (
     <div className="np-paper">

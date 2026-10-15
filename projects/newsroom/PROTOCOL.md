@@ -103,13 +103,13 @@ Edition        { rid, request, title, created: ISO, window: {start: ISO, end: IS
                  notes: string[],            // e.g. "Only 4 stories passed verification."
                  rejected?: { stage, reason, pages, leads },   // stopped early: too little news; zero stories
                  stats: { agents, minutes, cost_usd: number|null, billing: "plan"|"api" } }
-Article        { id, headline, dek, desk, significance: 1..5, reliability: "verified"|"low",
+Article        { id, headline, dek, desk, significance: 1..5, reliability: "verified"|"low"|"unverified",
                  image?: Image,              // at most one; only a chart or direct evidence, never stock
                  paragraphs: { sentences: { text, facts: string[] }[] }[] }
 Image          { src: "data:image/jpeg;base64,…" (<= ~42 KB, re-encoded by the daemon), w, h,
                  kind: "chart"|"map"|"diagram"|"document"|"event_photo"|"object_photo",
                  alt, caption (the page's own, may be ""), credit: outlet name, source: Source id }
-Fact           { id, statement, scope: "major"|"minor", reliability: "verified"|"low",
+Fact           { id, statement, scope: "major"|"minor", reliability: "verified"|"low"|"unverified",
                  sources: { source: string, quote: string }[] }
 Source         { id, url, domain, title, outlet, published: ISO|null, fetched: ISO,
                  kind: "report"|"official"|"opinion"|"other"|"social"|"forum"|"listing"|"aggregator",
@@ -119,4 +119,7 @@ Every sentence cites ≥ 1 fact; every fact has ≥ 1 source quote (≥ 2 indepe
 `headline` + `articles` hold at most 5 stories (whatever passed; fewer is normal). A fact is "low"
 when reliable sources (report/official) alone don't meet its bar; an article is "low" when any of
 its facts is. The phone flags low articles, facts and sources as "less reliable".
+"unverified" (articles and facts only) is a last resort for a thin edition (< 2 stories passed the rules): a fact whose
+quote is verbatim on a saved page but has too few independent sources. Such stories are built by code from the facts
+(no model writes them), carry no picture, and the phone shows them as "unverified".
 The phone renders sentence → superscript fact numbers → tap shows statement, quotes, links.
