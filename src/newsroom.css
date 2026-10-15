@@ -108,6 +108,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-card.np-art { background: var(--paper); }
 .np-art h3.np-hl { font-size: 1.35rem; line-height: 1.2; margin: 4px 0 6px; }
 .np-desk { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.np-pic { margin: 0 0 10px; }
+.np-pic img { display: block; width: 100%; height: auto; border: 1px solid var(--rule, #bbb); }
+.np-pic figcaption { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
 .np-dek { font-style: italic; color: var(--muted); margin: 0 0 8px; }
 .np-body { margin: 0 0 10px; hyphens: auto; }
 .np-fn {

@@ -101,9 +101,14 @@ Plane          { nodes: PlaneNode[], edges: PlaneEdge[], generatedAt: number }
 Edition        { rid, request, title, created: ISO, window: {start: ISO, end: ISO},
                  headline: Article, articles: Article[], sources: Source[], facts: Fact[],
                  notes: string[],            // e.g. "Only 4 stories passed verification."
+                 rejected?: { stage, reason, pages, leads },   // stopped early: too little news; zero stories
                  stats: { agents, minutes, cost_usd: number|null, billing: "plan"|"api" } }
 Article        { id, headline, dek, desk, significance: 1..5, reliability: "verified"|"low",
+                 image?: Image,              // at most one; only a chart or direct evidence, never stock
                  paragraphs: { sentences: { text, facts: string[] }[] }[] }
+Image          { src: "data:image/jpeg;base64,…" (<= ~42 KB, re-encoded by the daemon), w, h,
+                 kind: "chart"|"map"|"diagram"|"document"|"event_photo"|"object_photo",
+                 alt, caption (the page's own, may be ""), credit: outlet name, source: Source id }
 Fact           { id, statement, scope: "major"|"minor", reliability: "verified"|"low",
                  sources: { source: string, quote: string }[] }
 Source         { id, url, domain, title, outlet, published: ISO|null, fetched: ISO,

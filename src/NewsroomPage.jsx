@@ -204,6 +204,15 @@ function ArticleView({ art, big, num, onFact, isLow }) {
       )}
       {big ? <h2 className="np-hl">{art.headline}</h2> : <h3 className="np-hl">{art.headline}</h3>}
       {art.dek && <p className="np-dek">{art.dek}</p>}
+      {art.image && art.image.src && art.image.src.startsWith("data:image/") && (
+        <figure className="np-pic">
+          <img src={art.image.src} alt={art.image.alt || ""} width={art.image.w} height={art.image.h} loading="lazy" />
+          <figcaption>
+            {art.image.caption ? `${art.image.caption} · ` : ""}
+            {({ chart: "Chart", map: "Map", diagram: "Diagram", document: "Document", event_photo: "Photo", object_photo: "Photo" })[art.image.kind] || "Image"}: {art.image.credit}
+          </figcaption>
+        </figure>
+      )}
       {(art.paragraphs || []).map((p, i) => (
         <p key={i} className="np-body">
           {p.sentences.map((s, j) => (
@@ -246,7 +255,7 @@ function Edition({ ed }) {
       <p className="np-req">Requested: “{ed.request}”</p>
       {ed.headline && <ArticleView art={ed.headline} big num={num} onFact={onFact} isLow={isLow} />}
       {(ed.articles || []).map((a) => <ArticleView key={a.id} art={a} num={num} onFact={onFact} isLow={isLow} />)}
-      {(ed.articles || []).length === 0 && !ed.headline && <p className="np-fine">No stories passed verification.</p>}
+      {(ed.articles || []).length === 0 && !ed.headline && <p className="np-fine">{ed.rejected ? "Stopped early: not enough news was found, so nothing was written." : "No stories passed verification."}</p>}
       {(ed.notes || []).length > 0 && (
         <aside className="np-notes" aria-label="Editor's notes">
           <h4>Editor’s notes</h4>

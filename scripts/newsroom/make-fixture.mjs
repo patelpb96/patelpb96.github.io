@@ -70,7 +70,10 @@ const facts = [
 
 const S = (text, ...f) => ({ text, facts: f });
 const P = (...sentences) => ({ sentences });
+// A fake chart (SVG data URI) so the picture layout can be previewed; real editions carry small JPEGs.
+const FAKE_CHART = "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27640%27%20height%3D%27360%27%20viewBox%3D%270%200%20640%20360%27%3E%3Crect%20width%3D%27640%27%20height%3D%27360%27%20fill%3D%27%23f4efe4%27/%3E%3Cg%20fill%3D%27%232b5d8a%27%3E%3Crect%20x%3D%2760%27%20y%3D%27220%27%20width%3D%2770%27%20height%3D%27100%27/%3E%3Crect%20x%3D%27160%27%20y%3D%27180%27%20width%3D%2770%27%20height%3D%27140%27/%3E%3Crect%20x%3D%27260%27%20y%3D%27140%27%20width%3D%2770%27%20height%3D%27180%27/%3E%3Crect%20x%3D%27360%27%20y%3D%27100%27%20width%3D%2770%27%20height%3D%27220%27/%3E%3Crect%20x%3D%27460%27%20y%3D%2760%27%20width%3D%2770%27%20height%3D%27260%27/%3E%3C/g%3E%3Ctext%20x%3D%2760%27%20y%3D%2740%27%20font-family%3D%27Georgia%27%20font-size%3D%2722%27%20fill%3D%27%23222%27%3EStartups%20presenting%20%28FAKE%20chart%29%3C/text%3E%3C/svg%3E";
 const headline = {
+  image: { src: FAKE_CHART, w: 640, h: 360, kind: "chart", alt: "Bar chart of startups presenting", caption: "Presenters by year (fake data)", credit: "Oakland Daily (fake)", source: "s1" },
   id: "a0", headline: "Oakland Demo Night Draws 40-Plus Startups to the Waterfront", desk: "Business", significance: 5,
   dek: "A free, 600-person event at Jack London Square anchors the East Bay's share of SF Tech Week.",
   paragraphs: [
