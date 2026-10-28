@@ -53,6 +53,16 @@ const projects = [
     art: "newspaper",
   },
   {
+    key: "mindmap",
+    title: "Mindmap Studio",
+    href: "/projects/mindmap/",
+    external: true,
+    cta: "Open editor",
+    blurb: "A small mind map editor that runs entirely in your browser: branch, reorder and collapse ideas, assign agents to workflow steps, and import or export Markdown and JSON.",
+    tags: ["Editor", "No build step"],
+    art: "mindmap",
+  },
+  {
     key: "graphics",
     title: "Graphics",
     href: "#/projects/graphics",
@@ -236,7 +246,7 @@ function assertSiteData() {
   if (typeof console === "undefined" || typeof console.assert !== "function") return;
   console.assert(Array.isArray(sections), "sections should be an array");
   console.assert(sections.length === 4, "expected four home navigation sections");
-  console.assert(projects.length === 4 && projects.every((p) => p.title && p.href), "projects portal should list four linked projects");
+  console.assert(projects.length > 0 && projects.every((p) => p.title && p.href) && new Set(projects.map((p) => p.key)).size === projects.length, "projects portal should list linked projects with unique keys");
   console.assert(/^https?:\/\//.test(base), "base URL should be absolute");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
   console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
@@ -1035,6 +1045,21 @@ function ProjectArt({ kind }) {
         {[88, 94, 100].map((y) => <line key={"a" + y} x1="76" x2="121" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
         {[88, 94, 100].map((y) => <line key={"b" + y} x1="129" x2="174" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
         <line x1="125" y1="86" x2="125" y2="104" stroke="#ffb36b" strokeWidth="1" />
+      </svg>
+    );
+  }
+  if (kind === "mindmap") {
+    // a root box branching out to child boxes
+    const kids = [[176, 22], [190, 60], [176, 98], [48, 34], [40, 86]];
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        {kids.map(([x, y], k) => (
+          <path key={"e" + k} d={`M120 60 C ${(120 + x) / 2} 60, ${(120 + x) / 2} ${y}, ${x} ${y}`} fill="none" stroke="#ffb36b" strokeWidth="2" />
+        ))}
+        {kids.map(([x, y], k) => (
+          <rect key={"n" + k} x={x - 18} y={y - 8} width="36" height="16" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2" />
+        ))}
+        <rect x="94" y="48" width="52" height="24" fill="#ff9a4d" stroke="#ffd4a3" strokeWidth="2" />
       </svg>
     );
   }
