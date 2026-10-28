@@ -588,7 +588,7 @@ function Css() {
       .hero {
         position: relative;
         z-index: 1;
-        width: min(1120px, calc(100% - 32px));
+        width: min(900px, calc(100% - 32px)); /* same as .content, so the card lines up with the panels below */
         min-height: 52vh;
         margin: 0 auto;
         display: flex;
