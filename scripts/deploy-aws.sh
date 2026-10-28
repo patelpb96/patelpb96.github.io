@@ -17,9 +17,17 @@ DIST_ID="${AWS_CF_DISTRIBUTION_ID:-EPJNH9PK97GV8}"
 REGION="${AWS_REGION:-us-east-1}"
 DIST_DIR="dist"
 
-# Windows: the AWS CLI installer does not always put aws on PATH for Git Bash.
+# Windows: the AWS CLI installer does not always put aws on PATH for Git Bash. From
+# PowerShell, `bash` is WSL instead: there C: is /mnt/c and Windows programs need their
+# .exe name, so fall back to calling the Windows aws.exe directly.
 if ! command -v aws >/dev/null 2>&1; then
-  export PATH="$PATH:/c/Program Files/Amazon/AWSCLIV2"
+  for d in "/c/Program Files/Amazon/AWSCLIV2" "/mnt/c/Program Files/Amazon/AWSCLIV2"; do
+    [ -e "$d/aws.exe" ] && { export PATH="$PATH:$d"; break; }
+  done
+fi
+if ! command -v aws >/dev/null 2>&1; then
+  command -v aws.exe >/dev/null 2>&1 || { echo "error: AWS CLI not found" >&2; exit 1; }
+  aws() { aws.exe "$@"; }
 fi
 
 cd "$(dirname "$0")/.."
