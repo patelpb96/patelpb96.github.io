@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en" data-theme="paper">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f4ef">
+  <title>Mindmap Studio · Preet Patel</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f5f3ee;
+      --panel: #fffefa;
+      --panel-soft: #f9f7f1;
+      --ink: #232b36;
+      --muted: #687382;
+      --line: #e2e1d9;
+      --accent: #5367d8;
+      --accent-ink: #ffffff;
+      --accent-soft: #edf0ff;
+      --node: #fffefa;
+      --node-root: #27324b;
+      --node-root-ink: #ffffff;
+      --node-stroke: #d6d9e2;
+      --edge: #b8becd;
+      --danger: #b84343;
+      --shadow: 0 14px 44px rgba(26, 35, 56, .08);
+      --radius: 16px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    html[data-theme="night"] {
+      color-scheme: dark;
+      --page: #171923; --panel: #202330; --panel-soft: #282c3b; --ink: #f0f2fa;
+      --muted: #a3aabd; --line: #393e50; --accent: #9ba8ff; --accent-ink: #171923;
+      --accent-soft: #303750; --node: #252a39; --node-root: #747df2; --node-root-ink: #101322;
+      --node-stroke: #535b73; --edge: #747c93; --danger: #ff9d9d; --shadow: 0 14px 44px rgba(0,0,0,.22);
+    }
+    html[data-theme="ocean"] {
+      --page: #edf5f8; --panel: #fbfeff; --panel-soft: #f0f8fa; --ink: #183344;
+      --muted: #5d7786; --line: #d7e6eb; --accent: #187a9a; --accent-ink: #ffffff;
+      --accent-soft: #e1f3f7; --node: #fbfeff; --node-root: #155b77; --node-root-ink: #ffffff;
+      --node-stroke: #b9d6df; --edge: #8bb5c4; --danger: #aa3e4c;
+    }
+    html[data-theme="forest"] {
+      --page: #f0f4ed; --panel: #fcfff9; --panel-soft: #f5f8f1; --ink: #28382c;
+      --muted: #687b6b; --line: #dce6d8; --accent: #507a4d; --accent-ink: #ffffff;
+      --accent-soft: #e6f0e2; --node: #fcfff9; --node-root: #35583c; --node-root-ink: #ffffff;
+      --node-stroke: #cadbc7; --edge: #9db99a; --danger: #a23d3d;
+    }
+    html[data-theme="violet"] {
+      --page: #f5f1f9; --panel: #fffcff; --panel-soft: #faf5fc; --ink: #382b43;
+      --muted: #796a83; --line: #e7ddec; --accent: #8656a5; --accent-ink: #ffffff;
+      --accent-soft: #f0e5f6; --node: #fffcff; --node-root: #62427b; --node-root-ink: #ffffff;
+      --node-stroke: #decee7; --edge: #b99fc8; --danger: #a43f54;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--page); color: var(--ink); }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar { z-index: 3; display: flex; gap: 18px; align-items: center; min-height: 76px; padding: 12px 22px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 190px; }
+    .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; color: white; background: var(--accent); font-size: 20px; box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 25%, transparent); }
+    .brand strong { display: block; font-size: 14px; letter-spacing: -.02em; }
+    .brand small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .map-heading { min-width: 120px; flex: 1; overflow: hidden; }
+    .map-heading strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+    .map-heading span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .top-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+    .btn, .file-button, .select-like { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-height: 36px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--panel); font-size: 12px; font-weight: 650; text-decoration: none; transition: border-color .16s, background .16s, transform .16s; }
+    .btn:hover, .file-button:hover { border-color: color-mix(in srgb, var(--accent) 48%, var(--line)); background: var(--accent-soft); }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { border-color: var(--accent); color: var(--accent-ink); background: var(--accent); }
+    .btn.primary:hover { filter: brightness(1.06); }
+    .btn.ghost { border-color: transparent; background: transparent; }
+    .btn.danger { color: var(--danger); }
+    .btn.icon { min-width: 36px; padding: 7px; font-size: 15px; }
+    .file-button input { display: none; }
+    .theme-select { min-height: 36px; max-width: 130px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--panel); font-size: 12px; }
+    .workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 322px; gap: 14px; padding: 14px; }
+    .canvas-panel, .inspector { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+    .canvas-panel { min-height: 660px; display: flex; flex-direction: column; overflow: hidden; }
+    .canvas-toolbar { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 15px; border-bottom: 1px solid var(--line); }
+    .canvas-label { min-width: 0; }
+    .canvas-label strong { display: block; font-size: 13px; }
+    .canvas-label small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .canvas-controls { display: flex; align-items: center; gap: 5px; }
+    .canvas-controls .btn { min-height: 31px; padding: 5px 9px; }
+    .zoom-readout { min-width: 43px; text-align: center; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .canvas-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; background-color: var(--panel-soft); background-image: radial-gradient(color-mix(in srgb, var(--muted) 16%, transparent) .75px, transparent .75px); background-size: 18px 18px; }
+    #mindmapSvg { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; user-select: none; }
+    #mindmapSvg.panning { cursor: grabbing; }
+    .edge { fill: none; stroke: var(--edge); stroke-width: 2; opacity: .85; }
+    .map-node { cursor: pointer; }
+    .map-node rect { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.5; rx: 13; filter: drop-shadow(0 3px 6px rgba(22, 32, 51, .07)); }
+    .map-node.root rect { fill: var(--node-root); stroke: var(--node-root); }
+    .map-node.selected rect { stroke: var(--accent); stroke-width: 3; }
+    .map-node.root.selected rect { stroke: var(--accent); }
+    .map-node .node-title { fill: var(--ink); font-size: 13px; font-weight: 700; }
+    .map-node.root .node-title { fill: var(--node-root-ink); font-size: 15px; }
+    .map-node .node-kind { fill: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .map-node.root .node-kind { fill: color-mix(in srgb, var(--node-root-ink) 70%, transparent); }
+    .collapse-control { cursor: pointer; outline: none; }
+    .collapse-control circle { fill: var(--panel); stroke: var(--accent); stroke-width: 1.5; }
+    .collapse-control text { fill: var(--accent); font-size: 13px; font-weight: 800; user-select: none; }
+    .canvas-footer { min-height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .inspector { display: flex; flex-direction: column; overflow: hidden; }
+    .tabbar { display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px; gap: 4px; border-bottom: 1px solid var(--line); }
+    .tab-button { min-height: 34px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: 11px; font-weight: 700; }
+    .tab-button[aria-selected="true"] { color: var(--accent); background: var(--accent-soft); }
+    .panel-content { min-height: 0; flex: 1; overflow: auto; padding: 16px; }
+    .panel-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .panel-title h2, .panel-content h2 { margin: 0; font-size: 15px; letter-spacing: -.02em; }
+    .panel-title .btn { min-height: 31px; padding: 5px 8px; font-size: 11px; }
+    .field { display: block; margin: 0 0 13px; }
+    .field > span, .field legend { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+    .field input, .field textarea, .field select, .agent-card input, .agent-card textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; outline: none; color: var(--ink); background: var(--panel-soft); font-size: 12px; }
+    .field input:focus, .field textarea:focus, .field select:focus, .agent-card input:focus, .agent-card textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+    .field textarea { min-height: 100px; resize: vertical; line-height: 1.5; }
+    .field input[type="number"] { max-width: 120px; }
+    .field small, .helper { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .fieldset { margin: 2px 0 16px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; }
+    .fieldset legend { padding: 0 4px; color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+    .assignment-list { display: grid; gap: 6px; }
+    .assignment-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px; border-radius: 8px; background: var(--panel-soft); font-size: 11px; }
+    .assignment-row input { margin: 2px 0 0; accent-color: var(--accent); }
+    .assignment-row strong { display: block; }
+    .assignment-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .edit-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 13px 0; }
+    .edit-actions .btn { min-height: 31px; padding: 5px 8px; font-size: 10px; }
+    .divider { height: 1px; margin: 15px 0; background: var(--line); }
+    .empty-state { margin: 22px 0; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; font-size: 12px; line-height: 1.6; }
+    .agent-list { display: grid; gap: 10px; margin-top: 14px; }
+    .agent-card { padding: 11px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+    .agent-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+    .agent-card-head strong { font-size: 12px; }
+    .agent-card .field { margin-bottom: 8px; }
+    .agent-card .field > span { margin-bottom: 4px; font-size: 9px; }
+    .agent-card input, .agent-card textarea { padding: 7px 8px; background: var(--panel); font-size: 11px; }
+    .agent-card textarea { min-height: 48px; resize: vertical; }
+    .summary-count { margin: -2px 0 9px; color: var(--muted); font-size: 10px; }
+    .summary-count.invalid { color: var(--danger); }
+    .source-list { display: grid; gap: 9px; margin-top: 14px; }
+    .source-card { padding: 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-soft); }
+    .source-card strong { display: block; font-size: 11px; }
+    .source-card p { margin: 5px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .source-path { display: block; overflow-wrap: anywhere; color: var(--muted); font: 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .source-card .btn { min-height: 27px; margin-top: 7px; padding: 4px 7px; font-size: 10px; }
+    .flow-view { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; background: var(--panel-soft); }
+    .flow-view[hidden] { display: none; }
+    .flow-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 17px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    .flow-toolbar h2 { margin: 0; font-size: 15px; }
+    .flow-toolbar p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .flow-toolbar select { max-width: 230px; min-height: 34px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--panel); font-size: 11px; }
+    .flow-scroll { flex: 1; overflow: auto; padding: 20px; }
+    .flow-group { margin-bottom: 25px; }
+    .flow-group-title { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 13px; }
+    .flow-group-title span { color: var(--muted); font-size: 10px; font-weight: 500; }
+    .flow-steps { display: flex; align-items: stretch; gap: 20px; padding: 2px 3px 12px; }
+    .flow-step { position: relative; flex: 0 0 250px; min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); box-shadow: 0 4px 14px rgba(20, 30, 50, .04); }
+    .flow-step:not(:last-child)::after { content: ""; position: absolute; top: 27px; right: -21px; width: 20px; height: 2px; background: var(--edge); }
+    .flow-step-label { margin-bottom: 8px; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .flow-task { width: 100%; display: block; margin-bottom: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--panel-soft); text-align: left; }
+    .flow-task:last-child { margin-bottom: 0; }
+    .flow-task:hover { border-color: var(--accent); }
+    .flow-task strong { display: block; font-size: 11px; line-height: 1.4; }
+    .flow-task p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .flow-agent { display: grid; grid-template-columns: 1fr; gap: 3px; margin-top: 7px; padding: 7px; border-left: 2px solid var(--accent); border-radius: 0 7px 7px 0; background: var(--accent-soft); }
+    .flow-agent strong { font-size: 10px; }
+    .flow-agent small { color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .flow-unassigned { margin-top: 7px; padding: 7px; border-radius: 7px; color: var(--muted); background: var(--panel); font-size: 9px; line-height: 1.4; }
+    .modal-backdrop { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(17, 22, 35, .48); backdrop-filter: blur(4px); }
+    .modal-backdrop[hidden] { display: none; }
+    .modal { width: min(780px, 96vw); max-height: min(88vh, 900px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 17px; background: var(--panel); box-shadow: 0 24px 80px rgba(0, 0, 0, .24); }
+    .modal-head, .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 17px; border-bottom: 1px solid var(--line); }
+    .modal-head h2 { margin: 0; font-size: 15px; }
+    .modal-foot { justify-content: flex-end; border-top: 1px solid var(--line); border-bottom: 0; }
+    .modal-body { min-height: 0; overflow: auto; padding: 17px; }
+    .modal-body p { color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .modal-body textarea { width: 100%; min-height: 170px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; outline: none; color: var(--ink); background: var(--panel-soft); font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical; }
+    .modal-body textarea:focus { border-color: var(--accent); }
+    .modal-body textarea.prompt { min-height: 190px; }
+    .library-list { display: grid; gap: 8px; }
+    .library-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-soft); }
+    .library-row strong { display: block; font-size: 12px; }
+    .library-row small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .library-actions { display: flex; gap: 5px; }
+    .library-actions .btn { min-height: 30px; padding: 5px 8px; font-size: 10px; }
+    .toast { position: fixed; z-index: 20; right: 20px; bottom: 20px; max-width: min(400px, calc(100vw - 40px)); padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--panel); box-shadow: var(--shadow); font-size: 12px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .brand small a { color: inherit; }
+    /* patelpb.com copy: square corners everywhere, SVG node boxes included */
+    *, *::before, *::after { border-radius: 0 !important; }
+    .map-node rect { rx: 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 1050px) {
+      .topbar { align-items: flex-start; flex-wrap: wrap; }
+      .brand { min-width: 175px; }
+      .map-heading { order: 2; flex-basis: 100%; }
+      .top-actions { flex: 1; }
+      .workspace { grid-template-columns: minmax(0, 1fr) 290px; }
+    }
+    @media (max-width: 780px) {
+      .topbar { padding: 11px; gap: 9px; }
+      .brand { min-width: auto; }
+      .top-actions { justify-content: flex-start; width: 100%; }
+      .top-actions .btn, .file-button { min-height: 33px; padding: 6px 8px; font-size: 10px; }
+      .theme-select { min-height: 33px; }
+      .workspace { display: flex; flex-direction: column; padding: 9px; gap: 9px; }
+      .canvas-panel { min-height: 62vh; }
+      .inspector { min-height: 380px; }
+      .canvas-toolbar { align-items: flex-start; flex-direction: column; }
+      .canvas-controls { flex-wrap: wrap; }
+      .canvas-label small { max-width: 85vw; }
+      .flow-toolbar { align-items: flex-start; flex-wrap: wrap; }
+      .flow-scroll { padding: 12px; }
+      .flow-step { flex-basis: 225px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="Mindmap Studio">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div><strong>Mindmap Studio</strong><small><a href="/#/projects">← patelpb.com</a> · saves in this browser</small></div>
+      </div>
+      <div class="map-heading">
+        <strong id="mapTitleDisplay">Loading mindmap…</strong>
+        <span id="saveStatus">Local changes save in this browser</span>
+      </div>
+      <nav class="top-actions" aria-label="Map actions">
+        <button class="btn" id="newMapBtn" type="button">＋ New</button>
+        <button class="btn" id="libraryBtn" type="button">▤ My Maps</button>
+        <label class="file-button" for="fileInput">↥ Import
+          <input id="fileInput" type="file" accept=".json,.md,.markdown,.txt,application/json,text/markdown,text/plain">
+        </label>
+        <button class="btn" id="saveBtn" type="button">▣ Save</button>
+        <button class="btn" id="exportJsonBtn" type="button">↓ JSON</button>
+        <button class="btn" id="exportMarkdownBtn" type="button">↓ Markdown</button>
+        <button class="btn primary" id="aiBtn" type="button">✦ Build with AI</button>
+        <label class="sr-only" for="themeSelect">Theme</label>
+        <select class="theme-select" id="themeSelect" aria-label="Map theme">
+          <option value="paper">Paper theme</option>
+          <option value="night">Night theme</option>
+          <option value="ocean">Ocean theme</option>
+          <option value="forest">Forest theme</option>
+          <option value="violet">Violet theme</option>
+        </select>
+      </nav>
+    </header>
+
+    <main class="workspace">
+      <section class="canvas-panel" aria-label="Mindmap workspace">
+        <div class="canvas-toolbar">
+          <div class="canvas-label">
+            <strong>Map canvas</strong>
+            <small id="selectionLabel">Select a node to edit its content and assignments</small>
+          </div>
+          <div class="canvas-controls" aria-label="Canvas controls">
+            <button class="btn icon" id="undoBtn" type="button" title="Undo" aria-label="Undo">↶</button>
+            <button class="btn icon" id="redoBtn" type="button" title="Redo" aria-label="Redo">↷</button>
+            <span class="divider" style="height:22px;width:1px;margin:0 3px"></span>
+            <button class="btn icon" id="zoomOutBtn" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+            <span class="zoom-readout" id="zoomReadout">100%</span>
+            <button class="btn icon" id="zoomInBtn" type="button" title="Zoom in" aria-label="Zoom in">＋</button>
+            <button class="btn" id="fitBtn" type="button">Fit</button>
+            <button class="btn primary" id="agentFlowBtn" type="button">↗ Agent Flow</button>
+          </div>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap">
+          <svg id="mindmapSvg" role="img" aria-label="Editable mindmap canvas">
+            <g id="mapTransform"></g>
+          </svg>
+          <div class="flow-view" id="flowView" hidden>
+            <div class="flow-toolbar">
+              <div><h2>Agent Flow · zoomed view</h2><p>Tasks are grouped by workflow step. Click a task to select it on the map.</p></div>
+              <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+                <label class="sr-only" for="flowFilter">Workflow</label>
+                <select id="flowFilter" aria-label="Filter workflow"></select>
+                <button class="btn" id="closeFlowBtn" type="button">← Back to map</button>
+              </div>
+            </div>
+            <div class="flow-scroll" id="flowContent"></div>
+          </div>
+        </div>
+        <div class="canvas-footer"><span>Click a node to edit · drag empty canvas to pan · wheel to zoom</span><span id="nodeCount">0 nodes</span></div>
+      </section>
+
+      <aside class="inspector" aria-label="Map editor">
+        <div class="tabbar" role="tablist" aria-label="Editor panels">
+          <button class="tab-button" id="tabNode" role="tab" aria-selected="true" type="button">Node</button>
+          <button class="tab-button" id="tabAgents" role="tab" aria-selected="false" type="button">Agents</button>
+          <button class="tab-button" id="tabSources" role="tab" aria-selected="false" type="button">Sources</button>
+        </div>
+        <section class="panel-content" id="nodePanel" role="tabpanel" aria-labelledby="tabNode">
+          <div class="panel-title"><h2>Node details</h2><button class="btn primary" id="addChildBtn" type="button">＋ Child</button></div>
+          <div id="nodeEditor"></div>
+        </section>
+        <section class="panel-content" id="agentsPanel" role="tabpanel" aria-labelledby="tabAgents" hidden>
+          <div class="panel-title"><h2>Agents & roles</h2><button class="btn primary" id="addAgentBtn" type="button">＋ Agent</button></div>
+          <p class="helper">A concise 3–4 word summary makes the Agent Flow view easier to scan. Role and model can be left blank when unknown.</p>
+          <div class="agent-list" id="agentList"></div>
+        </section>
+        <section class="panel-content" id="sourcesPanel" role="tabpanel" aria-labelledby="tabSources" hidden>
+          <h2>Source notes</h2>
+          <p class="helper">References used to build this map. Importing a Markdown outline does not include source metadata.</p>
+          <div class="source-list" id="sourceList"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-head"><h2 id="modalTitle">Dialog</h2><button class="btn icon" id="modalCloseBtn" type="button" aria-label="Close">×</button></header>
+      <div class="modal-body" id="modalBody"></div>
+      <footer class="modal-foot" id="modalFoot"></footer>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="src/core.js"></script>
+  <script src="src/sample.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
