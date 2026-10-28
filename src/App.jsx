@@ -10,6 +10,7 @@ const assets = {
   bg: `${base}/bg.jpg`,
   bgGif: `${base}/assets/bg.gif`,
   pfp: `${base}/pfp.webp`, // 1200px wide, ~230 kB (was a 1.6 MB 1365x2048 JPEG)
+  pfpFace: `${base}/pfp_face.webp`, // 480px square face crop from the full-resolution original, for the hero
   galaxies: `${base}/images/8gals_GIF.gif`,
   graphics: [
     `${base}/images/A1.webp`,
@@ -21,7 +22,18 @@ const assets = {
 };
 
 // Home lives on one scrolling page; #/projects is a portal of cards, each project has its own page.
-const sections = ["Intro", "Research", "Resume", "Contact"];
+const sections = [
+  { id: "intro", label: "Intro" },
+  { id: "research", label: "Research" },
+  { id: "resume", label: "Resume/CV" },
+  { id: "contact", label: "Contact" },
+];
+
+// The Resume/CV section shows one document at a time; the resume is the default.
+const cvDocs = [
+  { key: "resume", label: "Resume", pdf: `${base}/assets/Resume_public.pdf`, page: `${base}/images/resume_page.webp`, h: 1743, blurb: "One page: recent roles, skills and education." },
+  { key: "cv", label: "CV", pdf: `${base}/assets/CV_public.pdf`, page: `${base}/images/cv_page.webp`, h: 1744, blurb: "Two pages: full research history and publications." },
+];
 const projects = [
   {
     key: "atp",
@@ -242,10 +254,40 @@ function DtdCarousel() {
   );
 }
 
+// Resume by default; the CV is the other tab and its PDF only loads once it's picked.
+function ResumeCv() {
+  const [k, setK] = useState(0);
+  const doc = cvDocs[k];
+  return (
+    <div className="panel panel-body resume-card">
+      <div className="doc-tabs" role="tablist" aria-label="Resume or CV">
+        {cvDocs.map((d, i) => (
+          <button key={d.key} id={`doc-tab-${d.key}`} type="button" role="tab" aria-selected={i === k} aria-controls="doc-panel"
+            className={`doc-tab${i === k ? " on" : ""}`} onClick={() => setK(i)}>
+            <b>{d.label}</b>
+            <small>{d.blurb}</small>
+          </button>
+        ))}
+      </div>
+      <div className="resume-actions prose">
+        <p>Showing my {doc.key === "cv" ? "CV" : "resume"}. Both are also available as PDFs.</p>
+        <ButtonLink href={doc.pdf}>Open {doc.label} PDF</ButtonLink>
+      </div>
+      <div className="resume-frame-shell" id="doc-panel" role="tabpanel" aria-labelledby={`doc-tab-${doc.key}`}>
+        <iframe key={doc.key} className="resume-frame" src={`${doc.pdf}#view=FitH`} title={`Preet Patel ${doc.label}`} />
+        {/* phone browsers mostly can't show a PDF inside a page, so they get an image of page 1 that opens the PDF */}
+        <a className="resume-image-link" href={doc.pdf} target="_blank" rel="noreferrer">
+          <img key={doc.key} src={doc.page} alt={`Preet Patel ${doc.label}, page 1 (opens the PDF)`} loading="lazy" width="1347" height={doc.h} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function assertSiteData() {
   if (typeof console === "undefined" || typeof console.assert !== "function") return;
   console.assert(Array.isArray(sections), "sections should be an array");
-  console.assert(sections.length === 4, "expected four home navigation sections");
+  console.assert(sections.length === 4 && sections.every((s) => /^[a-z]+$/.test(s.id) && s.label), "expected four home navigation sections with plain anchor ids");
   console.assert(projects.length > 0 && projects.every((p) => p.title && p.href) && new Set(projects.map((p) => p.key)).size === projects.length, "projects portal should list linked projects with unique keys");
   console.assert(/^https?:\/\//.test(base), "base URL should be absolute");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
@@ -255,7 +297,7 @@ function assertSiteData() {
   console.assert(contactCards.some((card) => card.encoded && decodeText(card.encoded).includes("199")), "the phone card should carry its (encoded) factorization");
   console.assert(contactCards.every((card) => card.label && card.icon), "each contact card should have a label and icon key");
   console.assert(!contactCards.some((card) => card.label === "Twitter"), "Twitter should not be included");
-  console.assert(`${base}/assets/Resume_public.pdf`.endsWith("assets/Resume_public.pdf"), "resume link should point to the hosted PDF");
+  console.assert(cvDocs[0].key === "resume" && cvDocs.every((d) => d.pdf.endsWith("_public.pdf") && d.page.endsWith(".webp")), "Resume/CV should default to the resume and point at the hosted public PDFs");
   for (const [name, t] of Object.entries(starTiles)) {
     console.assert(t.image.split("radial-gradient").length - 1 === t.size.split(",").length, `${name}: one tile size per star`);
   }
@@ -300,7 +342,7 @@ function Icon({ name, size = 20, className = "" }) {
 }
 
 function NavLink({ section }) {
-  return <a href={`#${section.toLowerCase()}`} className="nav-link">{section}</a>;
+  return <a href={`#${section.id}`} className="nav-link">{section.label}</a>;
 }
 
 function Section({ id, title, children }) {
@@ -553,33 +595,14 @@ function Css() {
         align-items: center;
         padding: 44px 0 32px;
       }
-      .hero-cards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        width: 100%;
-        height: 400px;
-        align-items: stretch;
-      }
       .hero::before { content: none; }
+      /* one card across the full hero width (centered by .hero); the face photo sits in the text plane */
       .hero-card {
         position: relative;
-        padding: 10;
+        width: 100%;
+        min-height: 400px;
         border: 1px solid rgba(255,180,120,0.22);
         overflow: hidden;
-        height: 100%;
-      }
-      .image-card {
-        display: flex;
-        align-items: stretch;
-        height: 100%;
-      }
-      .hero-image {
-        width: 100%;
-        height: 100%;
-        max-height: 100%;
-        object-fit: cover;
-        object-position: 30% 50%;
       }
       .content-card {
         padding: clamp(24px, 4vw, 44px);
@@ -672,11 +695,22 @@ function Css() {
       }
       .content-foreground .hero-actions { transform: translateZ(34px); }
       .eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: 0.24em; font-size: 0.79rem; font-weight: 700; margin-bottom: 18px; }
+      .hero-face {
+        align-self: center;
+        width: clamp(92px, 10vw, 136px);
+        height: auto;
+        aspect-ratio: 1;
+        object-fit: cover;
+        margin: 0 0 20px;
+        border: 1px solid rgba(255,190,130,0.6);
+        box-shadow: 0 12px 34px rgba(10,4,2,0.6), 0 0 0 4px rgba(30,14,8,0.55);
+      }
       .hero-title {
         margin: 0;
         width: 100%;
-        font-size: clamp(3.6rem, 7vw, 7rem);
-        line-height: 0.88;
+        white-space: nowrap;
+        font-size: clamp(2.5rem, 7vw, 6.4rem);
+        line-height: 0.95;
         letter-spacing: -0.055em;
         color: #fff2e6;
         text-shadow: 0 0 44px rgba(255,170,100,0.25);
@@ -733,6 +767,16 @@ function Css() {
       .button-link:hover { transform: translateY(-2px); filter: brightness(1.06); }
 
       .resume-card { display: grid; gap: 18px; }
+      .doc-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .doc-tab { display: grid; gap: 4px; padding: 14px 16px; text-align: left; font: inherit; color: var(--text); cursor: pointer;
+        border: 1px solid rgba(255,170,100,0.42); background: rgba(255,210,160,0.04); transition: 180ms ease; }
+      .doc-tab b { font-size: 1.08rem; letter-spacing: 0.02em; }
+      .doc-tab small { color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
+      .doc-tab:hover { border-color: var(--accent); background: rgba(255,170,100,0.12); transform: translateY(-2px); }
+      .doc-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .doc-tab.on { color: #000000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); border-color: transparent;
+        box-shadow: 0 10px 28px rgba(255,140,70,0.32); cursor: default; transform: none; }
+      .doc-tab.on small { color: rgba(0,0,0,0.72); }
       .resume-frame-shell {
         border: 1px solid rgba(255,170,100,0.24);
         background: rgba(30,14,8,0.72);
@@ -822,13 +866,7 @@ function Css() {
         .nav.open .nav-link { padding: 13px 4px; font-size: 1.02rem; border-bottom: 1px solid rgba(255,180,120,0.10); }
         .nav.open .nav-link:last-child { border-bottom: 0; }
         .hero { min-height: auto; padding-top: 54px; }
-        .hero-cards {
-          grid-template-columns: 1fr;
-          height: auto;
-        }
-        /* stacked: the photo keeps a fixed height; the text card grows to fit its content */
-        .image-card { min-height: 360px; height: 360px; }
-        .content-card { min-height: 360px; height: auto; }
+        .hero-card { min-height: 360px; }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
 
@@ -862,14 +900,12 @@ function Css() {
       }
       @media (max-width: 620px) {
         .hero { min-height: auto; padding-top: 54px; }
-        .hero-cards { grid-template-columns: 1fr; height: auto; }
-        .image-card { min-height: 0; height: min(360px, 95vw); }
-        .content-card { min-height: 0; height: auto; }
+        .hero-card { min-height: 0; }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
         .contact-grid, .graphics-grid, .graphics-grid.old { grid-template-columns: 1fr; }
         .brand-subtitle { display: none; }
-        .hero-title { font-size: clamp(3rem, 16vw, 5rem); }
+        .hero-title { font-size: clamp(2.2rem, 13vw, 4rem); }
         .content-card { padding: 24px; }
       }
     `}</style>
@@ -905,40 +941,35 @@ function HomePage() {
   return (
     <>
       <section className="hero">
-        <div className="hero-cards">
-          <motion.div className="hero-card image-card" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <img src={assets.pfp} alt="Preet Patel" className="hero-image" />
-          </motion.div>
+        <motion.div
+          className="hero-card content-card"
+          ref={cardRef}
+          onPointerMove={handleStarParallax}
+          onPointerLeave={resetStarParallax}
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9 }}
+        >
+          <div className="starfield starfield-farback" />
+          <div className="starfield starfield-midback" />
+          <div className="starfield starfield-mid" />
+          <div className="starfield starfield-back" />
+          <div className="content-foreground">
+            <img src={assets.pfpFace} alt="Preet Patel" className="hero-face" width="480" height="480" />
+            <p className="eyebrow">M.Sc. in Physics & Astronomy</p>
+            <h1 className="hero-title">Preet Patel</h1>
+            <p className="hero-subtitle">Astrophysics | Data | AI</p>
 
-          <motion.div
-            className="hero-card content-card"
-            ref={cardRef}
-            onPointerMove={handleStarParallax}
-            onPointerLeave={resetStarParallax}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9 }}
-          >
-            <div className="starfield starfield-farback" />
-            <div className="starfield starfield-midback" />
-            <div className="starfield starfield-mid" />
-            <div className="starfield starfield-back" />
-            <div className="content-foreground">
-              <p className="eyebrow">M.Sc. in Physics & Astronomy</p>
-              <h1 className="hero-title">Preet<br />Patel</h1>
-              <p className="hero-subtitle">Astrophysics | Data | AI</p>
-
-              <div className="hero-actions">
-                <ButtonLink href="#contact">Contact</ButtonLink>
-                <ButtonLink href="#research">Research</ButtonLink>
-                <ButtonLink href={`${base}/assets/Resume_public.pdf`}>Resume</ButtonLink>
-              </div>
+            <div className="hero-actions">
+              <ButtonLink href="#contact">Contact</ButtonLink>
+              <ButtonLink href="#research">Research</ButtonLink>
+              <ButtonLink href="#resume">Resume/CV</ButtonLink>
             </div>
+          </div>
 
-            <div className="starfield starfield-front" />
-            <div className="starfield starfield-ultrafront" />
-          </motion.div>
-        </div>
+          <div className="starfield starfield-front" />
+          <div className="starfield starfield-ultrafront" />
+        </motion.div>
       </section>
 
       <div className="content">
@@ -978,20 +1009,8 @@ function HomePage() {
           </div>
         </Section>
 
-        <Section id="resume" title="Resume">
-          <div className="panel panel-body resume-card">
-            <div className="resume-actions prose">
-              <p>My resume, also available as a PDF.</p>
-              <ButtonLink href={`${base}/assets/Resume_public.pdf`}>Open PDF</ButtonLink>
-            </div>
-            <div className="resume-frame-shell">
-              <iframe className="resume-frame" src={`${base}/assets/Resume_public.pdf#view=FitH`} title="Preet Patel Resume" />
-              {/* phone browsers mostly can't show a PDF inside a page, so they get an image of it that opens the PDF */}
-              <a className="resume-image-link" href={`${base}/assets/Resume_public.pdf`} target="_blank" rel="noreferrer">
-                <img src={`${base}/images/resume_page.webp`} alt="Preet Patel resume, page 1 (opens the PDF)" loading="lazy" width="1347" height="1743" />
-              </a>
-            </div>
-          </div>
+        <Section id="resume" title="Resume/CV">
+          <ResumeCv />
         </Section>
 
         <Section id="contact" title="Contact">
@@ -1259,7 +1278,7 @@ function Topbar({ route }) {
             </>
           ) : (
             <>
-              {sections.map((section) => <NavLink key={section} section={section} />)}
+              {sections.map((section) => <NavLink key={section.id} section={section} />)}
               <a href="#/projects" className="nav-link">Projects</a>
             </>
           )}
