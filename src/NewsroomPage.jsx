@@ -133,19 +133,39 @@ function HomeStatus() {
 }
 
 // ------------------------------------------------------------------ plane view
+const SPIN_KEY = "np-plane-spin";
+function initialSpin() {
+  try {
+    const saved = localStorage.getItem(SPIN_KEY);
+    if (saved != null) return saved === "1";
+  } catch { /* storage blocked */ }
+  return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 function PlaneView({ plane }) {
   const ref = useRef(null);
   const inst = useRef(null);
+  const [spin, setSpin] = useState(initialSpin);
   useEffect(() => {
-    inst.current = createPlane(ref.current);
+    inst.current = createPlane(ref.current, { spin });
     return () => inst.current.destroy();
   }, []);
   useEffect(() => { if (plane && inst.current) inst.current.setData(plane); }, [plane]);
+  useEffect(() => {
+    if (inst.current) inst.current.setSpin(spin);
+    try { localStorage.setItem(SPIN_KEY, spin ? "1" : "0"); } catch { /* storage blocked */ }
+  }, [spin]);
   const agents = plane ? plane.nodes.filter((n) => n.kind === "agent").length : 0;
   return (
     <div className="np-plane">
-      <canvas ref={ref} role="img" aria-label={`Agent plane with ${agents} agents`} />
+      <canvas ref={ref} role="img" aria-label={`Agent plane with ${agents} agents. Drag to turn it.`} />
       {!plane && <p className="np-fine np-center">Waiting for the agents to start…</p>}
+      <div className="np-row np-between">
+        <span className="np-fine">Drag to turn</span>
+        <button type="button" className="np-btn np-lock" aria-pressed={spin} onClick={() => setSpin((s) => !s)}>
+          {spin ? "Stop spin" : "Spin"}
+        </button>
+      </div>
     </div>
   );
 }

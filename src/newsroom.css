@@ -13,6 +13,7 @@
   --np-idle: #8b8577;
   --np-done: #2f7d4f;
   --np-ring: #6f6859;
+  --np-square: #3a352c;   /* tools/docs on the sphere; white in dark mode */
   --np-edge: #c4731a;
   --np-text: #5d564a;
   color-scheme: light dark;
@@ -32,6 +33,7 @@
     --np-idle: #8b8577;
     --np-done: #6ccf93;
     --np-ring: #b6ab97;
+    --np-square: #f4f1ea;
     --np-edge: #ffb36b;
     --np-text: #b6ab97;
   }
@@ -93,7 +95,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.6s ease; }
 .np-msg { margin: 8px 0 0; font-size: 15px; }
 .np-plane { margin-top: 10px; }
-.np-plane canvas { display: block; width: 100%; aspect-ratio: 1 / 1; max-height: 70vh; }
+.np-plane canvas { display: block; width: 100%; aspect-ratio: 1 / 1; max-height: 70vh; cursor: grab; touch-action: pan-y; }
+.np-plane canvas:active { cursor: grabbing; }
 
 /* newspaper */
 .np-mast { text-align: center; border-top: 4px double var(--ink); border-bottom: 1px solid var(--ink); margin: 6px 0 12px; padding: 8px 0 6px; }
