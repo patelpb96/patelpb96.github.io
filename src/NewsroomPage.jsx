@@ -5,6 +5,11 @@ import "./newsroom.css";
 
 const DEFAULT_BASE = "/live/newsroom/";
 const PUT_URL = "/api/newsroom/put";
+// Requests are cut to 200 code points here, refused by the Lambda if the ciphertext could hold more
+// (lambdas/newsroom/handler.py), and cut again by the daemon after decrypting (newsdesk relay.py).
+// Code points, not UTF-16 units, so an emoji counts once, as in Python's str[:200].
+const MAX_REQUEST_CHARS = 200;
+const capRequest = (s) => { const cp = Array.from(s); return cp.length > MAX_REQUEST_CHARS ? cp.slice(0, MAX_REQUEST_CHARS).join("") : s; };
 
 function getBase() {
   let b = DEFAULT_BASE;
@@ -360,7 +365,7 @@ function Compose({ session, onSent, left }) {
     try {
       const rid = newRid();
       const name = `${pfx(session)}inbox/${rid}.json`;
-      const req = { rid, text: text.trim(), created: new Date().toISOString(), opts: { window_hours: win } };
+      const req = { rid, text: capRequest(text.trim()), created: new Date().toISOString(), opts: { window_hours: win } };
       const doc = await encryptDoc(session.key, name, Date.now(), req);
       const body = JSON.stringify({ name, doc });
       const res = await fetch(PUT_URL, {
@@ -373,6 +378,7 @@ function Compose({ session, onSent, left }) {
       if (res.status === 401 && session.day) throw new Error("This day password has expired.");
       if (res.status === 401 && session.open) throw new Error("Open access has ended.");
       if (res.status === 429) throw new Error("No requests left in this open period.");
+      if (res.status === 413) throw new Error(`Requests are limited to ${MAX_REQUEST_CHARS} characters.`);
       if (!res.ok || !j || j.status !== "ok") {
         throw new Error(`Send failed (HTTP ${res.status})${j && (j.error || j.message) ? `: ${j.error || j.message}` : ""}`);
       }
@@ -387,8 +393,10 @@ function Compose({ session, onSent, left }) {
     <form className="np-card" onSubmit={send}>
       <h2>Ask for a story</h2>
       <label htmlFor="np-req" className="np-sr">Request</label>
-      <textarea id="np-req" rows={4} value={text} onChange={(e) => setText(e.target.value)}
+      <textarea id="np-req" rows={4} value={text} onChange={(e) => setText(capRequest(e.target.value))}
+        aria-describedby="np-req-count"
         placeholder="Find me news in Oakland about SF Tech Week…" disabled={busy} />
+      <p id="np-req-count" className="np-fine np-count">{Array.from(text).length}/{MAX_REQUEST_CHARS}</p>
       <div className="np-row">
         <label htmlFor="np-win">Window</label>
         <select id="np-win" value={win} onChange={(e) => setWin(Number(e.target.value))} disabled={busy}>

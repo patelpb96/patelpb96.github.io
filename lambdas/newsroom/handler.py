@@ -20,6 +20,7 @@ period (the period is named by its expiry). Everything else stays master/day onl
                       beat.json  -> small plain object {v, beat, busy, version}
                       otherwise  -> envelope {v, name, seq, iv, ct} with name == target name
                       inbox/<rid>.json also appends rid to inbox/index.json {v, seq, ids}
+                      (open/)inbox/<rid>.json: ct at most MAX_REQUEST_CT (a 200-character request), else 413
 
                       open/inbox/<rid>.json appends to open/inbox/index.json {v, seq, ids, period}
 
@@ -50,6 +51,13 @@ MAX_BODY = 900 * 1024
 MAX_BEAT = 1024
 MAX_IDS = 50
 MAX_OPEN_BODY = 8 * 1024   # an open request is a short encrypted sentence or two
+# A request is {rid, text, created, opts} with text <= 200 characters (code points; the page cuts it
+# and the daemon cuts it again after decrypting). The Lambda can't read the text, so it bounds the
+# ciphertext instead: 200 chars at 6 bytes each (a \uXXXX escape, the worst case) plus ~120 bytes of
+# other fields fits 1536 bytes of plaintext; AES-GCM adds a 16-byte tag, then base64.
+MAX_REQUEST_CHARS = 200
+MAX_REQUEST_PLAIN = 1536
+MAX_REQUEST_CT = 4 * -(-(MAX_REQUEST_PLAIN + 16) // 3)   # 2072 base64 chars
 CACHE_CONTROL = "public, max-age=1"
 CONTENT_TYPE = "application/json; charset=utf-8"
 HASH_TTL = 60.0
@@ -251,6 +259,8 @@ def handler(event, context):
             return err(400, "bad envelope")
 
         m = INBOX.fullmatch(name)
+        if m and len(doc["ct"]) > MAX_REQUEST_CT:  # any key: too big to hold a 200-character request
+            return err(413, f"requests are limited to {MAX_REQUEST_CHARS} characters")
         if tier == "open" and not (m and m.group(1)):
             return err(401, "the open key can only send requests")
         if m and m.group(1):  # open/inbox: new rids only, at most `limit` per open period

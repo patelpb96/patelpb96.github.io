@@ -83,12 +83,14 @@ Written only through the Lambda (except `config.json`, written by setup with the
 - `beat.json` doc must be a small plain object; every other doc must be a valid envelope whose
   `name` equals the target name.
 - Putting `inbox/<rid>.json` also appends `rid` to `inbox/index.json` (dedup, keep last 50, `seq += 1`).
-- Responses JSON, `Cache-Control: no-store`: 200 `{status:"ok"}`, 400, 401, 405, 413 (> 900 KB), 500.
+- Responses JSON, `Cache-Control: no-store`: 200 `{status:"ok"}`, 400, 401, 405, 413 (> 900 KB, or an (open/)inbox request whose ct is over 2072 chars), 500.
   Never 403/404 (the distribution rewrites those to /404.html).
 
 ## Plaintext shapes
 ```ts
 Request        { rid, text, created: ISO, opts?: { window_hours?: number } }
+                 text: at most 200 code points. The page cuts it, the Lambda refuses a ct that
+                 couldn't hold 200 (worst case \uXXXX escapes), and the daemon cuts again after decrypting.
 Status         { rid, state: "queued"|"running"|"done"|"failed", phase: string, progress: 0..1,
                  message: string, updated: ISO, started?: ISO, finished?: ISO }
 EditionSummary { rid, title, request, created: ISO, state, stories: number, open?: true }

@@ -80,6 +80,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .np-between { justify-content: space-between; }
 .np-err { color: var(--bad); font-weight: 600; margin: 10px 0 0; }
 .np-fine { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+.np-count { text-align: right; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .np-center { text-align: center; }
 
 .np-hist { list-style: none; margin: 0; padding: 0; }

@@ -355,7 +355,18 @@ class OpenKeyTest(unittest.TestCase):
         name = "open/inbox/r-abcd1234.json"
         big = envelope(name, ct=base64.b64encode(b"\x02" * 9000).decode())
         self.assertEqual(call(name, big, key=OPEN)["statusCode"], 413)
-        self.assertEqual(call(name, big)["statusCode"], 200)   # master may send bigger
+        self.assertEqual(call(name, big)["statusCode"], 413)   # requests are capped for every key
+
+    def test_request_ct_cap(self):
+        at_cap = "A" * h.MAX_REQUEST_CT
+        over = "A" * (h.MAX_REQUEST_CT + 4)
+        for name, key in (("open/inbox/r-abcd1234.json", OPEN), ("inbox/r-abcd5678.json", TOKEN)):
+            self.assertEqual(call(name, envelope(name, ct=over), key=key)["statusCode"], 413, name)
+            self.assertNotIn(PFX + name, FAKE_S3.objects)
+            self.assertEqual(call(name, envelope(name, ct=at_cap), key=key)["statusCode"], 200, name)
+        # outputs aren't requests; the master key still writes big editions
+        big = envelope("out/r-abcd1234/edition.json", ct="A" * (h.MAX_REQUEST_CT * 10))
+        self.assertEqual(call("out/r-abcd1234/edition.json", big)["statusCode"], 200)
 
 
 if __name__ == "__main__":
