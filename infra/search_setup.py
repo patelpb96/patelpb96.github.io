@@ -118,6 +118,11 @@ def cmd_status() -> None:
 def main() -> None:
     cmds = {"password": cmd_password, "device": cmd_device, "exa-key": cmd_exa_key, "status": cmd_status}
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    if cmd not in cmds and len(cmd) >= 16:
+        # Looks like a pasted secret: never echo it, and say how to pass it safely.
+        sys.exit("That looks like a key, not a command. Nothing was stored.\n"
+                 "Run `python infra/search_setup.py exa-key` and paste the key when it asks.\n"
+                 "The key is now in your shell history; rotate it in the Exa dashboard if that matters.")
     if cmd not in cmds:
         sys.exit(__doc__)
     cmds[cmd]()
