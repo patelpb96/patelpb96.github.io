@@ -1,28 +1,42 @@
 // Compact, read-only "plane" renderer (canvas 2D drawing a small 3D scene, no dependencies).
 //
-// Non-agent nodes (tools, docs) sit on the surface of a sphere as small squares, each group in one
-// contiguous band. Agents live inside it: tier 0 near the centre, higher tiers further out, pulled
-// toward the surface nodes they have active/pulsing edges to and repelling each other. Edges are
-// drawn only while active or pulsing. The sphere turns slowly (toggle with setSpin) and can be
-// dragged; things further away are drawn smaller and dimmer. Everything eases; nothing jumps.
-// Colours come from CSS variables on the canvas (--np-working, --np-idle, --np-done, --np-ring,
-// --np-square, --np-edge, --np-text).
+// Three concentric strata. Tools sit on the surface of the main sphere as small squares, in one
+// contiguous band. Docs sit one shell further out (DOC_SHELL times the radius), still squares and
+// in the direction they would have had on the main sphere, so each doctype keeps one band. Agents
+// sit on the surface of a small inner ball (AGENT_BALL times the radius), spread by tier then id,
+// and each may slide a little way (at most WANDER radians) from its spot toward the surface nodes
+// it has active/pulsing edges to. Edges are drawn only while active or pulsing. The scene turns
+// slowly (toggle with setSpin) and can be dragged; things further away are drawn smaller and
+// dimmer. Everything eases; nothing jumps. Colours come from CSS variables on the canvas
+// (--np-working, --np-idle, --np-done, --np-ring, --np-square, --np-edge, --np-text).
 
 const TAU = Math.PI * 2;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const SPIN = 0.12;             // radians per second while spinning
-const NEAR = 0.3;              // alpha at the very back of the sphere (1 at the front)
+const NEAR = 0.3;              // alpha at the very back (1 at the front)
+const EYE = 3.2;               // camera distance in main-sphere radii (sets the perspective)
+const DOC_SHELL = 1.3;         // docs sit on a shell of this radius, in main-sphere radii
+const AGENT_BALL = 0.3;        // agents sit on a ball of this radius, in main-sphere radii
+const WANDER = 0.35;           // radians an agent may slide from its spot toward what it is using
+const LABEL_GAP = 0.18;        // group labels sit this far outside their shell, in main-sphere radii
 
-function hash01(s) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return ((h >>> 0) % 100000) / 100000;
+// Point i of N on a Fibonacci sphere: unit directions, evenly spread, in order from top to bottom.
+function fib(i, N) {
+  const y = 1 - 2 * (i + 0.5) / N, r = Math.sqrt(Math.max(0, 1 - y * y)), t = i * GOLDEN;
+  return [Math.cos(t) * r, y, Math.sin(t) * r];
 }
+const scale = (v, k) => [v[0] * k, v[1] * k, v[2] * k];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+function unit(v) { const d = Math.hypot(v[0], v[1], v[2]); return d > 1e-9 ? scale(v, 1 / d) : null; }
 
-// A stable unit direction for an id.
-function dirOf(id) {
-  const z = 2 * hash01(id) - 1, t = hash01(id + "~") * TAU, r = Math.sqrt(1 - z * z);
-  return [Math.cos(t) * r, z, Math.sin(t) * r];
+// Turn unit direction `from` toward unit direction `to`, by at most `max` radians.
+function lean(from, to, max) {
+  const c = Math.max(-1, Math.min(1, dot(from, to)));
+  if (Math.acos(c) <= max) return to;
+  const perp = unit([to[0] - from[0] * c, to[1] - from[1] * c, to[2] - from[2] * c]);
+  if (!perp) return from;   // straight behind: no side to lean to
+  const cm = Math.cos(max), sm = Math.sin(max);
+  return [from[0] * cm + perp[0] * sm, from[1] * cm + perp[1] * sm, from[2] * cm + perp[2] * sm];
 }
 
 export function createPlane(canvas, opts = {}) {
@@ -30,8 +44,8 @@ export function createPlane(canvas, opts = {}) {
   let W = 300, H = 300, dpr = 1;
   let nodes = [];            // incoming data
   let edges = [];
-  const agents = new Map();  // id -> { p: [x,y,z], t: [x,y,z], node, a }  (unit-sphere coordinates)
-  const shell = new Map();   // id -> { p: [x,y,z], node }
+  const agents = new Map();  // id -> { p: [x,y,z], t: [x,y,z], anchor: unit dir, node, a }  (main-sphere radii)
+  const shell = new Map();   // id -> { d: unit dir, p: [x,y,z], node }
   const edgeA = new Map();   // key -> alpha (eased)
   let groups = [];           // [{label, p}]
   let raf = 0, last = 0, running = false, visible = true, onScreen = true, destroyed = false;
@@ -58,27 +72,24 @@ export function createPlane(canvas, opts = {}) {
     W = Math.max(120, r.width); H = Math.max(120, r.height);
     dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    geom = { cx: W / 2, cy: H / 2, R: Math.min(W, H) * 0.38 };
+    geom = { cx: W / 2, cy: H / 2, R: Math.min(W, H) * 0.3 };   // leaves room for the outer shell
   }
 
-  // Fibonacci sphere over the sorted list, so each group fills one contiguous band.
+  // One Fibonacci sphere over the sorted list, so each group fills one contiguous band of
+  // directions; a doc then moves one stratum out along its direction, which keeps its band whole.
   function layoutShell() {
     const fixed = nodes.filter((n) => n.kind !== "agent")
       .sort((a, b) => (a.group || "").localeCompare(b.group || "", undefined, { numeric: true }) ||
         a.id.localeCompare(b.id, undefined, { numeric: true }));
     shell.clear(); groups = [];
     const N = Math.max(1, fixed.length);
-    const at = (i) => {
-      const y = 1 - 2 * (i + 0.5) / N, r = Math.sqrt(Math.max(0, 1 - y * y)), t = i * GOLDEN;
-      return [Math.cos(t) * r, y, Math.sin(t) * r];
-    };
-    fixed.forEach((n, i) => shell.set(n.id, { node: n, p: at(i) }));
+    const radiusOf = (n) => (n.kind === "doc" ? DOC_SHELL : 1);
+    fixed.forEach((n, i) => { const d = fib(i, N); shell.set(n.id, { node: n, d, p: scale(d, radiusOf(n)) }); });
     const keys = [...new Set(fixed.map((n) => n.group || ""))];
     for (const k of keys) {
       const idx = fixed.map((n, i) => ((n.group || "") === k ? i : -1)).filter((i) => i >= 0);
       const mid = idx[Math.floor(idx.length / 2)];
-      const p = at(mid);
-      groups.push({ label: fixed[mid].groupLabel || k, p: [p[0] * 1.18, p[1] * 1.18, p[2] * 1.18] });
+      groups.push({ label: fixed[mid].groupLabel || k, p: scale(fib(mid, N), radiusOf(fixed[mid]) + LABEL_GAP) });
     }
   }
 
@@ -86,77 +97,58 @@ export function createPlane(canvas, opts = {}) {
     nodes = (plane && plane.nodes) || [];
     edges = (plane && plane.edges) || [];
     layoutShell();
+    // agents: one Fibonacci spread over the ball, lowest tier first so each tier sits together
+    const list = nodes.filter((n) => n.kind === "agent")
+      .sort((a, b) => (a.tier || 0) - (b.tier || 0) || a.id.localeCompare(b.id, undefined, { numeric: true }));
     const seen = new Set();
-    for (const n of nodes) {
-      if (n.kind !== "agent") continue;
+    list.forEach((n, i) => {
       seen.add(n.id);
+      const anchor = fib(i, list.length);
       let a = agents.get(n.id);
-      if (!a) {
-        const d = dirOf(n.id);
-        a = { p: [d[0] * 0.03, d[1] * 0.03, d[2] * 0.03], t: [0, 0, 0], node: n, a: 0 };
+      if (!a) {   // a new agent emerges from the centre and fades in
+        a = { p: scale(anchor, 0.03), t: scale(anchor, AGENT_BALL), a: 0 };
         agents.set(n.id, a);
       }
-      a.node = n;
-    }
+      a.node = n; a.anchor = anchor;
+    });
     for (const id of agents.keys()) if (!seen.has(id)) agents.delete(id);
     start();
   }
 
+  // Each agent's target: its spot on the ball, leaned toward the surface nodes it is actively using
+  // (the mean of their directions, so scattered ones pull less), never more than WANDER radians.
   function computeTargets() {
-    const list = [...agents.values()];
     const pull = new Map();   // agent id -> summed directions of the surface nodes it is using
     for (const e of edges) {
       if (!(e.active || e.pulse)) continue;
       for (const [a, b] of [[e.src, e.dst], [e.dst, e.src]]) {
         if (agents.has(a) && shell.has(b)) {
           const q = pull.get(a) || [0, 0, 0, 0];
-          const s = shell.get(b).p; q[0] += s[0]; q[1] += s[1]; q[2] += s[2]; q[3]++; pull.set(a, q);
+          const s = shell.get(b).d; q[0] += s[0]; q[1] += s[1]; q[2] += s[2]; q[3]++; pull.set(a, q);
         }
       }
     }
-    const space = Math.max(0.09, Math.min(0.2, 1.1 / Math.cbrt(Math.max(1, list.length))));
-    for (const a of list) {
-      const rad = Math.min(0.78, 0.14 + 0.2 * (a.node.tier || 0));
-      const d = dirOf(a.node.id);
-      const t = [d[0] * rad, d[1] * rad, d[2] * rad];
-      const q = pull.get(a.node.id);
-      if (q) {
-        const k = 0.45; // pulled partway toward the tools it is using
-        for (let i = 0; i < 3; i++) t[i] += ((q[i] / q[3]) * 0.7 - t[i]) * k;
-      }
-      a.t = t;
-    }
-    // personal space: push targets apart (a few relaxation passes), keep inside the sphere
-    for (let it = 0; it < 4; it++) {
-      for (let i = 0; i < list.length; i++) {
-        for (let j = i + 1; j < list.length; j++) {
-          const A = list[i].t, B = list[j].t;
-          let dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2];
-          let d = Math.hypot(dx, dy, dz);
-          if (d >= space) continue;
-          if (d < 1e-4) { [dx, dy, dz] = dirOf(list[i].node.id + list[j].node.id); d = 1; }
-          const push = (space - d) / 2 / d;
-          A[0] -= dx * push; A[1] -= dy * push; A[2] -= dz * push;
-          B[0] += dx * push; B[1] += dy * push; B[2] += dz * push;
-        }
-      }
-    }
-    for (const a of list) {
-      const d = Math.hypot(...a.t);
-      if (d > 0.88) a.t = a.t.map((v) => (v / d) * 0.88);
+    for (const [id, a] of agents) {
+      const q = pull.get(id);
+      const want = q && unit([a.anchor[0] + q[0] / q[3], a.anchor[1] + q[1] / q[3], a.anchor[2] + q[2] / q[3]]);
+      a.t = scale(want ? lean(a.anchor, want, WANDER) : a.anchor, AGENT_BALL);
     }
   }
 
-  // Rotate (yaw about y, then pitch about x), then a gentle perspective. depth: 0 back .. 1 front.
+  // Rotate (yaw about y, then pitch about x), then a gentle perspective from EYE radii away.
+  // depth: 0 at the back of the main sphere .. 1 at its front (the outer shell goes a bit beyond).
   function project(p) {
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
     const x1 = p[0] * cy + p[2] * sy, z1 = -p[0] * sy + p[2] * cy;
     const y2 = p[1] * cp - z1 * sp, z2 = p[1] * sp + z1 * cp;
-    const f = 3.2 / (3.2 - z2);
+    const f = EYE / (EYE - z2);
     const { cx, cy: ccy, R } = geom;
     return { x: cx + x1 * R * f, y: ccy - y2 * R * f, f, depth: (z2 + 1) / 2 };
   }
   const fade = (depth) => NEAR + (1 - NEAR) * Math.max(0, Math.min(1, depth));
+  // Screen radius of a sphere's outline: seen from EYE radii away its silhouette is a little wider
+  // than the sphere itself (noticeably so for the outer shell), so the squares stay inside the ring.
+  const silhouette = (r) => geom.R * r / Math.sqrt(1 - (r / EYE) ** 2);
 
   function frame(now) {
     raf = 0;
@@ -174,19 +166,34 @@ export function createPlane(canvas, opts = {}) {
     raf = requestAnimationFrame(frame);
   }
 
+  // The three strata, faint: the agents' ball, the main sphere with its equator, and the docs'
+  // shell (dashed). The equator turns with the scene; the half facing away is dimmer.
+  function drawStrata(c) {
+    const { cx, cy } = geom;
+    ctx.strokeStyle = c.ring; ctx.lineWidth = 1; ctx.globalAlpha = 0.18;
+    for (const [r, dash] of [[AGENT_BALL, []], [1, []], [DOC_SHELL, [3, 4]]]) {
+      ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.arc(cx, cy, silhouette(r), 0, TAU); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    const front = new Path2D(), back = new Path2D();
+    let prev = null;
+    for (let i = 0; i <= 64; i++) {
+      const q = project([Math.cos((i / 64) * TAU), 0, Math.sin((i / 64) * TAU)]);
+      if (prev) {
+        const path = prev.depth + q.depth > 1 ? front : back;   // nearer than the centre, or not
+        path.moveTo(prev.x, prev.y); path.lineTo(q.x, q.y);
+      }
+      prev = q;
+    }
+    ctx.globalAlpha = 0.1; ctx.stroke(front);
+    ctx.globalAlpha = 0.04; ctx.stroke(back);
+  }
+
   function draw(c, now) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    const { cx, cy, R } = geom;
-    // perimeter (the sphere's outline) and its equator
-    ctx.globalAlpha = 0.18; ctx.strokeStyle = c.ring; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
-    ctx.globalAlpha = 0.1; ctx.beginPath();
-    for (let i = 0; i <= 64; i++) {
-      const t = (i / 64) * TAU, q = project([Math.cos(t), 0, Math.sin(t)]);
-      i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
-    }
-    ctx.stroke();
+    drawStrata(c);
     // group labels (faint, just outside the band, dimmer at the back)
     ctx.fillStyle = c.text; ctx.font = "10px system-ui, sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -224,13 +231,14 @@ export function createPlane(canvas, opts = {}) {
     const pulse = 0.5 + 0.5 * Math.sin(now / 300);
     ctx.font = "9px system-ui, sans-serif";
     for (const { q, shell: s, agent: a } of items) {
-      const dim = fade(q.depth);
       if (s) {
         const h = 2.6 * q.f;
-        ctx.globalAlpha = 0.9 * dim; ctx.fillStyle = c.square;
+        ctx.globalAlpha = 0.9 * fade(q.depth); ctx.fillStyle = c.square;
         ctx.fillRect(q.x - h, q.y - h, h * 2, h * 2);
         continue;
       }
+      // the ball is small, so an agent fades by its place on the ball rather than in the whole scene
+      const dim = fade((q.depth - 0.5) / AGENT_BALL + 0.5);
       const st = a.node.state || "idle";
       const rad = (st === "working" ? 4.5 + pulse * 0.8 : 3.8) * q.f;
       ctx.globalAlpha = a.a * dim * (st === "idle" ? 0.7 : 1);
