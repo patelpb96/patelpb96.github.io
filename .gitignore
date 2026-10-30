@@ -17,8 +17,23 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# rs-alchemy updater scratch file
+public/rs-alchemy/data/_update_points_cache.json
+
+# python bytecode (tools/, lambdas/)
+__pycache__/
+
+# gateway local testing (live/ is runtime data on S3)
+public/live/
+
+# CDK build output (infra/)
+infra/cdk.out/
+infra/node_modules/
+infra/.cdk.staging/

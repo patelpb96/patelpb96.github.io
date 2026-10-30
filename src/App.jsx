@@ -1,16 +1,16 @@
-import React, { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import GatewayView from "./Gateway.jsx";
+import { marked } from "marked";
 
-const base = "https://patelpb96.github.io";
+// Same origin the page was served from (patelpb.com, GitHub Pages or the dev server).
+const base = typeof window !== "undefined" ? window.location.origin : "https://patelpb.com";
 
 const assets = {
-  logoTop: `${base}/logo_top.png`,
-  logoBot: `${base}/logo_bot.png`,
-  core: `${base}/core.png`,
   bg: `${base}/bg.jpg`,
   bgGif: `${base}/assets/bg.gif`,
-  introImg: `${base}/images/pic01.png`,
-  pfp: `${base}/pfp.jpg`,
+  pfp: `${base}/pfp.webp`, // 1200px wide, ~230 kB (was a 1.6 MB 1365x2048 JPEG)
+  pfpFace: `${base}/pfp_face.webp`, // 480px square face crop from the full-resolution original, for the hero
   galaxies: `${base}/images/8gals_GIF.gif`,
   graphics: [
     `${base}/images/A1.webp`,
@@ -21,14 +21,114 @@ const assets = {
   ],
 };
 
-const sections = ["Intro", "Research", "Resume", "Contact", "Graphics"];
+// Home lives on one scrolling page; #/projects is a portal of cards, each project has its own page.
+const sections = [
+  { id: "intro", label: "Intro" },
+  { id: "research", label: "Research" },
+  { id: "resume", label: "Resume/CV" },
+  { id: "contact", label: "Contact" },
+];
+
+// The Resume/CV section shows one document at a time; the resume is the default.
+const cvDocs = [
+  { key: "resume", label: "Resume", pdf: `${base}/assets/Resume_public.pdf`, page: `${base}/images/resume_page.webp`, h: 1743, blurb: "One page: recent roles, skills and education." },
+  { key: "cv", label: "CV", pdf: `${base}/assets/CV_public.pdf`, page: `${base}/images/cv_page.webp`, h: 1744, blurb: "Two pages: full research history and publications." },
+];
+const projects = [
+  {
+    key: "atp",
+    title: "ATP Top 20 Explorer",
+    href: "/projects/atp/",
+    external: true,
+    blurb: "Every player who held a top-20 ATP ranking since 1973, on one chart. Pick a time window, compare rivals, build groups like the Big Three, and overlay moving averages with momentum.",
+    tags: ["Tennis", "Data viz", "Python · polars"],
+    art: "lines",
+  },
+  {
+    key: "alchemy",
+    title: "Alchemy",
+    href: "/projects/alchemy/",
+    external: true,
+    cta: "Open dashboard",
+    blurb: "A live RuneScape Grand Exchange dashboard: high-alchemy profit for 7,000+ items, with price history back to 2008.",
+    tags: ["Dashboard", "Live data"],
+    art: "coins",
+  },
+  {
+    key: "newsroom",
+    title: "Agent Report",
+    href: "/projects/newsroom/",
+    external: true,
+    cta: "Open newsroom",
+    blurb: "A private, password-locked newsroom: a small team of Claude agents researches a request, checks every quote against its source, and lays out a cited front page.",
+    tags: ["Agents", "Private"],
+    art: "newspaper",
+  },
+  {
+    key: "mindmap",
+    title: "Mindmap Studio",
+    href: "/projects/mindmap/",
+    external: true,
+    cta: "Open editor",
+    blurb: "A small mind map editor that runs entirely in your browser: branch, reorder and collapse ideas, assign agents to workflow steps, and import or export Markdown and JSON.",
+    tags: ["Editor", "No build step"],
+    art: "mindmap",
+  },
+  {
+    key: "graphics",
+    title: "Graphics",
+    href: "#/projects/graphics",
+    blurb: "Transparent animated forum signatures and older space art, made web-safe with WebP.",
+    tags: ["Animation", "Design"],
+    art: "spark",
+  },
+  {
+    key: "scratch",
+    title: "Scratch",
+    href: "#/projects/scratch",
+    blurb: "A scratchspace: working files and drafts, rendered as pages.",
+    tags: ["Notes", "Drafts"],
+    art: "whiteboard",
+  },
+];
+
+// Scratch files live in public/scratch/<name>.md and are listed here; each opens at #/projects/scratch/<name>.
+// `live` entries render a live view instead (gateway: src/Gateway.jsx, written via `npm run gateway`).
+const scratchFiles = [
+  { name: "template", src: "scratch/template.md" },
+  { name: "gateway", live: true },
+];
+
+// GizmoElementTracers results/apogee_dtd_conserved: every Ia delay-time-distribution family fit to the same
+// APOGEE DR17 target at the same fixed Ia event count, ranked by chi^2 (9 summary statistics, posterior median).
+// Only the three best of the ten families are shown.
+const DTD_FAMILIES = 10;
+const dtdRuns = [
+  { key: "mannucci_prompt", name: "Mannucci prompt + tardy (free shape)", chi2: 18.5, mb: 2.2, blurb: "A prompt Gaussian burst plus a constant tardy rate, with the burst's share, time and width fitted. The best fit of the ten: about 81% of the explosions land in a prompt peak near 43 Myr." },
+  { key: "peak_growth", name: "Skewed peak + exponential growth", chi2: 24.4, mb: 3.0, blurb: "A new model: a skewed Gaussian peak followed by a slowly, exponentially growing tail. The peak holds about two thirds of the explosions." },
+  { key: "skewnorm", name: "Skew-normal (Strolger et al. 2020)", chi2: 25.2, mb: 2.2, blurb: "A single skewed Gaussian delay-time distribution, with its location, width and skew fitted." },
+];
 
 const contactCards = [
   { label: "Email", value: "patelpb96@gmail.com", href: "mailto:patelpb96@gmail.com", icon: "mail" },
-  { label: "Phone", value: "2² × 199 × 7923563", href: null, icon: "phone" },
+  // The phone line (already a factorization of the number) is XOR-encoded here and shown jumbled
+  // until a visitor presses "Unscramble", so it never sits in the page as readable text.
+  { label: "Phone", encoded: [104, 232, 122, 141, 122, 107, 99, 99, 122, 141, 122, 109, 99, 104, 105, 111, 108, 105], href: null, icon: "phone" },
   { label: "GitHub", value: "patelpb96", href: "https://github.com/patelpb96", icon: "github" },
   { label: "LinkedIn", value: "patelpb96", href: "https://www.linkedin.com/in/patelpb96/", icon: "linkedin" },
 ];
+
+const decodeText = (codes) => String.fromCharCode(...codes.map((c) => c ^ 0x5a));
+const FIXED = /[\s@.×]/; // characters that stay put while the rest are jumbled
+// a stable jumble of the text's own characters (spaces stay where they are), shown until it is unscrambled
+function jumble(codes) {
+  const chars = [...decodeText(codes)];
+  const idx = chars.map((ch, i) => (FIXED.test(ch) ? -1 : i)).filter((i) => i >= 0);
+  const moved = idx.map((i) => chars[i]);
+  for (let i = moved.length - 1; i > 0; i--) { const j = Math.floor(seededRandom(i * 7.31 + 3) * (i + 1)); [moved[i], moved[j]] = [moved[j], moved[i]]; }
+  idx.forEach((i, k) => { chars[i] = moved[k]; });
+  return chars.join("");
+}
 
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
@@ -64,45 +164,143 @@ function makeStarField(count, seed, options) {
   }).join(",\n          ");
 }
 
-const starFields = {
-  farBack: makeStarField(280, 137, { centerBias: 0.18, minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
-  midBack: makeStarField(220, 71, { centerBias: 0.20, minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
-  mid: makeStarField(180, 91, { centerBias: 0.22, minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
-  back: makeStarField(150, 23, { centerBias: 0.24, minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
-  front: makeStarField(14, 211, { centerBias: 0.12, minSize: 1.1, maxSize: 2.2, alpha: 1.0, glow: true }),
-  ultraFront: makeStarField(4, 911, { centerBias: 0.08, minSize: 2.2, maxSize: 4.0, alpha: 1.0, glow: true, fullOpacity: true }),
+// Background stars as small repeating tiles (the old wallpaper trick): each layer draws ~1/10 of the stars it
+// used to and repeats them. Layers use different tile sizes so the repeats never line up into a visible pattern.
+function makeStarTile(count, seed, tilePx, options) {
+  const { minSize, maxSize, alpha } = options;
+  const stars = Array.from({ length: count }, (_, index) => {
+    const i = index + 1;
+    const x = 2 + seededRandom(seed + i * 3.1) * 96; // keep clear of the tile edge so no star is cut in half
+    const y = 2 + seededRandom(seed + i * 5.3) * 96;
+    const size = minSize + seededRandom(seed + i * 7.9) * (maxSize - minSize);
+    const opacity = alpha * (0.45 + seededRandom(seed + i * 13.1) * 0.55);
+    return `radial-gradient(circle at ${x}% ${y}%, rgba(255, 255, 255, ${opacity}) 0 ${size}px, transparent ${size + 0.8}px)`;
+  });
+  return { image: stars.join(", "), size: Array(count).fill(`${tilePx}px ${tilePx}px`).join(", ") };
+}
+const joinTiles = (...tiles) => ({ image: tiles.map((t) => t.image).join(", "), size: tiles.map((t) => t.size).join(", ") });
+
+// page background (fixed, full screen) and the hero card's back layers; tile sizes are deliberately unrelated
+const starTiles = {
+  page: joinTiles(
+    makeStarTile(28, 908, 331, { minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
+    makeStarTile(22, 3695, 359, { minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
+    makeStarTile(18, 4397, 383, { minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
+    makeStarTile(15, 5201, 409, { minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
+  ),
+  farBack: makeStarTile(28, 1907, 157, { minSize: 0.25, maxSize: 0.7, alpha: 0.30 }),
+  midBack: makeStarTile(22, 2713, 167, { minSize: 0.3, maxSize: 0.8, alpha: 0.42 }),
+  mid: makeStarTile(18, 6121, 179, { minSize: 0.35, maxSize: 0.9, alpha: 0.52 }),
+  back: makeStarTile(15, 7019, 191, { minSize: 0.4, maxSize: 1.0, alpha: 0.62 }),
 };
 
-function LazyGraphic({ src, alt }) {
+// Seeds re-rolled 2026-10-07. front/ultraFront were searched so every bright star (with its glow)
+// clears the hero text at widths 540-1920px while staying on the card; the back layers sit behind the text.
+const starFields = {
+  front: makeStarField(14, 3211.293, { centerBias: 0.12, minSize: 1.1, maxSize: 2.2, alpha: 1.0, glow: true }),
+  ultraFront: makeStarField(4, 4616.537, { centerBias: 0.08, minSize: 2.2, maxSize: 4.0, alpha: 1.0, glow: true, fullOpacity: true }),
+};
+
+// Nothing heavy downloads until the visitor asks for it.
+function LazyGraphic({ src, alt, label = "Click to load image", size = "50+ MB", className }) {
   const [loaded, setLoaded] = useState(false);
 
   if (!loaded) {
     return (
-      <button className="lazy-graphic" type="button" onClick={() => setLoaded(true)} aria-label={`Load ${alt}`}>
-        <span>Click to load image</span>
-        <small>50+ MB</small>
+      <button className={`lazy-graphic${className ? " lazy-wide" : ""}`} type="button" onClick={() => setLoaded(true)} aria-label={`Load ${alt}`}>
+        <span>{label}</span>
+        <small>{size}</small>
       </button>
     );
   }
 
-  return <img src={src} alt={alt} loading="lazy" />;
+  return <img src={src} alt={alt} loading="lazy" className={className} />;
+}
+
+// One fit per slide. Nothing downloads until a movie is asked for; after that, moving to another slide
+// loads that slide's movie too (the visitor has opted in).
+function DtdCarousel() {
+  const [i, setI] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const touch = useRef(null);
+  const n = dtdRuns.length, run = dtdRuns[i];
+  const go = (d) => setI((k) => (k + d + n) % n);
+  const poster = `/images/dtd/${run.key}.webp`;
+  return (
+    <div className="dtd-carousel" role="region" aria-roledescription="carousel" aria-label="APOGEE fits, one per delay-time distribution" tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); }}
+      onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); }}>
+      <div className="dtd-stage">
+        {playing
+          ? <video key={run.key} className="dtd-video" src={`/videos/dtd/${run.key}.mp4`} poster={poster} controls autoPlay muted loop playsInline title={`${run.name}: MCMC walkers converging on the APOGEE target`} />
+          : (
+            <button className="dtd-load" type="button" onClick={() => setPlaying(true)} aria-label={`Load the movie for ${run.name}`} style={{ backgroundImage: `url(${poster})` }}>
+              <span>▶ Click to load movie</span>
+              <small>MP4 · {run.mb} MB · 11 s</small>
+            </button>
+          )}
+        <button className="dtd-arrow prev" type="button" onClick={() => go(-1)} aria-label="Previous fit">‹</button>
+        <button className="dtd-arrow next" type="button" onClick={() => go(1)} aria-label="Next fit">›</button>
+      </div>
+      <div className="dtd-caption" aria-live="polite">
+        <div className="dtd-title"><span className="dtd-rank">#{i + 1} of {DTD_FAMILIES}</span><b>{run.name}</b><span className="dtd-chi">χ² {run.chi2.toFixed(1)}</span></div>
+        <p>{run.blurb}</p>
+      </div>
+      <div className="dtd-dots" role="tablist" aria-label="Choose a fit">
+        {dtdRuns.map((r, k) => <button key={r.key} type="button" role="tab" aria-selected={k === i} aria-label={`#${k + 1} ${r.name}`} title={`#${k + 1} ${r.name}`} className={k === i ? "on" : ""} onClick={() => setI(k)} />)}
+      </div>
+    </div>
+  );
+}
+
+// Resume by default; the CV is the other tab and its PDF only loads once it's picked.
+function ResumeCv() {
+  const [k, setK] = useState(0);
+  const doc = cvDocs[k];
+  return (
+    <div className="panel panel-body resume-card">
+      <div className="doc-tabs" role="tablist" aria-label="Resume or CV">
+        {cvDocs.map((d, i) => (
+          <button key={d.key} id={`doc-tab-${d.key}`} type="button" role="tab" aria-selected={i === k} aria-controls="doc-panel"
+            className={`doc-tab${i === k ? " on" : ""}`} onClick={() => setK(i)}>
+            <b>{d.label}</b>
+            <small>{d.blurb}</small>
+          </button>
+        ))}
+      </div>
+      <div className="resume-actions prose">
+        <p>Showing my {doc.key === "cv" ? "CV" : "resume"}. Both are also available as PDFs.</p>
+        <ButtonLink href={doc.pdf}>Open {doc.label} PDF</ButtonLink>
+      </div>
+      <div className="resume-frame-shell" id="doc-panel" role="tabpanel" aria-labelledby={`doc-tab-${doc.key}`}>
+        <iframe key={doc.key} className="resume-frame" src={`${doc.pdf}#view=FitH`} title={`Preet Patel ${doc.label}`} />
+        {/* phone browsers mostly can't show a PDF inside a page, so they get an image of page 1 that opens the PDF */}
+        <a className="resume-image-link" href={doc.pdf} target="_blank" rel="noreferrer">
+          <img key={doc.key} src={doc.page} alt={`Preet Patel ${doc.label}, page 1 (opens the PDF)`} loading="lazy" width="1347" height={doc.h} />
+        </a>
+      </div>
+    </div>
+  );
 }
 
 function assertSiteData() {
   if (typeof console === "undefined" || typeof console.assert !== "function") return;
   console.assert(Array.isArray(sections), "sections should be an array");
-  console.assert(sections.length === 5, "expected five navigation sections");
-  console.assert(base.startsWith("https://"), "base URL should be absolute HTTPS");
+  console.assert(sections.length === 4 && sections.every((s) => /^[a-z]+$/.test(s.id) && s.label), "expected four home navigation sections with plain anchor ids");
+  console.assert(projects.length > 0 && projects.every((p) => p.title && p.href) && new Set(projects.map((p) => p.key)).size === projects.length, "projects portal should list linked projects with unique keys");
+  console.assert(/^https?:\/\//.test(base), "base URL should be absolute");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
-  console.assert(assets.pfp === `${base}/pfp.jpg`, "intro and hero image should use pfp.jpg");
+  console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
   console.assert(contactCards.some((card) => card.href?.startsWith("mailto:")), "contact cards should include a mailto link");
+  console.assert(contactCards.some((card) => card.encoded && decodeText(card.encoded).includes("199")), "the phone card should carry its (encoded) factorization");
   console.assert(contactCards.every((card) => card.label && card.icon), "each contact card should have a label and icon key");
   console.assert(!contactCards.some((card) => card.label === "Twitter"), "Twitter should not be included");
-  console.assert(`${base}/assets/Resume_public.pdf`.endsWith("assets/Resume_public.pdf"), "resume link should point to the hosted PDF");
-  console.assert(!starFields.back.includes('join("'), "back star field should be a finalized CSS string");
-  console.assert(starFields.farBack.includes("radial-gradient"), "far-back star field should contain gradients");
-  console.assert(starFields.back.includes("radial-gradient"), "back star field should contain gradients");
+  console.assert(cvDocs[0].key === "resume" && cvDocs.every((d) => d.pdf.endsWith("_public.pdf") && d.page.endsWith(".webp")), "Resume/CV should default to the resume and point at the hosted public PDFs");
+  for (const [name, t] of Object.entries(starTiles)) {
+    console.assert(t.image.split("radial-gradient").length - 1 === t.size.split(",").length, `${name}: one tile size per star`);
+  }
   console.assert(starFields.front.includes("radial-gradient"), "front star field should contain gradients");
   console.assert(starFields.ultraFront.includes("radial-gradient"), "ultra-front star field should contain gradients");
 }
@@ -136,13 +334,15 @@ function Icon({ name, size = 20, className = "" }) {
       return <svg {...common}><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg>;
     case "phone":
       return <svg {...common}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.9 19.9 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.9 19.9 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.35 1.89.66 2.79a2 2 0 0 1-.45 2.11L8.05 9.9a16 16 0 0 0 6.05 6.05l1.27-1.27a2 2 0 0 1 2.11-.45c.9.31 1.83.53 2.79.66A2 2 0 0 1 22 16.92z" /></svg>;
+    case "file":
+      return <svg {...common}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>;
     default:
       return null;
   }
 }
 
 function NavLink({ section }) {
-  return <a href={`#${section.toLowerCase()}`} className="nav-link">{section}</a>;
+  return <a href={`#${section.id}`} className="nav-link">{section.label}</a>;
 }
 
 function Section({ id, title, children }) {
@@ -163,7 +363,36 @@ function ButtonLink({ href, children }) {
   );
 }
 
+function ScrambleCard({ card }) {
+  const [text, setText] = useState(() => jumble(card.encoded));
+  const [state, setState] = useState("scrambled"); // scrambled | settling | clear
+  const unscramble = () => {
+    const target = decodeText(card.encoded);
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setText(target); setState("clear"); return; }
+    setState("settling");
+    const pool = [...target].filter((ch) => !FIXED.test(ch));
+    let step = 0;
+    const id = setInterval(() => { // characters lock into place left to right; the rest keep shuffling
+      step += 1;
+      const done = Math.floor(step / 2);
+      setText([...target].map((ch, i) => (i < done || FIXED.test(ch) ? ch : pool[Math.floor(Math.random() * pool.length)])).join(""));
+      if (done >= target.length) { clearInterval(id); setText(target); setState("clear"); }
+    }, 32);
+  };
+  return (
+    <div className="contact-card scramble-card">
+      <Icon name={card.icon} className="contact-icon" />
+      <span className="contact-label">{card.label}</span>
+      <span className={`contact-value scramble-value ${state}`} aria-live="polite">
+        <span aria-label={state === "scrambled" ? `${card.label}, scrambled` : undefined}>{text}</span>
+      </span>
+      {state !== "clear" && <button type="button" className="unscramble" onClick={unscramble} disabled={state === "settling"}>Unscramble</button>}
+    </div>
+  );
+}
+
 function ContactCard({ card }) {
+  if (card.encoded) return <ScrambleCard card={card} />;
   const content = <><Icon name={card.icon} className="contact-icon" /><span className="contact-label">{card.label}</span><span className="contact-value">{card.value}</span></>;
   if (!card.href) return <div className="contact-card">{content}</div>;
   return <a className="contact-card" href={card.href} target={card.href.startsWith("mailto:") ? undefined : "_blank"} rel={card.href.startsWith("mailto:") ? undefined : "noreferrer"}>{content}</a>;
@@ -189,6 +418,7 @@ function Css() {
       * { box-sizing: border-box; }
       html { scroll-behavior: smooth; }
       body { margin: 0; }
+      .site-root button, .site-root input, .site-root select, .site-root textarea, .site-root code { font-family: inherit; }
 
       .site-root {
         position: relative;
@@ -207,16 +437,13 @@ function Css() {
         pointer-events: none;
         z-index: 0;
         opacity: 0.78;
-        mix-blend-mode: screen;
         background-image:
-          ${starFields.farBack},
-          ${starFields.midBack},
-          ${starFields.mid},
-          ${starFields.back};
-        background-size: 100% 100%;
+          ${starTiles.page.image};
+        background-size: ${starTiles.page.size};
         background-position: center;
         filter: drop-shadow(0 0 3px rgba(255,210,170,0.35));
         animation: pageStarTwinkle 1.6s linear infinite;
+        will-change: opacity;
       }
       .bg-scroll-layer::after {
         content: "";
@@ -228,74 +455,27 @@ function Css() {
         opacity: 0.52;
         filter: drop-shadow(0 0 8px rgba(255,235,215,0.5));
         animation: pageStarTwinkleBright 1.2s linear infinite;
+        will-change: opacity;
       }
 
-      @keyframes rotate1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      @keyframes rotate2 { from { transform: rotate(0deg); } to { transform: rotate(720deg); } }
-      @keyframes rotate3 { from { transform: rotate(0deg); } to { transform: rotate(1440deg); } }
-      @keyframes orbitFrameA {
-        0% { transform: rotate(-7deg) scaleX(1.0) scaleY(1.0); }
-        20% { transform: rotate(6deg) scaleX(1.08) scaleY(0.86); }
-        40% { transform: rotate(16deg) scaleX(0.95) scaleY(1.14); }
-        60% { transform: rotate(10deg) scaleX(1.10) scaleY(0.84); }
-        80% { transform: rotate(-2deg) scaleX(0.94) scaleY(1.16); }
-        100% { transform: rotate(-7deg) scaleX(1.0) scaleY(1.0); }
-      }
-      @keyframes galaxyPulse {
-        0%, 100% { filter: brightness(1.00) drop-shadow(0 0 10px rgba(255,170,100,0.36)); }
-        50% { filter: brightness(1.08) drop-shadow(0 0 14px rgba(255,170,100,0.48)); }
-      }
-      @keyframes starTwinkleA {
-        0%, 100% { filter: brightness(0.9); }
-        50% { filter: brightness(1.25); }
-      }
+      /* Twinkles animate opacity only: animating filter re-draws every star gradient each frame (very slow on
+         phones), while opacity is composited on the GPU and each star layer is drawn once. */
       @keyframes pageStarTwinkle {
-        0% { opacity: 0.70; filter: brightness(0.92) drop-shadow(0 0 2px rgba(255,210,170,0.25)); }
-        10% { opacity: 0.74; filter: brightness(1.02) drop-shadow(0 0 3px rgba(255,210,170,0.28)); }
-        20% { opacity: 0.68; filter: brightness(0.95) drop-shadow(0 0 2px rgba(255,210,170,0.26)); }
-        30% { opacity: 0.76; filter: brightness(1.05) drop-shadow(0 0 3px rgba(255,210,170,0.30)); }
-        40% { opacity: 0.72; filter: brightness(0.98) drop-shadow(0 0 2px rgba(255,210,170,0.27)); }
-        50% { opacity: 0.78; filter: brightness(1.06) drop-shadow(0 0 3px rgba(255,210,170,0.31)); }
-        60% { opacity: 0.70; filter: brightness(0.96) drop-shadow(0 0 2px rgba(255,210,170,0.27)); }
-        70% { opacity: 0.75; filter: brightness(1.04) drop-shadow(0 0 3px rgba(255,210,170,0.30)); }
-        80% { opacity: 0.71; filter: brightness(0.97) drop-shadow(0 0 2px rgba(255,210,170,0.27)); }
-        90% { opacity: 0.77; filter: brightness(1.05) drop-shadow(0 0 3px rgba(255,210,170,0.31)); }
-        100% { opacity: 0.70; filter: brightness(0.92) drop-shadow(0 0 2px rgba(255,210,170,0.25)); }
-      }
-        35% { opacity: 0.88; filter: brightness(1.28) drop-shadow(0 0 4px rgba(255,210,170,0.42)); }
-        65% { opacity: 0.70; filter: brightness(0.92) drop-shadow(0 0 3px rgba(255,210,170,0.32)); }
+        0%, 100% { opacity: 0.70; } 10% { opacity: 0.76; } 20% { opacity: 0.68; } 30% { opacity: 0.79; } 40% { opacity: 0.73; }
+        50% { opacity: 0.81; } 60% { opacity: 0.71; } 70% { opacity: 0.78; } 80% { opacity: 0.72; } 90% { opacity: 0.80; }
       }
       @keyframes pageStarTwinkleBright {
-        0% { opacity: 0.45; filter: brightness(0.95) drop-shadow(0 0 6px rgba(255,235,215,0.45)); }
-        15% { opacity: 0.52; filter: brightness(1.10) drop-shadow(0 0 7px rgba(255,235,215,0.55)); }
-        30% { opacity: 0.48; filter: brightness(1.02) drop-shadow(0 0 6px rgba(255,235,215,0.50)); }
-        45% { opacity: 0.56; filter: brightness(1.18) drop-shadow(0 0 8px rgba(255,235,215,0.65)); }
-        60% { opacity: 0.50; filter: brightness(1.05) drop-shadow(0 0 7px rgba(255,235,215,0.55)); }
-        75% { opacity: 0.54; filter: brightness(1.15) drop-shadow(0 0 8px rgba(255,235,215,0.62)); }
-        90% { opacity: 0.49; filter: brightness(1.03) drop-shadow(0 0 6px rgba(255,235,215,0.50)); }
-        100% { opacity: 0.45; filter: brightness(0.95) drop-shadow(0 0 6px rgba(255,235,215,0.45)); }
+        0%, 100% { opacity: 0.45; } 15% { opacity: 0.56; } 30% { opacity: 0.49; } 45% { opacity: 0.64; }
+        60% { opacity: 0.52; } 75% { opacity: 0.61; } 90% { opacity: 0.50; }
       }
-        45% { opacity: 0.72; filter: brightness(1.55) drop-shadow(0 0 10px rgba(255,235,215,0.75)); }
-      }
-      @keyframes starTwinkleBgStrong {
-        0%, 100% { filter: brightness(0.8) blur(0px); }
-        50% { filter: brightness(1.4) blur(0.2px); }
-      }
-      @keyframes starTwinkleB {
-        0%, 100% { filter: brightness(0.9); }
-        50% { filter: brightness(1.3); }
-      }
-      @keyframes starTwinkleC {
-        0%, 100% { filter: brightness(1.0); }
-        50% { filter: brightness(1.35); }
-      }
-      @keyframes orbitCarrierA {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      @keyframes orbitCarrierB {
-        from { transform: rotate(180deg); }
-        to { transform: rotate(540deg); }
+      @keyframes twinkleFarBack { 0%, 100% { opacity: 0.56; } 50% { opacity: 0.98; } }
+      @keyframes twinkleMidBack { 0%, 100% { opacity: 0.64; } 50% { opacity: 1; } }
+      @keyframes twinkleMid { 0%, 100% { opacity: 0.70; } 50% { opacity: 1; } }
+      @keyframes twinkleBack { 0%, 100% { opacity: 0.76; } 50% { opacity: 1; } }
+      @keyframes twinkleFront { 0%, 100% { opacity: 0.86; } 50% { opacity: 1; } }
+      @keyframes twinkleUltraFront { 0%, 100% { opacity: 0.90; } 50% { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        .bg-scroll-layer, .bg-scroll-layer::after, .starfield { animation: none !important; }
       }
       @keyframes riseIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes navDrop { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
@@ -324,6 +504,8 @@ function Css() {
         height: 54px;
         border-radius: 0;
         object-fit: cover;
+        object-position: 52% 34%;
+        transform: scale(1.05);
         box-shadow: 0 0 16px rgba(255,170,100,0.22);
         transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
         -webkit-box-reflect: below 3px linear-gradient(transparent 58%, rgba(255,255,255,0.18));
@@ -333,38 +515,95 @@ function Css() {
       .brand-subtitle { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
       .nav { display: flex; gap: 6px; }
       .nav-link { color: var(--muted); text-decoration: none; padding: 9px 13px; border-radius: 0; font-size: 0.86rem; transition: 180ms ease; }
+      button.nav-link { font-family: inherit; background: transparent; border: 0; cursor: pointer; line-height: 1.4; }
       .nav-link:hover { color: #2a1208; background: var(--accent-soft); box-shadow: 0 0 22px rgba(255,170,100,0.35); }
+
+      .projects-intro { text-align: center; padding: 40px 0 6px; }
+      .page-title { color: #fff2e6; font-size: clamp(2.6rem, 6vw, 4.4rem); line-height: 0.95; letter-spacing: -0.05em; margin: 0; text-shadow: 0 0 44px rgba(255,170,100,0.25); }
+      .page-lead { max-width: 640px; margin: 16px auto 0; text-align: center; }
+      .project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; padding: 34px 0 10px; }
+      .project-card { display: flex; flex-direction: column; color: inherit; text-decoration: none; transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; animation: riseIn 0.8s ease both; }
+      .project-card:hover, .project-card:focus-visible { transform: translateY(-4px); border-color: rgba(255,180,120,0.55); box-shadow: 0 26px 70px var(--shadow), 0 0 32px rgba(255,170,100,0.16); outline: none; }
+      .project-art-wrap { border-bottom: 1px solid var(--line); background: radial-gradient(120% 90% at 50% 0%, rgba(255,154,77,0.14), rgba(20,10,6,0.6)); padding: 16px 18px 10px; }
+      .project-art { display: block; width: 100%; height: auto; }
+      .project-card-body { display: flex; flex-direction: column; gap: 12px; padding: 20px 22px 22px; flex: 1; }
+      .project-title { margin: 0; color: #fff2e6; font-size: 1.45rem; letter-spacing: -0.02em; }
+      .project-blurb { margin: 0; color: var(--muted); font-size: 0.97rem; line-height: 1.7; flex: 1; }
+      .project-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+      .project-tags span { border: 1px solid var(--line); color: var(--dim); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; }
+      .project-open { align-self: flex-start; font-family: inherit; font-weight: 700; font-size: 0.86rem; color: #000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); padding: 10px 16px; box-shadow: 0 0 22px rgba(255,154,77,0.28); }
+      .project-card:hover .project-open { filter: brightness(1.06); }
+      .scratch-files { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 18px; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
+      .scratch-file { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-family: ui-monospace, Consolas, monospace; font-size: 0.9rem; }
+      .scratch-file:hover { border-color: rgba(255,180,120,0.55); color: #fff2e6; }
+      .scratch-file.on { background: rgba(255,154,77,0.16); border-color: var(--blue); color: #fff2e6; }
+      .scratch-doc { overflow-wrap: anywhere; font-size: 0.98rem; line-height: 1.75; }
+      .scratch-doc h1, .scratch-doc h2, .scratch-doc h3, .scratch-doc h4 { color: #fff2e6; line-height: 1.3; margin: 1.6em 0 0.6em; }
+      .scratch-doc h1 { font-size: 1.6rem; margin-top: 0; }
+      .scratch-doc h2 { font-size: 1.35rem; }
+      .scratch-doc h3 { font-size: 1.1rem; }
+      .scratch-doc ul, .scratch-doc ol { padding-left: 1.4em; margin: 0 0 18px; }
+      .scratch-doc li { margin: 4px 0; }
+      .scratch-doc strong { color: #fff2e6; }
+      .scratch-doc blockquote { margin: 0 0 18px; padding: 4px 0 4px 16px; border-left: 3px solid var(--blue); color: var(--accent-soft); }
+      .scratch-doc hr { border: 0; border-top: 1px solid var(--line); margin: 26px 0; }
+      .scratch-doc code { font-family: ui-monospace, Consolas, monospace; font-size: 0.88em; background: rgba(255,154,77,0.1); padding: 1px 5px; }
+      .scratch-doc pre { overflow-x: auto; background: rgba(0,0,0,0.3); padding: 12px; border: 1px solid var(--line); }
+      .scratch-doc pre code { background: none; padding: 0; }
+      .scratch-doc table { border-collapse: collapse; display: block; overflow-x: auto; margin: 0 0 18px; }
+      .scratch-doc th, .scratch-doc td { border: 1px solid var(--line); padding: 6px 10px; vertical-align: top; }
+      .gateway-offline { display: flex; gap: 14px; align-items: flex-start; }
+      .gateway-title { margin: 0 0 4px; color: #fff2e6; font-weight: 700; }
+      .gateway-offline .gateway-dot { margin-top: 7px; }
+      .gateway-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+      .gateway-dot.on { background: #5fd38a; box-shadow: 0 0 8px #5fd38a; animation: gateway-pulse 2s ease-in-out infinite; }
+      .gateway-dot.off { background: var(--muted); opacity: 0.6; }
+      @keyframes gateway-pulse { 50% { opacity: 0.45; } }
+      @media (prefers-reduced-motion: reduce) { .gateway-dot.on { animation: none; } }
+      .gateway-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+      .gateway-chip { display: inline-flex; align-items: center; gap: 8px; font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; color: var(--muted); }
+      .gateway-unlock { display: grid; gap: 12px; max-width: 460px; }
+      .gateway-unlock p { margin: 0; }
+      .gateway-err { color: #ff8a7a; }
+      .gateway-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .gateway-row input { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 0.95rem; color: var(--text); background: rgba(0,0,0,0.3); border: 1px solid var(--line); padding: 9px 12px; border-radius: 0; }
+      .gateway-row input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .gateway-go, .gateway-lock { font-family: inherit; font-weight: 600; font-size: 13px; letter-spacing: 0.02em; border-radius: 0; padding: 9px 14px; cursor: pointer; }
+      .gateway-go { color: var(--bg); background: var(--accent); border: 1px solid var(--accent); }
+      .gateway-go:hover:not(:disabled) { background: var(--accent-soft); }
+      .gateway-go:disabled { opacity: 0.6; cursor: default; }
+      .gateway-lock { color: var(--muted); background: transparent; border: 1px solid var(--line); padding: 6px 10px; }
+      .gateway-actions { display: inline-flex; gap: 8px; }
+      .gateway-lock:hover { color: #fff2e6; border-color: rgba(255,180,120,0.55); }
+      .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
+      .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
+      .nav-link.active { color: #fff2e6; box-shadow: inset 0 -2px 0 var(--accent); }
+      .menu-btn { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 44px; height: 44px; padding: 0 11px; background: transparent; border: 1px solid var(--line); cursor: pointer; }
+      .menu-btn span { display: block; height: 2px; background: var(--text); transition: transform 180ms ease, opacity 180ms ease; }
+      .menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+      .menu-btn.open span:nth-child(2) { opacity: 0; }
+      .menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+      .menu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
       .hero {
         position: relative;
         z-index: 1;
-        width: min(1120px, calc(100% - 32px));
-        min-height: 72vh;
+        width: min(900px, calc(100% - 32px)); /* same as .content, so the card lines up with the panels below */
+        min-height: 52vh;
         margin: 0 auto;
         display: flex;
         align-items: center;
         padding: 44px 0 32px;
       }
-      .hero-cards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        width: 100%;
-        height: clamp(360px, 48vh, 500px);
-        align-items: stretch;
-      }
-      .hero::before {
-        content: none;
-      }
+      .hero::before { content: none; }
+      /* one card across the full hero width (centered by .hero); the face photo sits in the text plane */
       .hero-card {
         position: relative;
-        padding: 0;
+        width: 100%;
+        min-height: 400px;
         border: 1px solid rgba(255,180,120,0.22);
         overflow: hidden;
-        height: 100%;
       }
-      .image-card { display: flex; align-items: stretch; height: 100%; }
-      .hero-image { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
       .content-card {
         padding: clamp(24px, 4vw, 44px);
         background: rgba(30, 14, 8, 0.82);
@@ -379,48 +618,43 @@ function Css() {
         inset: 0;
         pointer-events: none;
         transition: transform 320ms ease-out;
+        will-change: opacity, transform;
       }
       .starfield-farback {
-        animation: starTwinkleBgStrong 5.8s ease-in-out infinite;
+        animation: twinkleFarBack 5.8s ease-in-out infinite;
         z-index: 0;
-        opacity: 0.7;
         transform: translate3d(calc(var(--star-x, 0px) * -18), calc(var(--star-y, 0px) * -18), 0) scale(1.05);
-        background-image: ${starFields.farBack};
-        background-size: 100% 100%;
+        background-image: ${starTiles.farBack.image};
+        background-size: ${starTiles.farBack.size};
         background-position: center;
       }
       .starfield-midback {
-        animation: starTwinkleBgStrong 5.2s ease-in-out infinite;
+        animation: twinkleMidBack 5.2s ease-in-out infinite;
         z-index: 1;
-        opacity: 0.8;
         transform: translate3d(calc(var(--star-x, 0px) * -26), calc(var(--star-y, 0px) * -26), 0) scale(1.07);
-        background-image: ${starFields.midBack};
-        background-size: 100% 100%;
+        background-image: ${starTiles.midBack.image};
+        background-size: ${starTiles.midBack.size};
         background-position: center;
       }
       .starfield-mid {
-        animation: starTwinkleBgStrong 4.6s ease-in-out infinite;
+        animation: twinkleMid 4.6s ease-in-out infinite;
         z-index: 2;
-        opacity: 0.88;
         transform: translate3d(calc(var(--star-x, 0px) * -34), calc(var(--star-y, 0px) * -34), 0) scale(1.09);
-        background-image: ${starFields.mid};
-        background-size: 100% 100%;
+        background-image: ${starTiles.mid.image};
+        background-size: ${starTiles.mid.size};
         background-position: center;
       }
       .starfield-back {
-        animation: starTwinkleBgStrong 5.0s ease-in-out infinite;
+        animation: twinkleBack 5.0s ease-in-out infinite;
         z-index: 1;
-        opacity: 0.95;
         transform: translate3d(calc(var(--star-x, 0px) * -42), calc(var(--star-y, 0px) * -42), 0) scale(1.10);
-        background-image: ${starFields.back};
-        background-size: 100% 100%;
+        background-image: ${starTiles.back.image};
+        background-size: ${starTiles.back.size};
         background-position: center;
       }
       .starfield-front {
-        animation: starTwinkleC 3.8s ease-in-out infinite;
+        animation: twinkleFront 3.8s ease-in-out infinite;
         z-index: 6;
-        opacity: 0.92;
-        mix-blend-mode: screen;
         transform: translate3d(calc(var(--star-x, 0px) * 74), calc(var(--star-y, 0px) * 74), 0) scale(1.16);
         filter: drop-shadow(0 0 3px rgba(255,255,255,0.75));
         background-image: ${starFields.front};
@@ -428,34 +662,13 @@ function Css() {
         background-position: center;
       }
       .starfield-ultrafront {
-        animation: starTwinkleB 2.9s ease-in-out infinite;
+        animation: twinkleUltraFront 2.9s ease-in-out infinite;
         z-index: 7;
-        opacity: 1;
-        mix-blend-mode: screen;
         transform: translate3d(calc(var(--star-x, 0px) * 140), calc(var(--star-y, 0px) * 140), 0) scale(1.22);
-        /* stronger, tighter glow */
         filter: drop-shadow(0 0 18px rgba(255,255,255,1)) drop-shadow(0 0 8px rgba(255,255,255,0.95));
         background-image: ${starFields.ultraFront};
         background-size: 100% 100%;
         background-position: center;
-      }
-      .galaxy-bg,
-      .galaxy-fg {
-        position: absolute;
-        inset: 0;
-        opacity: 1;
-        display: grid;
-        place-items: center;
-        pointer-events: none;
-        transition: transform 320ms ease-out;
-      }
-      .galaxy-bg {
-        z-index: 2;
-        transform: translate3d(calc(var(--star-x, 0px) * 6), calc(var(--star-y, 0px) * 6 + 4px), 0) scale(1.01);
-      }
-      .galaxy-fg {
-        z-index: 4;
-        transform: translate3d(calc(var(--star-x, 0px) * 6), calc(var(--star-y, 0px) * 6 + 4px), 0) scale(1.01);
       }
       .content-foreground {
         position: relative;
@@ -472,7 +685,7 @@ function Css() {
         transform-origin: 50% 50%;
         transition: transform 180ms ease-out, filter 180ms ease-out;
         will-change: transform;
-        filter: drop-shadow(calc(var(--plane-shadow-x, 0px) * -0.18) calc(var(--plane-shadow-y, 0px) * -0.18) 10px rgba(3,12,24,0.55));
+        filter: drop-shadow(calc(var(--plane-shadow-x, 0px) * -0.18) calc(var(--plane-shadow-y, 0px) * -0.18) 10px rgba(30,14,8,0.55));
       }
       .content-foreground > * {
         position: relative;
@@ -482,11 +695,22 @@ function Css() {
       }
       .content-foreground .hero-actions { transform: translateZ(34px); }
       .eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: 0.24em; font-size: 0.79rem; font-weight: 700; margin-bottom: 18px; }
+      .hero-face {
+        align-self: center;
+        width: clamp(92px, 10vw, 136px);
+        height: auto;
+        aspect-ratio: 1;
+        object-fit: cover;
+        margin: 0 0 20px;
+        border: 1px solid rgba(255,190,130,0.6);
+        box-shadow: 0 12px 34px rgba(10,4,2,0.6), 0 0 0 4px rgba(30,14,8,0.55);
+      }
       .hero-title {
         margin: 0;
         width: 100%;
-        font-size: clamp(3.6rem, 7vw, 7rem);
-        line-height: 0.88;
+        white-space: nowrap;
+        font-size: clamp(2.5rem, 7vw, 6.4rem);
+        line-height: 0.95;
         letter-spacing: -0.055em;
         color: #fff2e6;
         text-shadow: 0 0 44px rgba(255,170,100,0.25);
@@ -494,58 +718,6 @@ function Css() {
       .hero-subtitle { margin: 18px 0 0; width: 100%; color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.35rem); }
       .hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 26px; }
 
-      .orbit-system {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        display: grid;
-        place-items: center;
-        perspective: 900px;
-        transform-origin: 50% 50%;
-        will-change: transform;
-        animation: orbitFrameA 18s ease-in-out infinite;
-      }
-      .orbiter {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 80px;
-        height: 80px;
-        transform-origin: center;
-        will-change: transform, opacity, filter;
-      }
-      .orbiter-a { transform: rotate(0deg); animation: orbitCarrierA 10.5s linear infinite; }
-      .orbiter-b { transform: rotate(180deg); animation: orbitCarrierB 10.5s linear infinite; }
-      .orbit-dot {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        transform: translateX(220px) scaleY(0.72);
-        transform-origin: center;
-      }
-      .orbiter-b .orbit-dot { transform: translateX(220px) scaleY(0.72) rotateZ(25deg); }
-      .galaxy-bg .orbit-dot { opacity: 0.42; }
-      .galaxy-fg .orbit-dot { opacity: 0.92; }
-      .galaxy-bg .original-galaxy,
-      .galaxy-fg .original-galaxy { animation: galaxyPulse 6.8s ease-in-out infinite; }
-      .galaxy-fg .original-galaxy { filter: brightness(1.08) drop-shadow(0 0 14px rgba(255,170,100,0.48)); }
-      .galaxy-bg .original-galaxy { filter: brightness(0.92) drop-shadow(0 0 8px rgba(255,170,100,0.25)); }
-      .orbiter-b .original-galaxy { transform: scaleY(0.82); }
-      .original-galaxy { position: relative; width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
-      .original-galaxy .image1,
-      .original-galaxy .image2,
-      .original-galaxy .image3 {
-        position: absolute;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: 0;
-      }
-      .original-galaxy .image1 { position: relative; overflow: hidden; animation: rotate1 6s linear infinite; z-index: 1; }
-      .original-galaxy .image2 { animation: rotate2 6s linear infinite; z-index: 2; }
-      .original-galaxy .image3 { animation: rotate3 6s linear infinite; z-index: 3; }
       .lazy-graphic {
         width: 100%;
         min-height: 160px;
@@ -563,6 +735,7 @@ function Css() {
       }
       .lazy-graphic:hover { border-color: rgba(255,255,255,0.6); filter: brightness(1.12); }
       .lazy-graphic span { font-size: 0.86rem; font-weight: 800; }
+      .lazy-wide { min-height: 260px; border: 0; border-bottom: 1px solid var(--line); }
       .lazy-graphic small { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.18em; }
 
       .content { position: relative; z-index: 1; width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 12px 0 76px; }
@@ -574,14 +747,36 @@ function Css() {
       .prose p { margin: 0 0 18px; }
       .prose a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(255,170,100,0.42); }
       .prose a:hover { border-bottom-color: var(--cyan); }
-      .intro-image-frame { width: 100%; margin: 0 auto; overflow: visible; border-bottom: 1px solid var(--line); background: rgba(30,14,8,0.72); }
-      .profile-image { width: 100%; height: auto; display: block; object-fit: contain; object-position: center; filter: contrast(1.05) saturate(0.98); }
+      .prose a.button-link, .prose a.button-link:hover { color: #000000; border-bottom: 0; } /* buttons inside prose keep button styling */
       .galaxy-gif { width: 100%; display: block; background: #160a06; }
       .button-link {
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: inline-flex; align-items: center; gap: 9px; color: #000000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); text-decoration: none; border-radius: 0; padding: 12px 18px; font-size: 0.9rem; font-weight: 800; box-shadow: 0 10px 28px rgba(255,140,70,0.32); transition: 180ms ease; }
+        font-family: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        color: #000000;
+        background: linear-gradient(180deg, #ffe2c2, var(--blue));
+        text-decoration: none;
+        border-radius: 0;
+        padding: 12px 18px;
+        font-size: 0.9rem;
+        font-weight: 800;
+        box-shadow: 0 10px 28px rgba(255,140,70,0.32);
+        transition: 180ms ease;
+      }
       .button-link:hover { transform: translateY(-2px); filter: brightness(1.06); }
 
       .resume-card { display: grid; gap: 18px; }
+      .doc-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .doc-tab { display: grid; gap: 4px; padding: 14px 16px; text-align: left; font: inherit; color: var(--text); cursor: pointer;
+        border: 1px solid rgba(255,170,100,0.42); background: rgba(255,210,160,0.04); transition: 180ms ease; }
+      .doc-tab b { font-size: 1.08rem; letter-spacing: 0.02em; }
+      .doc-tab small { color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
+      .doc-tab:hover { border-color: var(--accent); background: rgba(255,170,100,0.12); transform: translateY(-2px); }
+      .doc-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .doc-tab.on { color: #000000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); border-color: transparent;
+        box-shadow: 0 10px 28px rgba(255,140,70,0.32); cursor: default; transform: none; }
+      .doc-tab.on small { color: rgba(0,0,0,0.72); }
       .resume-frame-shell {
         border: 1px solid rgba(255,170,100,0.24);
         background: rgba(30,14,8,0.72);
@@ -595,6 +790,36 @@ function Css() {
         border: 0;
         background: #1a0f0a;
       }
+      .resume-image-link { display: none; }
+      .resume-image-link img { width: 100%; height: auto; display: block; }
+      @media (max-width: 760px), (hover: none) and (pointer: coarse) { .resume-frame { display: none; } .resume-image-link { display: block; } }
+      .dtd-carousel { border-bottom: 1px solid var(--line); outline: none; }
+      .dtd-carousel:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+      .dtd-stage { position: relative; aspect-ratio: 1374 / 1320; max-height: 78vh; margin: 0 auto; background: #fff; }
+      .dtd-video, .dtd-load { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .dtd-video { object-fit: contain; background: #fff; display: block; }
+      .dtd-load { border: 0; cursor: pointer; font: inherit; color: #fff2e6; background-color: #fff; background-size: contain; background-repeat: no-repeat; background-position: center;
+        display: grid; place-content: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.12em; }
+      .dtd-load::before { content: ""; position: absolute; inset: 0; background: rgba(20,10,6,0.55); transition: background 180ms ease; }
+      .dtd-load:hover::before { background: rgba(20,10,6,0.42); }
+      .dtd-load span, .dtd-load small { position: relative; background: rgba(20,10,6,0.9); padding: 8px 14px; justify-self: center; }
+      .dtd-load span { font-size: 0.86rem; font-weight: 800; border: 1px solid rgba(255,170,100,0.5); }
+      .dtd-load small { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.18em; }
+      .dtd-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 40px; height: 56px; border: 1px solid rgba(255,170,100,0.45); background: rgba(20,10,6,0.82); color: #fff2e6; font-family: inherit; font-size: 30px; line-height: 1; cursor: pointer; }
+      .dtd-arrow:hover { background: rgba(60,30,14,0.95); border-color: var(--accent); }
+      .dtd-arrow.prev { left: 8px; } .dtd-arrow.next { right: 8px; }
+      .dtd-caption { padding: 14px clamp(22px, 4vw, 34px) 4px; }
+      .dtd-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; color: var(--text); }
+      .dtd-title b { font-size: 1.08rem; }
+      .dtd-rank, .dtd-chi { color: var(--dim); font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+      .dtd-chi { margin-left: auto; text-transform: none; letter-spacing: 0.02em; }
+      .dtd-caption p { margin: 6px 0 0; color: var(--muted); font-size: 0.96rem; line-height: 1.7; }
+      .dtd-dots { display: flex; justify-content: center; gap: 8px; padding: 12px 0 16px; }
+      .dtd-dots button { width: 10px; height: 10px; padding: 0; border: 1px solid rgba(255,170,100,0.6); background: transparent; cursor: pointer; }
+      .dtd-dots button.on { background: var(--accent); border-color: var(--accent); }
+      .dtd-dots button:hover { border-color: var(--accent-soft); }
+      .research-stack { display: grid; gap: 22px; }
+      .tag-line { color: var(--dim); font-size: 0.86rem; letter-spacing: 0.08em; text-transform: uppercase; margin: -10px 0 16px; }
       .resume-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 
       .contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -603,6 +828,15 @@ function Css() {
       .contact-icon { color: var(--cyan); display: block; margin-bottom: 12px; }
       .contact-label { display: block; font-weight: 800; }
       .contact-value { display: block; color: var(--muted); margin-top: 3px; }
+      .scramble-card { position: relative; }
+      .scramble-value { font-variant-ligatures: none; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; padding-right: 7.5em; white-space: pre-wrap; }
+      .scramble-value.scrambled { color: var(--dim); letter-spacing: 0.04em; user-select: none; }
+      .scramble-value.settling { color: var(--accent-soft); }
+      .scramble-value.clear { color: var(--muted); user-select: text; }
+      .unscramble { position: absolute; right: 16px; bottom: 16px; font-family: inherit; font-weight: 600; font-size: 13px; line-height: 1; color: var(--bg); background: var(--accent); border: 1px solid var(--accent); border-radius: 0; padding: 7px 10px; cursor: pointer; letter-spacing: 0.02em; }
+      .unscramble:hover { background: var(--accent-soft); }
+      .unscramble:disabled { opacity: 0.6; cursor: default; }
+      @media (max-width: 520px) { .scramble-value { padding-right: 0; } .unscramble { position: static; margin-top: 10px; } }
 
       .graphics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: center; }
       .graphics-grid.old { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -613,136 +847,162 @@ function Css() {
       .footer { position: relative; z-index: 1; border-top: 1px solid var(--line); color: var(--dim); text-align: center; padding: 28px 16px; font-size: 0.86rem; background: rgba(9,10,13,0.7); }
 
       @media (max-width: 860px) {
+        .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(28, 14, 8, 0.97); }
+        .menu-btn { display: flex; }
         .nav { display: none; }
+        .nav.open {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          padding: 6px 16px 12px;
+          background: #1c0e08;
+          border-bottom: 1px solid var(--line);
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        }
+        .nav.open .nav-link { padding: 13px 4px; font-size: 1.02rem; border-bottom: 1px solid rgba(255,180,120,0.10); }
+        .nav.open .nav-link:last-child { border-bottom: 0; }
         .hero { min-height: auto; padding-top: 54px; }
-        .hero-cards { grid-template-columns: 1fr; height: auto; }
-        .image-card, .content-card { min-height: 360px; }
+        .hero-card { min-height: 360px; }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
+
+        .content-foreground {
+          transform: perspective(900px) rotateX(calc(var(--tilt-y, 0deg) * -0.55)) rotateY(calc(var(--tilt-x, 0deg) * 0.55));
+        }
+
+        .starfield-farback,
+        .starfield-midback {
+          opacity: 0.42;
+        }
+
+        .starfield-mid,
+        .starfield-back {
+          opacity: 0.58;
+        }
+
+        .starfield-front,
+        .starfield-ultrafront {
+          opacity: 0.66;
+        }
+
+        .button-link {
+          padding: 14px 22px;
+          font-size: 1rem;
+        }
+
+        .nav-link {
+          padding: 12px 16px;
+        }
       }
       @media (max-width: 620px) {
-        .nav { display: none; }
         .hero { min-height: auto; padding-top: 54px; }
-        .hero-cards { grid-template-columns: 1fr; height: auto; }
-        .image-card, .content-card { min-height: 360px; }
+        .hero-card { min-height: 0; }
         .hero::before { inset: 0 -16px; }
         .resume-card { align-items: flex-start; flex-direction: column; }
         .contact-grid, .graphics-grid, .graphics-grid.old { grid-template-columns: 1fr; }
         .brand-subtitle { display: none; }
-        .orbiter {
-          width: 56px;
-          height: 56px;
-        }
-        .orbit-dot { transform: translateX(150px) scaleY(0.72); }
-        .orbiter-b .orbit-dot { transform: translateX(150px) scaleY(0.72) rotateZ(25deg); }
-        .hero-title { font-size: clamp(3rem, 16vw, 5rem); }
+        .hero-title { font-size: clamp(2.2rem, 13vw, 4rem); }
         .content-card { padding: 24px; }
       }
+
+      /* Lite mode (.site-root.lite): same palette, type and still starfield, minus everything the GPU has
+         to keep redrawing: twinkle animations, drop-shadow filters on full-screen layers, the blurred
+         see-through top bar, the 3D tilt, entrance animations and large soft glows. */
+      .lite-toggle { display: inline-flex; align-items: center; gap: 8px; }
+      .lite-box { width: 11px; height: 11px; border: 1px solid currentColor; flex: none; }
+      .lite-toggle.on { color: #fff2e6; }
+      .lite-toggle.on .lite-box { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px #1c0e08; }
+      .site-root.lite .bg-scroll-layer { animation: none; filter: none; will-change: auto; opacity: 0.6; }
+      .site-root.lite .bg-scroll-layer::after { display: none; }
+      .site-root.lite .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: #1c0e08; animation: none; }
+      .site-root.lite .brand-mark { -webkit-box-reflect: unset; box-shadow: none; }
+      .site-root.lite .nav-link:hover { box-shadow: none; }
+      .site-root.lite .content-card { perspective: none; background: #1e0f09; }
+      .site-root.lite .hero-card { border-color: rgba(255,180,120,0.3); box-shadow: inset 0 1px 0 rgba(255,179,107,0.55); }
+      .site-root.lite .starfield { animation: none; transition: none; will-change: auto; transform: none; filter: none; }
+      .site-root.lite .starfield-farback, .site-root.lite .starfield-midback, .site-root.lite .starfield-mid { display: none; }
+      .site-root.lite .starfield-back { opacity: 0.7; }
+      .site-root.lite .content-foreground { transform: none; filter: none; transition: none; will-change: auto; transform-style: flat; }
+      .site-root.lite .content-foreground > * { transform: none; text-shadow: 0 1px 12px rgba(30,14,8,0.9); }
+      .site-root.lite .content-foreground > .hero-actions { text-shadow: none; }
+      .site-root.lite .hero-title, .site-root.lite .page-title { text-shadow: 0 1px 12px rgba(30,14,8,0.9), 0 0 28px rgba(255,170,100,0.18); }
+      .site-root.lite .hero-face { box-shadow: 0 0 0 4px rgba(30,14,8,0.55); }
+      .site-root.lite .site-section, .site-root.lite .project-card { animation: none; }
+      .site-root.lite .panel { background: #1d0f08; box-shadow: none; }
+      .site-root.lite .button-link, .site-root.lite .doc-tab.on, .site-root.lite .project-open, .site-root.lite .resume-frame-shell { box-shadow: none; }
+      .site-root.lite .project-card:hover, .site-root.lite .project-card:focus-visible { box-shadow: none; }
+      .site-root.lite .gateway-dot.on { animation: none; box-shadow: none; }
     `}</style>
   );
 }
 
-export default function PreetPatelSite() {
-  const [starParallax, setStarParallax] = useState({ x: 0, y: 0 });
-
-  const handleStarParallax = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
-    const y = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
-    setStarParallax({ x, y });
+function HomePage({ lite }) {
+  // Mouse-only parallax/tilt. Writes CSS variables straight onto the card once per frame (no React
+  // re-render per mouse move). Touch is left alone: on a phone a drag over the card is a scroll.
+  const cardRef = useRef(null);
+  const frame = useRef(0);
+  const setParallax = (x, y) => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const st = cardRef.current?.style;
+      if (!st) return;
+      st.setProperty("--star-x", `${x}px`);
+      st.setProperty("--star-y", `${y}px`);
+      st.setProperty("--tilt-x", `${x * 8}deg`);
+      st.setProperty("--tilt-y", `${y * 8}deg`);
+      st.setProperty("--plane-shadow-x", `${x * 18}px`);
+      st.setProperty("--plane-shadow-y", `${y * 18}px`);
+    });
   };
-
-  const resetStarParallax = () => setStarParallax({ x: 0, y: 0 });
-
-  const renderGalaxyOrbit = (prefix) => (
-    <div className="orbit-system" aria-hidden="true">
-      {["orbiter-a", "orbiter-b"].map((orbiter) => (
-        <div className={`orbiter ${orbiter}`} key={`${prefix}-${orbiter}`}>
-          <div className="orbit-dot">
-            <div className="original-galaxy">
-              <img className="image1" src={assets.logoTop} alt="" />
-              <img className="image2" src={assets.logoBot} alt="" />
-              <img className="image3" src={assets.core} alt="" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const handleStarParallax = (event) => {
+    if (event.pointerType !== "mouse") return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setParallax(((event.clientX - rect.left) / rect.width - 0.5) * 2, ((event.clientY - rect.top) / rect.height - 0.5) * 2);
+  };
+  const resetStarParallax = (event) => { if (event.pointerType === "mouse") setParallax(0, 0); };
 
   return (
-    <main className="site-root">
-      <Css />
-      <div className="bg-scroll-layer" />
-
-      <header className="topbar">
-        <div className="topbar-inner">
-          <a href="#intro" className="brand">
-            <img src={assets.pfp} alt="Preet Patel profile" className="brand-mark" />
-            <div>
-              <div className="brand-title">Preet Patel</div>
-              <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
-            </div>
-          </a>
-          <nav className="nav" aria-label="Primary navigation">
-            {sections.map((section) => <NavLink key={section} section={section} />)}
-          </nav>
-        </div>
-      </header>
-
+    <>
       <section className="hero">
-        <div className="hero-cards">
-          <motion.div className="hero-card image-card" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <img src={assets.pfp} alt="Preet Patel" className="hero-image" />
-          </motion.div>
+        <motion.div
+          className="hero-card content-card"
+          ref={cardRef}
+          onPointerMove={lite ? undefined : handleStarParallax}
+          onPointerLeave={lite ? undefined : resetStarParallax}
+          initial={lite ? false : { opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9 }}
+        >
+          <div className="starfield starfield-farback" />
+          <div className="starfield starfield-midback" />
+          <div className="starfield starfield-mid" />
+          <div className="starfield starfield-back" />
+          <div className="content-foreground">
+            <img src={assets.pfpFace} alt="Preet Patel" className="hero-face" width="480" height="480" />
+            <p className="eyebrow">M.Sc. in Physics & Astronomy</p>
+            <h1 className="hero-title">Preet Patel</h1>
+            <p className="hero-subtitle">Astrophysics | Data | AI</p>
 
-          <motion.div
-            className="hero-card content-card"
-            style={{
-              "--star-x": `${starParallax.x}px`,
-              "--star-y": `${starParallax.y}px`,
-              "--tilt-x": `${starParallax.x * 8}deg`,
-              "--tilt-y": `${starParallax.y * 8}deg`,
-              "--plane-shadow-x": `${starParallax.x * 18}px`,
-              "--plane-shadow-y": `${starParallax.y * 18}px`,
-            }}
-            onMouseMove={handleStarParallax}
-            onMouseLeave={resetStarParallax}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9 }}
-          >
-            <div className="starfield starfield-farback" />
-            <div className="starfield starfield-midback" />
-            <div className="starfield starfield-mid" />
-            <div className="starfield starfield-back" />
-            <div className="galaxy-bg">{renderGalaxyOrbit("back")}</div>
-
-            <div className="content-foreground">
-              <p className="eyebrow">M.Sc. in Physics & Astronomy</p>
-              <h1 className="hero-title">Preet<br />Patel</h1>
-              <p className="hero-subtitle">Data Scientist | Astrophysicist</p>
-
-              <div className="hero-actions">
-                <ButtonLink href="#contact">Contact</ButtonLink>
-                <ButtonLink href="#research">Research</ButtonLink>
-                <ButtonLink href={`${base}/assets/Resume_public.pdf`}>Resume</ButtonLink>
-              </div>
+            <div className="hero-actions">
+              <ButtonLink href="#contact">Contact</ButtonLink>
+              <ButtonLink href="#research">Research</ButtonLink>
+              <ButtonLink href="#resume">Resume/CV</ButtonLink>
             </div>
+          </div>
 
-            <div className="galaxy-fg">{renderGalaxyOrbit("front")}</div>
-            <div className="starfield starfield-front" />
-            <div className="starfield starfield-ultrafront" />
-          </motion.div>
-        </div>
+          <div className="starfield starfield-front" />
+          <div className="starfield starfield-ultrafront" />
+        </motion.div>
       </section>
 
       <div className="content">
         <Section id="intro" title="Intro">
           <div className="panel">
-            <div className="intro-image-frame">
-              <img src={assets.introImg} alt="Intro image" className="profile-image" />
-            </div>
             <div className="panel-body prose">
               <p>Hello! I am a scientist with a strong background in math, statistics, programming, and technical communication. I honed these skills as an astrophysicist and during my Master's degree in Physics at UC Davis, alongside my dual-Bachelor's in Physics and in Astronomy from the University of Michigan, Ann Arbor (go blue!).</p>
               <p>While Astrophysics has long been a passion of mine, I have always been intrigued by using data-driven methods to glean insight into the many processes in our world.</p>
@@ -752,33 +1012,33 @@ export default function PreetPatelSite() {
         </Section>
 
         <Section id="research" title="Research">
+          <div className="research-stack">
           <div className="panel">
-            <img src={assets.galaxies} alt="Animated simulated low-mass galaxies" className="galaxy-gif" />
+            <DtdCarousel />
+            <div className="panel-body prose">
+              <h3 className="subheading">Reading the Type Ia Supernova Clock from Milky Way Stars</h3>
+              <p className="tag-line">2026 · Bayesian inference · MCMC · FIRE element tracers · APOGEE DR17</p>
+              <p>Type Ia supernovae enrich stars with iron, but how long after star formation they explode (their delay-time distribution) is still uncertain. I built a Bayesian inference pipeline, in my <a href="https://github.com/patelpb96/GizmoElementTracers" target="_blank" rel="noreferrer">GizmoElementTracers</a> fork of the FIRE analysis code, that turns a proposed delay-time distribution into predicted stellar [Mg/Fe] versus [Fe/H] using the element-tracer method, then compares that prediction to real Milky Way disk stars from APOGEE DR17.</p>
+              <p>The comparison works on a summary of the data: each of the Milky Way's two disk sequences (the high-alpha thick disk and the low-alpha thin disk) is described by a mean and spread in both abundances. Every fit holds the total number of Type Ia explosions fixed, so a model can only move explosions in time, never add or remove them, and each run starts the simulation one standard deviation away from the Milky Way so you can watch it walk back.</p>
+              <p>I fit ten delay-time-distribution families this way, from the standard power law to a new skewed-peak model, and ranked them. The carousel shows the three best fits. A free-shape version of the Mannucci model, which puts most explosions in a prompt burst within about 50 Myr, fits best; almost every family prefers most explosions at short delays. Differences of a few in χ² are not significant.</p>
+              <p>Along the way I wrote a factorized yield integrator that is about 25 times faster than the original numerical integration (agreeing to about one part in a million).</p>
+            </div>
+          </div>
+          <div className="panel">
+            <LazyGraphic src={assets.galaxies} alt="Animated simulated low-mass galaxies" className="galaxy-gif" label="Click to load animation" size="2.6 MB" />
             <div className="panel-body prose">
               <h3 className="subheading">Elemental Abundances of Simulated Low-Mass Galaxies</h3>
               <p>For research, I previously focused on the elemental abundances of stars in low-mass dwarf galaxies simulated using <a href="https://fire.northwestern.edu/" target="_blank" rel="noreferrer">FIRE-2</a>.</p>
-              <p>In my most recent project, I identified elemental abundance trends, measured in [Mg/Fe] versus [Fe/H], of several galaxies. I found imprints of bursty star formation and satellite accretion in the present-day elemental abundance distributions.</p>
-              <p>This work culminated in a first-author publication, accepted by <a href="https://academic.oup.com/mnras" target="_blank" rel="noreferrer">MNRAS</a> in March 2022. The paper can be found on <a href="https://arxiv.org/" target="_blank" rel="noreferrer">ArXiv</a> or downloaded below.</p>
-              <p>My final project involved the new age-tracer module in FIRE-2 and FIRE-3, which allows one to retroactively test multiple models in rates for core-collapse supernovae, type Ia supernovae, and stellar winds without needing to re-run a simulation with altered models.</p>
+              <p>In that project, I identified elemental abundance trends, measured in [Mg/Fe] versus [Fe/H], of several galaxies. I found imprints of bursty star formation and satellite accretion in the present-day elemental abundance distributions.</p>
+              <p>This work culminated in a first-author publication, accepted by <a href="https://academic.oup.com/mnras" target="_blank" rel="noreferrer">MNRAS</a> in March 2022. The paper can be found on <a href="https://academic.oup.com/mnras/article/512/4/5671/6554259" target="_blank" rel="noreferrer">here</a>.</p>
+              <p>My final project involved the new age-tracer module in FIRE-2 and FIRE-3, which allows one to retroactively test multiple models in rates for core-collapse supernovae, type Ia supernovae, and stellar winds without needing to re-run a simulation with altered models. The work above builds directly on it.</p>
             </div>
+          </div>
           </div>
         </Section>
 
-        <Section id="resume" title="Resume">
-          <div className="panel panel-body resume-card">
-            <div className="resume-actions prose">
-              <p>Embedded resume preview.</p>
-              <ButtonLink href={`${base}/assets/Resume_public.pdf`}>Open PDF</ButtonLink>
-            </div>
-            <div className="resume-frame-shell">
-              <iframe
-                className="resume-frame"
-                src={`${base}/assets/Resume_public.pdf#view=FitH`}
-                title="Preet Patel Resume"
-                loading="lazy"
-              />
-            </div>
-          </div>
+        <Section id="resume" title="Resume/CV">
+          <ResumeCv />
         </Section>
 
         <Section id="contact" title="Contact">
@@ -788,32 +1048,311 @@ export default function PreetPatelSite() {
             </div>
           </div>
         </Section>
-
-        <Section id="graphics" title="Graphics">
-          <div className="panel panel-body prose">
-            <h3 className="subheading">Animations</h3>
-            <p>Here are some of my recent forum signatures. They are web-safe and transparent.</p>
-            <div className="graphics-grid">
-              {assets.graphics.slice(0, 2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Recent transparent animation" /></div>)}
-            </div>
-
-            <div className="divider" />
-            <h3 className="subheading">Older Animations</h3>
-            <div className="graphics-grid old">
-              {assets.graphics.slice(2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Older animation sample" /></div>)}
-            </div>
-
-            <div className="divider" />
-            <h3 className="subheading">Links</h3>
-            <p>Not too many of these, but feel free to check out my <a href="https://www.deviantart.com/" target="_blank" rel="noreferrer">DeviantArt</a> for some of my older space art. More in progress as we speak.</p>
-            <h4 className="subheading">About Me</h4>
-            <p>Former Astrophysicist with a long-time passion in graphic design. I spent years trying to figure out how to make GIFs transparent, as it typically looks clunky and lacks smoothness when you try.</p>
-            <p>Recently, I figured out that WebP has been adopted by all major browsers as a modern alternative to the GIF format. It works on phones, Mac, and PC, provided the browser is not extremely old.</p>
-          </div>
-        </Section>
       </div>
+    </>
+  );
+}
 
-      <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React.</footer>
+function ProjectArt({ kind }) {
+  // small line drawings in the site's palette, one per card
+  if (kind === "lines") {
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        {[24, 48, 72, 96].map((y) => <line key={y} x1="0" x2="240" y1={y} y2={y} stroke="rgba(255,180,120,0.12)" />)}
+        <polyline fill="none" stroke="rgba(255,242,230,0.22)" strokeWidth="1.5" points="0,92 30,80 60,86 90,60 120,70 150,52 180,64 210,40 240,48" />
+        <polyline fill="none" stroke="#ff9a4d" strokeWidth="2.5" strokeLinejoin="round" points="0,104 24,70 48,44 72,30 96,22 120,18 150,18 180,26 210,52 240,96" />
+        <polyline fill="none" stroke="#ffd4a3" strokeWidth="2.5" strokeLinejoin="round" points="0,110 40,100 70,62 100,30 130,20 160,22 190,18 220,24 240,30" />
+        <polyline fill="none" stroke="#ffb36b" strokeWidth="2" strokeDasharray="6 5" points="0,88 50,58 100,34 150,26 200,30 240,44" />
+      </svg>
+    );
+  }
+  if (kind === "whiteboard") {
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <line x1="96" y1="104" x2="84" y2="118" stroke="#5a2d14" strokeWidth="3" strokeLinecap="round" />
+        <line x1="144" y1="104" x2="156" y2="118" stroke="#5a2d14" strokeWidth="3" strokeLinecap="round" />
+        <rect x="44" y="8" width="152" height="94" rx="3" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="3" />
+        <path d="M60 74 C 78 40, 94 40, 108 60 S 140 84, 156 46 S 176 30, 182 36" fill="none" stroke="#ff9a4d" strokeWidth="3" strokeLinecap="round" />
+        <rect x="88" y="100" width="64" height="5" rx="1.5" fill="#ffb36b" />
+        <rect x="132" y="96" width="14" height="5" rx="1.5" fill="#ff9a4d" />
+      </svg>
+    );
+  }
+  if (kind === "newspaper") {
+    // a folded broadsheet: masthead, headline, photo block and columns of text
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <rect x="66" y="12" width="118" height="100" fill="#5a2d14" transform="translate(6 4)" />
+        <rect x="66" y="12" width="118" height="100" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2.5" />
+        <rect x="76" y="20" width="98" height="9" fill="#ff9a4d" />
+        <line x1="76" y1="34" x2="174" y2="34" stroke="#5a2d14" strokeWidth="1.5" />
+        <rect x="76" y="39" width="62" height="6" fill="#5a2d14" />
+        <rect x="76" y="50" width="44" height="30" fill="#ffb36b" />
+        {[50, 56, 62, 68, 74, 80].map((y) => <line key={"r" + y} x1="126" x2="174" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
+        {[88, 94, 100].map((y) => <line key={"a" + y} x1="76" x2="121" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
+        {[88, 94, 100].map((y) => <line key={"b" + y} x1="129" x2="174" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
+        <line x1="125" y1="86" x2="125" y2="104" stroke="#ffb36b" strokeWidth="1" />
+      </svg>
+    );
+  }
+  if (kind === "mindmap") {
+    // a root box branching out to child boxes
+    const kids = [[176, 22], [190, 60], [176, 98], [48, 34], [40, 86]];
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        {kids.map(([x, y], k) => (
+          <path key={"e" + k} d={`M120 60 C ${(120 + x) / 2} 60, ${(120 + x) / 2} ${y}, ${x} ${y}`} fill="none" stroke="#ffb36b" strokeWidth="2" />
+        ))}
+        {kids.map(([x, y], k) => (
+          <rect key={"n" + k} x={x - 18} y={y - 8} width="36" height="16" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2" />
+        ))}
+        <rect x="94" y="48" width="52" height="24" fill="#ff9a4d" stroke="#ffd4a3" strokeWidth="2" />
+      </svg>
+    );
+  }
+  if (kind === "coins") {
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <polyline fill="none" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" points="0,96 40,90 80,94 120,70 160,76 200,48 240,40" />
+        {[[70, 74], [100, 62], [130, 74]].map(([x, y], k) => (
+          <g key={k}>
+            <ellipse cx={x} cy={y + 8} rx="26" ry="9" fill="#5a2d14" />
+            <ellipse cx={x} cy={y} rx="26" ry="9" fill="#ffb36b" stroke="#ffd9b3" strokeWidth="1.5" />
+          </g>
+        ))}
+        <circle cx="186" cy="40" r="3" fill="#ffd4a3" /><circle cx="204" cy="28" r="2" fill="#ffd4a3" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+      {[[120, 60, 30], [64, 34, 12], [186, 86, 16], [178, 30, 7], [52, 92, 8]].map(([x, y, r], k) => (
+        <path key={k} fill={k ? "#ffd4a3" : "#ff9a4d"} opacity={k ? 0.75 : 1}
+          d={`M${x} ${y - r} Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y} Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r} Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y} Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z`} />
+      ))}
+    </svg>
+  );
+}
+
+function ProjectsPortal() {
+  return (
+    <div className="content">
+      <div className="projects-intro">
+        <h1 className="page-title">Projects</h1>
+        <p className="page-lead prose">Things I have built: data tools, dashboards and graphics. Pick one to open it.</p>
+      </div>
+      <div className="project-grid">
+        {projects.map((p) => (
+          <a key={p.key} href={p.href} className="project-card panel">
+            <div className="project-art-wrap"><ProjectArt kind={p.art} /></div>
+            <div className="project-card-body">
+              <h2 className="project-title">{p.title}</h2>
+              <p className="project-blurb">{p.blurb}</p>
+              <div className="project-tags">{p.tags.map((t) => <span key={t}>{t}</span>)}</div>
+              <span className="project-open">{p.cta || (p.external ? "Open explorer" : "Open")} <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProjectPage({ children }) {
+  return (
+    <div className="content">
+      <a href="#/projects" className="back-link"><span aria-hidden="true">←</span> All projects</a>
+{children}
+    </div>
+  );
+}
+
+// Alchemy moved to its own page (/projects/alchemy/, like the tennis explorer); keep old
+// #/projects/alchemy links and bookmarks working.
+function MovedTo({ href }) {
+  useEffect(() => { window.location.replace(href); }, [href]);
+  return <div className="content"><p className="prose">Moved to <a href={href}>{href}</a>…</p></div>;
+}
+
+function GraphicsPage() {
+  return (
+    <ProjectPage>
+      <Section id="graphics" title="Graphics">
+        <div className="panel panel-body prose">
+          <h3 className="subheading">Animations</h3>
+          <p>Here are some of my recent forum signatures. They are web-safe and transparent.</p>
+          <div className="graphics-grid">
+            {assets.graphics.slice(0, 2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Recent transparent animation" /></div>)}
+          </div>
+
+          <div className="divider" />
+          <h3 className="subheading">Older Animations</h3>
+          <div className="graphics-grid old">
+            {assets.graphics.slice(2).map((src) => <div className="graphic-tile" key={src}><LazyGraphic src={src} alt="Older animation sample" /></div>)}
+          </div>
+
+          <div className="divider" />
+          <h3 className="subheading">Links</h3>
+          <p>Not too many of these, but feel free to check out my <a href="https://www.deviantart.com/" target="_blank" rel="noreferrer">DeviantArt</a> for some of my older space art. More in progress as we speak.</p>
+          <h4 className="subheading">About Me</h4>
+          <p>Former Astrophysicist with a long-time passion in graphic design. I spent years trying to figure out how to make GIFs transparent, as it typically looks clunky and lacks smoothness when you try.</p>
+          <p>Recently, I figured out that WebP has been adopted by all major browsers as a modern alternative to the GIF format. It works on phones, Mac, and PC, provided the browser is not extremely old.</p>
+        </div>
+      </Section>
+    </ProjectPage>
+  );
+}
+
+function ScratchPage({ file }) {
+  const current = scratchFiles.find((f) => f.name === file);
+  const [doc, setDoc] = useState({ name: null, html: "" });
+  useEffect(() => {
+    if (!current || current.live) return undefined;
+    let live = true;
+    fetch(`${import.meta.env.BASE_URL}${current.src}`)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(r.status))))
+      .then((md) => live && setDoc({ name: current.name, html: marked.parse(md) }))
+      .catch(() => live && setDoc({ name: current.name, html: "<p>Could not load this file.</p>" }));
+    return () => { live = false; };
+  }, [current]);
+  return (
+    <ProjectPage>
+      <Section id="scratch" title="Scratch">
+        <div className="panel panel-body">
+          <div className="scratch-files" role="list" aria-label="Scratch files">
+            {scratchFiles.map((f) => (
+              <a key={f.name} role="listitem" href={`#/projects/scratch/${f.name}`} className={`scratch-file${f.name === file ? " on" : ""}`}>
+                <Icon name="file" size={16} />{f.name}
+              </a>
+            ))}
+          </div>
+          {current?.live ? <GatewayView /> : current ? (
+            doc.name === current.name
+              ? <article className="scratch-doc prose" dangerouslySetInnerHTML={{ __html: doc.html }} />
+              : <p className="prose">Loading…</p>
+          ) : <p className="prose scratch-hint">Pick a file to open it.</p>}
+        </div>
+      </Section>
+    </ProjectPage>
+  );
+}
+
+// Minimal hash router: only "#/projects..." paths are routes, so Home's own "#section"
+// scroll anchors keep working untouched. No server rewrite needed on GitHub Pages.
+const routeOf = (hash) => {
+  const m = /^#\/projects(?:\/(alchemy|graphics|scratch(?:\/[\w-]+)?))?\/?$/.exec(hash || "");
+  return m ? (m[1] ? `projects/${m[1]}` : "projects") : "home";
+};
+function useHashRoute() {
+  const [route, setRoute] = useState(() => (typeof window !== "undefined" ? routeOf(window.location.hash) : "home"));
+  useEffect(() => {
+    const onHash = () => setRoute(routeOf(window.location.hash));
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0); // a fresh page starts at the top
+  }, [route]);
+  return route;
+}
+
+// Lite mode: ?lite / ?full in the address set it (and remember it); otherwise the saved choice, and
+// with none saved, on for visitors whose system asks for reduced motion.
+const LITE_KEY = "site-lite";
+function initialLite() {
+  if (typeof window === "undefined") return false;
+  const q = new URLSearchParams(window.location.search);
+  const forced = q.has("full") || q.get("lite") === "0" ? false : q.has("lite") ? true : null;
+  try {
+    if (forced !== null) { localStorage.setItem(LITE_KEY, forced ? "1" : "0"); return forced; }
+    const saved = localStorage.getItem(LITE_KEY);
+    if (saved !== null) return saved === "1";
+  } catch { /* storage blocked: fall through */ }
+  return forced ?? window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+function useLiteMode() {
+  const [lite, setLite] = useState(initialLite);
+  const toggle = () => setLite((v) => {
+    try { localStorage.setItem(LITE_KEY, v ? "0" : "1"); } catch { /* this visit only */ }
+    return !v;
+  });
+  return [lite, toggle];
+}
+
+function Topbar({ route, lite, onToggleLite }) {
+  // phone-width menu: remembers the page it was opened on, so changing page closes it
+  const [menuRoute, setMenuRoute] = useState(null);
+  const menuOpen = menuRoute === route;
+  const setMenuOpen = (open) => setMenuRoute(open ? route : null);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setMenuRoute(null); };
+    const onDown = (e) => { if (!e.target.closest(".topbar")) setMenuRoute(null); };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown); };
+  }, [menuOpen]);
+
+  return (
+    <header className="topbar">
+      <div className="topbar-inner">
+        <a href="#/" className="brand">
+          <img src={assets.pfp} alt="Preet Patel profile" className="brand-mark" />
+          <div>
+            <div className="brand-title">Preet Patel</div>
+            <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
+          </div>
+        </a>
+        <button
+          type="button"
+          className={`menu-btn${menuOpen ? " open" : ""}`}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          aria-controls="primary-nav"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          <span /><span /><span />
+        </button>
+        <nav
+          id="primary-nav"
+          className={`nav${menuOpen ? " open" : ""}`}
+          aria-label="Primary navigation"
+          onClick={(e) => { if (e.target.closest("a")) setMenuOpen(false); }}
+        >
+          {route.startsWith("projects") ? (
+            <>
+              <a href="#/" className="nav-link">Home</a>
+              <a href="#/projects" className={`nav-link${route === "projects" ? " active" : ""}`}>Projects</a>
+              {projects.map((p) => (
+                <a key={p.key} href={p.href} className={`nav-link${(route === `projects/${p.key}` || route.startsWith(`projects/${p.key}/`)) ? " active" : ""}`}>{p.key === "atp" ? "Tennis" : p.title}</a>
+              ))}
+            </>
+          ) : (
+            <>
+              {sections.map((section) => <NavLink key={section.id} section={section} />)}
+              <a href="#/projects" className="nav-link">Projects</a>
+            </>
+          )}
+          <button type="button" className={`nav-link lite-toggle${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
+            title="Lite mode: a still background with no animation, blur or tilt. Easier on older laptops and phones.">
+            <span className="lite-box" aria-hidden="true" />Lite
+          </button>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+export default function PreetPatelSite() {
+  const route = useHashRoute();
+  const [lite, toggleLite] = useLiteMode();
+  return (
+    <main className={`site-root${lite ? " lite" : ""}`}>
+      <Css />
+      <div className="bg-scroll-layer" />
+      <Topbar route={route} lite={lite} onToggleLite={toggleLite} />
+      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <MovedTo href="/projects/alchemy/" /> : route === "projects/graphics" ? <GraphicsPage /> : route.startsWith("projects/scratch") ? <ScratchPage file={route.split("/")[2]} /> : <HomePage lite={lite} />}
+      <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React. Built (nearly) in full with Agentic Coding.</footer>
     </main>
   );
 }
