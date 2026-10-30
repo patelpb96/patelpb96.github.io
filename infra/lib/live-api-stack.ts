@@ -234,6 +234,62 @@ export class LiveApiStack extends cdk.Stack {
         (p) => `arn:aws:ssm:${this.region}:${this.account}:parameter${p}`),
     }));
 
+    // ------------------------------------------------------------------ search
+    // Password-gated Exa search for /search/ (lambdas/search/handler.py):
+    //   POST /api/search/{whoami,search,agent,run} -> CloudFront (/api/search/*, edge key check
+    //   patelpb-search-auth, same Lambda OAC, 60 s origin timeout) -> Function URL -> api.exa.ai.
+    // SSM (written by infra/search_setup.py): the password token's and the device token's SHA-256,
+    // the Exa API key (SecureString, aws/ssm key) and the shared daily spend counter.
+    const searchParams = {
+      key: '/patelpb/search/key-sha256',
+      device: '/patelpb/search/device-sha256',
+      exa: '/patelpb/search/exa-api-key',
+      spend: '/patelpb/search/spend',
+    };
+    const searchLogs = new logs.LogGroup(this, 'SearchLogs', {
+      logGroupName: '/aws/lambda/patelpb-search',
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    const search = new lambda.Function(this, 'Search', {
+      functionName: 'patelpb-search',
+      description: 'POST /api/search/*: password-gated proxy to the Exa search and agent APIs',
+      runtime: lambda.Runtime.PYTHON_3_13,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'handler.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', '..', 'lambdas', 'search'), {
+        exclude: ['__pycache__', '*.pyc', 'test_*.py'],
+      }),
+      memorySize: 256,
+      timeout: cdk.Duration.seconds(60),
+      environment: { KEY_HASH_PARAM: searchParams.key, DEVICE_HASH_PARAM: searchParams.device,
+        EXA_KEY_PARAM: searchParams.exa, SPEND_PARAM: searchParams.spend, DAILY_CAP_USD: '3' },
+      logGroup: searchLogs,
+    });
+    const searchUrl = search.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
+    search.addPermission('CloudFrontInvokeFunctionUrl', {
+      principal: cfPrincipal,
+      action: 'lambda:InvokeFunctionUrl',
+      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+      sourceArn: distributionArn,
+    });
+    search.addPermission('CloudFrontInvokeFunction', {
+      principal: cfPrincipal,
+      action: 'lambda:InvokeFunction',
+      invokedViaFunctionUrl: true,
+      sourceArn: distributionArn,
+    });
+    // GetParameter on all four (the aws/ssm key policy already lets SSM decrypt for this account);
+    // PutParameter only on the spend counter.
+    search.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: Object.values(searchParams).map((p) => `arn:aws:ssm:${this.region}:${this.account}:parameter${p}`),
+    }));
+    search.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['ssm:PutParameter'],
+      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${searchParams.spend}`],
+    }));
+
     // ------------------------------------------------------------------ budget
     const subscribers = [{ subscriptionType: 'EMAIL', address: props.budgetEmail }];
     new budgets.CfnBudget(this, 'Budget', {
@@ -274,6 +330,11 @@ export class LiveApiStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'NewsroomFunctionName', { value: newsroom.functionName });
     new cdk.CfnOutput(this, 'NewsroomKeyHashParam', { value: newsroomParam });
+    new cdk.CfnOutput(this, 'SearchOriginDomain', {
+      value: cdk.Fn.select(2, cdk.Fn.split('/', searchUrl.url)),
+      description: 'Origin domain for the /api/search/* CloudFront behavior',
+    });
+    new cdk.CfnOutput(this, 'SearchFunctionName', { value: search.functionName });
     new cdk.CfnOutput(this, 'OriginAccessControlId',{ value: oac.attrId });
     new cdk.CfnOutput(this, 'WorkerFunctionName', { value: worker.functionName });
     new cdk.CfnOutput(this, 'TriggerFunctionName', { value: trigger.functionName });

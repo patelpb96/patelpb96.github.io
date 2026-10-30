@@ -180,3 +180,49 @@ gateway's and RS refresh's too), then `cd infra && npx cdk destroy`. The CloudFr
 left in place (`aws cloudfront delete-function --name patelpb-newsroom-auth --if-match <etag>`);
 `aws ssm delete-parameter --name /patelpb/newsroom/key-sha256` and
 `aws s3 rm --recursive s3://patelpb-com-site/live/newsroom/` remove the key hash and the data.
+
+# Search (password-gated Exa search at /search/)
+
+```
+page (search/index.html, src/SearchPage.jsx)
+  -- x-search-key = hex(PBKDF2-SHA256(password, salt, 310k)) from live/search/config.json {v, salt, iter},
+     or the device key enrolled once on Preet's PC (localStorage, via /search/#device=<token>) --
+  -> POST https://patelpb.com/api/search/{whoami,search,agent,run}
+  -> CloudFront behavior /api/search/* (ordered before /api/*, 60 s origin read timeout): viewer-request
+     CloudFront Function patelpb-search-auth (401 unless sha256(key) is the password's or the device's)
+  -> Lambda OAC -> patelpb-search (re-checks against SSM, 60 s cache) -> api.exa.ai /search, /agent/runs
+```
+
+The Exa API key is an SSM SecureString (`/patelpb/search/exa-api-key`) read only by the Lambda; the browser
+never sees it. Password callers are capped (25 results, agent effort `auto` with a $2 budget, $3/day shared,
+counted in `/patelpb/search/spend` from Exa's `costDollars`); the device key is uncapped. Also set a
+spending limit in the Exa dashboard: that is the only hard cap.
+
+## API contract
+
+`POST /api/search/whoami` `{}`, `.../search` `{request: <Exa SearchRequest>}`, `.../agent`
+`{request: <Exa CreateAgentRunRequest>}`, `.../run` `{id}`; headers `x-search-key` and
+`x-amz-content-sha256`. 200 `{status:"ok", role, exa:<Exa response>}`; 400 (ours, or Exa's message),
+401, 405, 413, 429 (daily cap or Exa rate limit), 502 (other Exa errors), 503 (Exa key not set), 500.
+Never 403/404.
+
+## Setup / deploy
+
+```sh
+python infra/search_setup.py exa-key      # prompts for the Exa API key (SecureString)
+python infra/search_setup.py password     # prompts for the shared password; writes the hash + config.json
+python infra/search_setup.py device       # this PC: key in ~/.patelpb-search-device-key, opens the enrol link
+cd infra && npx cdk deploy && cd ..       # patelpb-search
+python infra/cloudfront_api.py attach     # publishes patelpb-search-auth, adds /api/search/*
+npm run deploy:aws                        # the page
+```
+
+After changing the password or device key run `python infra/cloudfront_api.py auth`. Enrol another browser on
+the PC by running `device` again (it reuses the key). `python infra/search_setup.py status` shows what is set.
+Offline checks: `python -m unittest discover lambdas/search`.
+
+## Teardown
+
+`python infra/cloudfront_api.py detach` (removes every attached behavior), `cd infra && npx cdk destroy`,
+then `aws ssm delete-parameters --names /patelpb/search/key-sha256 /patelpb/search/device-sha256
+/patelpb/search/exa-api-key /patelpb/search/spend` and `aws s3 rm s3://patelpb-com-site/live/search/config.json`.

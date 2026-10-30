@@ -19,6 +19,10 @@ hash to an SSM value (so unauthenticated floods never reach Lambda):
 
     /api/gateway/*   patelpb-gateway-auth   x-gateway-key   /patelpb/gateway/writer-key-sha256
     /api/newsroom/*  patelpb-newsroom-auth  x-newsroom-key  /patelpb/newsroom/key-sha256
+    /api/search/*    patelpb-search-auth    x-search-key    /patelpb/search/key-sha256
+                                                            + /patelpb/search/device-sha256 (either works)
+
+/api/search/* also gets a 60 s origin read timeout (Exa deep searches); the others keep 30 s.
 
 attach (re)publishes those functions from SSM, so after rotating a key just run attach (or auth) again.
 The newsroom check also accepts an optional 24 h day key from /patelpb/newsroom/temp-sha256
@@ -59,6 +63,12 @@ AUTHS = {
                  "open_param": "/patelpb/newsroom/open-sha256",
                  "comment": "patelpb.com /api/newsroom/* key check",
                  "setup": "run `python -m newsdesk setup` (agent-dashboard repo)"},
+    # The device key (Preet's PC) is a second, permanent hash accepted next to the password's.
+    "search": {"function": "patelpb-search-auth", "header": "x-search-key", "path": "/api/search/*",
+               "param": "/patelpb/search/key-sha256", "required": False,
+               "also_param": "/patelpb/search/device-sha256",
+               "comment": "patelpb.com /api/search/* key check",
+               "setup": "run `python infra/search_setup.py password` (and `device`)"},
 }
 
 # Most specific first: CloudFront matches behaviors in list order.
@@ -67,6 +77,9 @@ ATTACHMENTS = [
      "auth": "gateway"},
     {"origin_id": "lambda-newsroom", "path": "/api/newsroom/*", "domain_output": "NewsroomOriginDomain",
      "auth": "newsroom"},
+    # Deep searches can take a while: 60 s is the most CloudFront allows without a quota increase.
+    {"origin_id": "lambda-search", "path": "/api/search/*", "domain_output": "SearchOriginDomain",
+     "auth": "search", "read_timeout": 60},
     {"origin_id": "lambda-rs-refresh-trigger", "path": "/api/*", "domain_output": "TriggerOriginDomain",
      "auth": None},
 ]
@@ -86,11 +99,12 @@ var DAY = '@DAY@';
 var DAY_UNTIL = @UNTIL@;
 var OPEN = '@OPEN@';
 var OPEN_UNTIL = @OPEN_UNTIL@;
+var ALSO = '@ALSO@';
 function handler(event) {
   var h = event.request.headers['@HEADER@'];
   if (h && h.value) {
     var got = crypto.createHash('sha256').update(h.value).digest('hex');
-    if (got === WANT || (DAY && got === DAY && Date.now() < DAY_UNTIL)
+    if ((WANT && got === WANT) || (ALSO && got === ALSO) || (DAY && got === DAY && Date.now() < DAY_UNTIL)
         || (OPEN && got === OPEN && Date.now() < OPEN_UNTIL)) {
       return event.request;
     }
@@ -109,13 +123,15 @@ function handler(event) {
 
 
 def auth_code(spec: dict, want: str, day: tuple[str, int] | None = None,
-              open_: tuple[str, int] | None = None) -> str:
-    """day / open_ = (sha256 of that token, expires epoch seconds) or None."""
+              open_: tuple[str, int] | None = None, also: str | None = None) -> str:
+    """day / open_ = (sha256 of that token, expires epoch seconds) or None; also = a second
+    permanent sha256 (the search device key) or None. An empty WANT never matches."""
     digest, until = day if day else ("", 0)
     odigest, ountil = open_ if open_ else ("", 0)
     return (AUTH_CODE.replace("@PATH@", spec["path"]).replace("@HEADER@", spec["header"])
             .replace("@WANT@", want).replace("@DAY@", digest).replace("@UNTIL@", str(int(until) * 1000))
-            .replace("@OPEN_UNTIL@", str(int(ountil) * 1000)).replace("@OPEN@", odigest))
+            .replace("@OPEN_UNTIL@", str(int(ountil) * 1000)).replace("@OPEN@", odigest)
+            .replace("@ALSO@", also or ""))
 
 
 def parse_day(value: str | None) -> tuple[str, int] | None:
@@ -151,7 +167,7 @@ def stack_outputs() -> dict:
     return {o["OutputKey"]: o["OutputValue"] for o in s.get("Outputs", [])}
 
 
-def origin(origin_id: str, domain: str, oac_id: str) -> dict:
+def origin(origin_id: str, domain: str, oac_id: str, read_timeout: int = 30) -> dict:
     return {
         "Id": origin_id,
         "DomainName": domain,
@@ -162,7 +178,7 @@ def origin(origin_id: str, domain: str, oac_id: str) -> dict:
             "HTTPSPort": 443,
             "OriginProtocolPolicy": "https-only",
             "OriginSslProtocols": {"Quantity": 1, "Items": ["TLSv1.2"]},
-            "OriginReadTimeout": 30,
+            "OriginReadTimeout": read_timeout,
             "OriginKeepaliveTimeout": 5,
         },
         "ConnectionAttempts": 3,
@@ -211,15 +227,22 @@ def write_temp(text: str, suffix: str) -> str:
         return f.name
 
 
-def read_hash(spec: dict) -> str | None:
-    """sha256(key) from SSM for an auth spec; None if the parameter doesn't exist."""
-    p = aws("ssm", "get-parameter", "--name", spec["param"], check=False)
+def read_hash(spec: dict, field: str = "param") -> str | None:
+    """sha256(key) from SSM for an auth spec's `field` parameter; None if it doesn't exist."""
+    if not spec.get(field):
+        return None
+    p = aws("ssm", "get-parameter", "--name", spec[field], check=False)
     if "__error__" in p:
         return None
     want = p["Parameter"]["Value"].strip().lower()
     if len(want) != 64 or any(c not in "0123456789abcdef" for c in want):
-        sys.exit(f"{spec['param']} is not a hex SHA-256")
+        sys.exit(f"{spec[field]} is not a hex SHA-256")
     return want
+
+
+def read_keys(spec: dict) -> tuple[str | None, str | None]:
+    """(main hash, also hash). Either may be None; a spec is usable when at least one exists."""
+    return read_hash(spec), read_hash(spec, "also_param")
 
 
 def read_day(spec: dict, field: str = "temp_param") -> tuple[str, int] | None:
@@ -229,10 +252,10 @@ def read_day(spec: dict, field: str = "temp_param") -> tuple[str, int] | None:
     return None if "__error__" in p else parse_day(p["Parameter"]["Value"])
 
 
-def publish_auth_function(spec: dict, want: str) -> str:
+def publish_auth_function(spec: dict, want: str, also: str | None = None) -> str:
     """Create/update + publish the spec's edge function from the SSM hash(es); return its LIVE ARN."""
     name = spec["function"]
-    code = auth_code(spec, want, read_day(spec), read_day(spec, "open_param"))
+    code = auth_code(spec, want, read_day(spec), read_day(spec, "open_param"), also)
     cfg = json.dumps({"Comment": spec["comment"], "Runtime": "cloudfront-js-2.0"})
     path = write_temp(code, ".js")
     try:
@@ -329,7 +352,8 @@ def select_attachments(out: dict, hashes: dict) -> tuple[list[dict], list[str]]:
 
 def desired(active: list[dict], out: dict, fn_arns: dict) -> tuple[list[dict], list[dict]]:
     """(origins, behaviors) to install for the active attachments, behaviors in order."""
-    origins = [origin(a["origin_id"], out[a["domain_output"]], out["OriginAccessControlId"]) for a in active]
+    origins = [origin(a["origin_id"], out[a["domain_output"]], out["OriginAccessControlId"], a.get("read_timeout", 30))
+               for a in active]
     behaviors = [behavior(a["path"], a["origin_id"], fn_arns.get(a["auth"]) if a["auth"] else None)
                  for a in active]
     return origins, behaviors
@@ -339,11 +363,11 @@ def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
     if cmd == "auth":  # republish the key checks only; the behaviors keep pointing at LIVE
         for spec in AUTHS.values():
-            want = read_hash(spec)
-            if want is None:
+            want, also = read_keys(spec)
+            if want is None and also is None:
                 print(f"{spec['function']}: no {spec['param']}; skipped")
                 continue
-            publish_auth_function(spec, want)
+            publish_auth_function(spec, want or "", also)
         return
     d = aws("cloudfront", "get-distribution-config", "--id", DIST_ID)
     cfg, etag = d["DistributionConfig"], d["ETag"]
@@ -357,8 +381,9 @@ def main() -> None:
 
     if cmd == "attach":
         out = stack_outputs()
-        hashes = {n: read_hash(s) for n, s in AUTHS.items()}
-        if hashes["gateway"] is None:
+        keys = {n: read_keys(s) for n, s in AUTHS.items()}
+        hashes = {n: (k[0] or k[1]) for n, k in keys.items()}  # "is this auth usable at all"
+        if keys["gateway"][0] is None:
             s = AUTHS["gateway"]
             sys.exit(f"SSM parameter {s['param']} not found; {s['setup']}, then attach again.")
         managed, skipped = select_attachments(out, hashes)
@@ -366,8 +391,10 @@ def main() -> None:
             print(msg)
         for a in managed:
             if a["auth"]:
-                fn_arns[a["auth"]] = publish_auth_function(AUTHS[a["auth"]], hashes[a["auth"]])
-                seed_live_files(a["auth"])
+                want, also = keys[a["auth"]]
+                fn_arns[a["auth"]] = publish_auth_function(AUTHS[a["auth"]], want or "", also)
+                if a["auth"] in SEEDS:
+                    seed_live_files(a["auth"])
         want_o, want_b = desired(managed, out, fn_arns)
 
     ids = {a["origin_id"] for a in managed}

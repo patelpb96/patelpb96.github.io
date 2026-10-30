@@ -10,7 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cloudfront_api as c  # noqa: E402
 
 OUT = {"GatewayOriginDomain": "g.lambda-url.us-east-1.on.aws", "NewsroomOriginDomain": "n.lambda-url.us-east-1.on.aws",
-       "TriggerOriginDomain": "t.lambda-url.us-east-1.on.aws", "OriginAccessControlId": "OAC1"}
+       "TriggerOriginDomain": "t.lambda-url.us-east-1.on.aws", "SearchOriginDomain": "s.lambda-url.us-east-1.on.aws",
+       "OriginAccessControlId": "OAC1"}
 HASH = "ab" * 32
 
 
@@ -39,6 +40,15 @@ class ConfigTest(unittest.TestCase):
         self.assertNotIn("@", n)
         self.assertEqual(c.parse_day(f"{'c' * 64}:17:10"), ("c" * 64, 17))
 
+    def test_search_device_key_baked_and_empty_want_never_matches(self):
+        s = c.auth_code(c.AUTHS["search"], "", also="e" * 64)
+        self.assertIn("headers['x-search-key']", s)
+        self.assertIn("var WANT = '';", s)
+        self.assertIn(f"var ALSO = '{'e' * 64}';", s)
+        self.assertIn("(WANT && got === WANT)", s)
+        self.assertNotIn("@", s)
+        self.assertIn("var ALSO = '';", c.auth_code(c.AUTHS["gateway"], HASH))
+
     def test_parse_day(self):
         self.assertEqual(c.parse_day(f"{'B' * 64}:17"), ("b" * 64, 17))
         for bad in (None, "none", "b" * 64, "zz:1", f"{'b' * 64}:soon"):
@@ -46,33 +56,36 @@ class ConfigTest(unittest.TestCase):
 
     def test_order_most_specific_first_and_default_last(self):
         paths = [a["path"] for a in c.ATTACHMENTS]
-        self.assertEqual(paths, ["/api/gateway/*", "/api/newsroom/*", "/api/*"])
+        self.assertEqual(paths, ["/api/gateway/*", "/api/newsroom/*", "/api/search/*", "/api/*"])
 
     def test_select_all(self):
-        active, skipped = c.select_attachments(OUT, {"gateway": HASH, "newsroom": HASH})
-        self.assertEqual(len(active), 3)
+        active, skipped = c.select_attachments(OUT, {"gateway": HASH, "newsroom": HASH, "search": HASH})
+        self.assertEqual(len(active), 4)
         self.assertEqual(skipped, [])
 
     def test_select_skips_newsroom_without_param_or_output(self):
-        active, skipped = c.select_attachments(OUT, {"gateway": HASH, "newsroom": None})
-        self.assertEqual([a["path"] for a in active], ["/api/gateway/*", "/api/*"])
+        active, skipped = c.select_attachments(OUT, {"gateway": HASH, "newsroom": None, "search": HASH})
+        self.assertEqual([a["path"] for a in active], ["/api/gateway/*", "/api/search/*", "/api/*"])
         self.assertIn("/patelpb/newsroom/key-sha256", skipped[0])
         no_out = {k: v for k, v in OUT.items() if k != "NewsroomOriginDomain"}
-        active, skipped = c.select_attachments(no_out, {"gateway": HASH, "newsroom": HASH})
-        self.assertEqual(len(active), 2)
+        active, skipped = c.select_attachments(no_out, {"gateway": HASH, "newsroom": HASH, "search": HASH})
+        self.assertEqual(len(active), 3)
         self.assertIn("NewsroomOriginDomain", skipped[0])
 
     def test_desired(self):
-        active, _ = c.select_attachments(OUT, {"gateway": HASH, "newsroom": HASH})
-        o, b = c.desired(active, OUT, {"gateway": "arn:g", "newsroom": "arn:n"})
-        self.assertEqual([x["Id"] for x in o], ["lambda-gateway", "lambda-newsroom", "lambda-rs-refresh-trigger"])
+        active, _ = c.select_attachments(OUT, {"gateway": HASH, "newsroom": HASH, "search": HASH})
+        o, b = c.desired(active, OUT, {"gateway": "arn:g", "newsroom": "arn:n", "search": "arn:s"})
+        self.assertEqual([x["Id"] for x in o],
+                         ["lambda-gateway", "lambda-newsroom", "lambda-search", "lambda-rs-refresh-trigger"])
         self.assertEqual([x["DomainName"] for x in o], [OUT["GatewayOriginDomain"], OUT["NewsroomOriginDomain"],
-                                                        OUT["TriggerOriginDomain"]])
+                                                        OUT["SearchOriginDomain"], OUT["TriggerOriginDomain"]])
+        self.assertEqual([x["CustomOriginConfig"]["OriginReadTimeout"] for x in o], [30, 30, 60, 30])
         self.assertTrue(all(x["OriginAccessControlId"] == "OAC1" for x in o))
         fns = [x["FunctionAssociations"] for x in b]
         self.assertEqual(fns[0]["Items"][0]["FunctionARN"], "arn:g")
         self.assertEqual(fns[1]["Items"][0]["FunctionARN"], "arn:n")
-        self.assertEqual(fns[2], {"Quantity": 0})
+        self.assertEqual(fns[2]["Items"][0]["FunctionARN"], "arn:s")
+        self.assertEqual(fns[3], {"Quantity": 0})
         self.assertEqual([x["TargetOriginId"] for x in b], [x["Id"] for x in o])
 
     def test_set_items(self):
