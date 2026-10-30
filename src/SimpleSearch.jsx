@@ -6,9 +6,11 @@ import "./search-simple.css";
 // Simple Exa search (/search/), laid out like the old Google home page: logo, one box, two buttons.
 // "Exa Search" lists pages with highlights; "Get an answer" adds a plain-text answer (deep-lite, or
 // deep when Depth is "Deep research"). "Search options" holds the basics (depth, result count, time,
-// sites), remembered per browser; everything else lives on /search/advanced/. The query and any
-// non-default options sit in the URL hash (#q=…), so Back and bookmarks reproduce a search exactly
-// and the query never reaches the server's access logs.
+// remembered per browser, sites per tab); everything else lives on /search/advanced/.
+// Privacy: searches live only in this tab. Each one is a history entry whose *state* holds the
+// query (so Back/Forward work) while the address stays plain /search/, so nothing lands in the
+// browser's saved history; the box has autofill off; results sit in memory. Closing the tab or
+// browser drops all of it.
 const TABS = [["", "All"], ["news", "News"], ["publication", "Papers"], ["company", "Companies"], ["people", "People"]];
 const DEPTHS = [["lite", "Fast"], ["auto", "Balanced"], ["deep-lite", "Thorough"], ["deep", "Deep research"]];
 const DEPTH_NOTES = {
@@ -24,11 +26,18 @@ const OPTS_KEY = "ss-options";
 const noDates = (cat) => cat === "people" || cat === "company"; // Exa rejects date filters there
 const siteList = (s) => s.split(/[\s,]+/).map((x) => x.replace(/^https?:\/\//, "").replace(/\/$/, "")).filter(Boolean);
 
+// Depth/results/time persist; "only these sites" can reveal what someone searched, so it is per-tab.
 function loadOpts() {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(OPTS_KEY) || "{}") }; } catch { return { ...DEFAULTS }; }
+  try {
+    const { depth, n, time } = JSON.parse(localStorage.getItem(OPTS_KEY) || "{}");
+    return { ...DEFAULTS, ...(depth && { depth }), ...(n && { n }), ...(time !== undefined && { time }), sites: sessionStorage.getItem(OPTS_KEY + "-sites") || "" };
+  } catch { return { ...DEFAULTS }; }
 }
-function saveOpts(o) {
-  try { localStorage.setItem(OPTS_KEY, JSON.stringify(o)); } catch { /* private mode */ }
+function saveOpts({ depth, n, time, sites }) {
+  try {
+    localStorage.setItem(OPTS_KEY, JSON.stringify({ depth, n, time }));
+    sessionStorage.setItem(OPTS_KEY + "-sites", sites);
+  } catch { /* private mode */ }
 }
 
 function buildRequest({ q, cat, answer, depth, n, time, sites }) {
@@ -45,7 +54,11 @@ function buildRequest({ q, cat, answer, depth, n, time, sites }) {
   return req;
 }
 
-const readHash = () => {
+// The search on screen, from this history entry's state; old #q= links still open (then the
+// address is cleaned).
+const readState = () => {
+  const st = history.state?.search;
+  if (st?.q) return { ...DEFAULTS, cat: "", answer: false, ...st };
   const p = new URLSearchParams(location.hash.slice(1));
   const depth = p.get("t");
   return {
@@ -55,7 +68,7 @@ const readHash = () => {
     time: DAYS[p.get("time")] ? p.get("time") : "", sites: p.get("sites") || "",
   };
 };
-const hashFor = ({ q, cat, answer, depth, n, time, sites }) => {
+const keyFor = ({ q, cat, answer, depth, n, time, sites }) => {
   const p = new URLSearchParams({ q });
   if (cat) p.set("cat", cat);
   if (answer) p.set("a", "1");
@@ -63,7 +76,7 @@ const hashFor = ({ q, cat, answer, depth, n, time, sites }) => {
   if (n !== DEFAULTS.n) p.set("n", String(n));
   if (time) p.set("time", time);
   if (siteList(sites).length) p.set("sites", siteList(sites).join(","));
-  return "#" + p.toString();
+  return p.toString();
 };
 const optsOf = ({ depth, n, time, sites }) => ({ depth, n, time, sites });
 const changed = (o) => Object.keys(DEFAULTS).filter((k) => String(o[k]).trim() !== String(DEFAULTS[k]));
@@ -114,7 +127,7 @@ function Options({ opts, cat, maxResults, onChange, onApply }) {
         <select value={noDates(cat) ? "" : opts.time} disabled={noDates(cat)} onChange={(e) => set("time", e.target.value)}>{TIMES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
       </label>
       <label className="wide"><span>Only these sites</span>
-        <input value={opts.sites} placeholder="e.g. arxiv.org, nytimes.com" onChange={(e) => onChange({ ...opts, sites: e.target.value }, true)}
+        <input value={opts.sites} autoComplete="off" placeholder="e.g. arxiv.org, nytimes.com" onChange={(e) => onChange({ ...opts, sites: e.target.value }, true)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onApply(); } }} />
       </label>
       <p className="ss-opts-note">
@@ -201,20 +214,20 @@ export default function SimpleSearch() {
   const [key, setKey] = useState(null);
   const [who, setWho] = useState(null);
   const [notice, setNotice] = useState("");
-  const [q, setQ] = useState(() => readHash().q);
-  const [cat, setCat] = useState(() => readHash().cat);
-  const [opts, setOpts] = useState(() => (readHash().q ? optsOf(readHash()) : loadOpts()));
+  const [q, setQ] = useState(() => readState().q);
+  const [cat, setCat] = useState(() => readState().cat);
+  const [opts, setOpts] = useState(() => (readState().q ? optsOf(readState()) : loadOpts()));
   const [showOpts, setShowOpts] = useState(false);
   const [shown, setShown] = useState(null); // { q, cat, answer } of the results on screen
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [res, setRes] = useState(null); // { doc, ms }
-  const cache = useRef(new Map()); // hash -> { doc, ms }, so Back doesn't pay for the same search twice
+  const cache = useRef(new Map()); // search key -> { doc, ms }, so Back doesn't pay for the same search twice
   const seq = useRef(0);
 
   async function run(want, k = key) {
     if (!want.q || !k) return;
-    const h = hashFor(want);
+    const h = keyFor(want);
     setShown(want); setQ(want.q); setCat(want.cat); setOpts(optsOf(want)); setError("");
     if (cache.current.has(h)) { setRes(cache.current.get(h)); setBusy(false); return; }
     const mine = ++seq.current;
@@ -241,8 +254,10 @@ export default function SimpleSearch() {
   function submit(want) {
     want = { ...opts, ...want };
     if (!want.q) return;
-    const h = hashFor(want);
-    if (location.hash !== h) history.pushState(null, "", location.pathname + location.search + h);
+    const cur = history.state?.search;
+    if (!cur || keyFor({ ...DEFAULTS, cat: "", answer: false, ...cur }) !== keyFor(want)) {
+      history.pushState({ search: want }, "", location.pathname + location.search);
+    }
     run(want);
   }
 
@@ -251,15 +266,18 @@ export default function SimpleSearch() {
       setChecking(false);
       if (!r.key) { setNotice(r.notice); return; }
       setKey(r.key); setWho(r.who);
-      const want = readHash();
-      if (want.q) run(want, r.key);
+      const want = readState();
+      if (want.q) {
+        history.replaceState({ search: want }, "", location.pathname + location.search); // drop any #q= from the address
+        run(want, r.key);
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const onPop = () => {
-      const want = readHash();
+      const want = readState();
       if (!want.q) { setShown(null); setRes(null); setError(""); setQ(""); setCat(want.cat); return; }
       run(want);
     };
@@ -298,7 +316,7 @@ export default function SimpleSearch() {
         <form className="ss-home" onSubmit={(e) => { e.preventDefault(); submit({ q: q.trim(), cat, answer: false }); }}>
           <ExaLogo className="ss-logo" />
           <Tabs cat={cat} onPick={setCat} />
-          <input className="ss-box" type="search" autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+          <input className="ss-box" type="search" autoFocus autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)}
             aria-label="Search the web" placeholder="Search the web" enterKeyHint="search" />
           <div className="ss-buttons">
             <button type="submit">Exa Search</button>
@@ -325,7 +343,7 @@ export default function SimpleSearch() {
           e.preventDefault(); history.pushState(null, "", location.pathname + location.search); setShown(null); setRes(null); setError(""); setQ("");
         }}><ExaLogo className="ss-logo small" /></a>
         <div className="ss-topbox">
-          <input className="ss-box" type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the web" enterKeyHint="search" />
+          <input className="ss-box" type="search" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the web" enterKeyHint="search" />
           <button type="submit">Search</button>
           <button type="button" onClick={() => submit({ q: q.trim(), cat, answer: true })}>Answer</button>
         </div>

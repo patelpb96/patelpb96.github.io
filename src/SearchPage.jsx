@@ -329,7 +329,7 @@ export default function SearchPage() {
       </SiteBar>
       {who && who.exa_ready === false && <p className="sx-note">The Exa API key isn't configured yet, so searches will fail until it is (infra/search_setup.py exa-key).</p>}
 
-      <form className="sx-card sx-main" onSubmit={go}>
+      <form className="sx-card sx-main" onSubmit={go} autoComplete="off">
         <div className="sx-querybar">
           <textarea value={o.query} onChange={set("query")} rows={2} placeholder={agent ? "Describe the research task…" : "Search the web…"}
             aria-label="Query" onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) go(e); }} />
