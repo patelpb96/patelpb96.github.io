@@ -51,6 +51,20 @@ async function getJson(name) {
 
 const render = (md) => DOMPurify.sanitize(marked.parse(md));
 
+// Clipboard HTML for Word, Docs and mail apps: the document's structure (headings, bold, lists,
+// tables, links, code) without the page's computed dark-theme styles, which a browser copy
+// carries along and which paste as pale text. Tables get borders so they survive as tables.
+function clipHtml(frag) {
+  const box = document.createElement("div");
+  box.append(frag);
+  for (const t of box.querySelectorAll("table")) {
+    t.setAttribute("border", "1");
+    t.setAttribute("cellpadding", "4");
+    t.style.borderCollapse = "collapse";
+  }
+  return `<html><body>${box.innerHTML}</body></html>`;
+}
+
 // The document body. Its DOM is only touched when the rendered HTML actually changes, so
 // heartbeats, the "updated Xs ago" chip and re-sent identical text never wipe a selection.
 const LiveDoc = memo(function LiveDoc({ html }) {
@@ -58,6 +72,18 @@ const LiveDoc = memo(function LiveDoc({ html }) {
   useLayoutEffect(() => {
     if (ref.current && ref.current.innerHTML !== html) ref.current.innerHTML = html;
   }, [html]);
+  // Ctrl+C on a selection inside the document copies the clean version too.
+  useEffect(() => {
+    const onCopy = (e) => {
+      const sel = getSelection();
+      if (!sel.rangeCount || sel.isCollapsed || !ref.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
+      e.clipboardData.setData("text/html", clipHtml(sel.getRangeAt(0).cloneContents()));
+      e.clipboardData.setData("text/plain", sel.toString());
+      e.preventDefault();
+    };
+    document.addEventListener("copy", onCopy);
+    return () => document.removeEventListener("copy", onCopy);
+  }, []);
   return <article ref={ref} className="scratch-doc prose gateway-doc" aria-live="polite" />;
 });
 
@@ -166,16 +192,25 @@ export default function GatewayView() {
     }
   };
 
-  // Copies the document as it reads on the page (plain text, no markdown syntax).
+  // Copies the document formatted (HTML, for Word and the like) with plain text alongside for
+  // places that only take text; neither carries markdown syntax.
   const copyAll = async () => {
     const doc = document.querySelector(".gateway-doc");
     if (!doc) return;
+    const range = document.createRange();
+    range.selectNodeContents(doc);
+    const blob = (text, type) => new Blob([text], { type });
     try {
-      await navigator.clipboard.writeText(doc.innerText);
+      try {
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/html": blob(clipHtml(range.cloneContents()), "text/html"),
+          "text/plain": blob(doc.innerText, "text/plain"),
+        })]);
+      } catch {
+        await navigator.clipboard.writeText(doc.innerText); // no rich clipboard here: text at least
+      }
     } catch {
-      const range = document.createRange(); // no clipboard access: select it for Ctrl+C instead
-      range.selectNodeContents(doc);
-      getSelection().removeAllRanges();
+      getSelection().removeAllRanges(); // no clipboard access: select it for Ctrl+C instead
       getSelection().addRange(range);
       return;
     }
