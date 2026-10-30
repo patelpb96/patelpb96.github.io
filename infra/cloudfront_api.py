@@ -361,6 +361,11 @@ def desired(active: list[dict], out: dict, fn_arns: dict) -> tuple[list[dict], l
 
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if cmd not in ("attach", "detach", "status", "auth") and len(cmd) >= 16:
+        # Looks like a pasted secret: never echo it.
+        sys.exit("That looks like a key or password, not a command. Nothing was changed.\n"
+                 "This script takes only attach, detach, status or auth (e.g. `python infra/cloudfront_api.py auth`).\n"
+                 "Secrets go in at the prompts of infra/search_setup.py (password, exa-key).")
     if cmd == "auth":  # republish the key checks only; the behaviors keep pointing at LIVE
         for spec in AUTHS.values():
             want, also = read_keys(spec)
