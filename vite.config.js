@@ -14,10 +14,11 @@ export default defineConfig({
         alchemy: fileURLToPath(new URL('./projects/alchemy/index.html', import.meta.url)),
         newsroom: fileURLToPath(new URL('./projects/newsroom/index.html', import.meta.url)),
         search: fileURLToPath(new URL('./search/index.html', import.meta.url)),
+        searchAdvanced: fileURLToPath(new URL('./search/advanced/index.html', import.meta.url)),
       },
     },
   },
-  // Dev only: /search/ talks to the live API (its config and the Lambda behind CloudFront).
+  // Dev only: /search/ and /search/advanced/ talk to the live API (its config and the Lambda behind CloudFront).
   server: {
     proxy: {
       '/api/search': { target: 'https://patelpb.com', changeOrigin: true },

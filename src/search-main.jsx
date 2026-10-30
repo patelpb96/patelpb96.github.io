@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import SearchPage from "./SearchPage.jsx";
+import SimpleSearch from "./SimpleSearch.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <SearchPage />
+    <SimpleSearch />
   </React.StrictMode>
 );

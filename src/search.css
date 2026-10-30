@@ -1,4 +1,4 @@
-/* /search/ page. Palette tokens match the main site (src/App.jsx :root); square corners throughout. */
+/* /search/ pages (simple + advanced). Palette tokens match the main site (src/App.jsx :root); square corners throughout. */
 :root {
   --bg: #1a0f0a;
   --panel: rgba(42, 20, 10, 0.88);
@@ -14,13 +14,15 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; border-radius: 0; }
-html { background: #120a06; }
+/* 110% root: every rem size on both search pages is 10% larger than the main site. */
+html { background: #120a06; font-size: 110%; }
 body {
   margin: 0;
   min-height: 100vh;
   color: var(--text);
   background: radial-gradient(120% 60% at 50% 0%, #2a160c 0%, #1a0f0a 55%, #120a06 100%) fixed;
   font-family: "Playfair Display", Georgia, "Times New Roman", Times, serif;
+  font-weight: 600;
   font-feature-settings: "lnum" 1;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -32,11 +34,11 @@ a { color: var(--accent-soft); }
 .sx-grow { flex: 1; }
 .sx-muted { color: var(--dim); }
 
-.sx-sitebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--line); font-size: 14px; }
-.sx-sitebar .who { color: var(--text); font-weight: 700; text-decoration: none; }
+.sx-sitebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.sx-sitebar .who { color: var(--text); font-weight: 800; text-decoration: none; }
 .sx-sitebar .who:hover { color: var(--accent-soft); }
-.sx-title { color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; font-weight: 700; }
-.sx-badge { border: 1px solid var(--line-strong); padding: 3px 8px; font-size: 12px; color: var(--muted); }
+.sx-title { color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; font-size: 0.75rem; font-weight: 800; }
+.sx-badge { border: 1px solid var(--line-strong); padding: 3px 8px; font-size: 0.75rem; color: var(--muted); }
 .sx-badge.device { color: #120a06; background: var(--accent); border-color: var(--accent); }
 
 .sx-card { background: var(--panel); border: 1px solid var(--line); padding: 18px; margin: 0 0 16px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35); }
@@ -54,11 +56,11 @@ input:disabled, select:disabled { opacity: 0.5; }
 textarea { resize: vertical; line-height: 1.45; }
 
 .sx-primary {
-  border: 0; padding: 11px 20px; font-weight: 800; color: #000; cursor: pointer;
+  border: 0; padding: 11px 20px; font-weight: 900; color: #000; cursor: pointer;
   background: linear-gradient(180deg, #ffe2c2, var(--orange)); box-shadow: 0 10px 28px rgba(255, 140, 70, 0.28);
 }
 .sx-primary:disabled { opacity: 0.55; cursor: default; }
-.sx-mini { border: 1px solid var(--line-strong); background: transparent; color: var(--muted); padding: 4px 9px; font-size: 12px; cursor: pointer; }
+.sx-mini { border: 1px solid var(--line-strong); background: transparent; color: var(--muted); padding: 4px 9px; font-size: 0.75rem; cursor: pointer; }
 .sx-mini:hover { color: var(--text); border-color: var(--accent); }
 .sx-check { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; color: var(--muted); }
 .sx-err { color: var(--err); margin: 0 0 12px; }
@@ -79,7 +81,7 @@ textarea { resize: vertical; line-height: 1.45; }
 
 .sx-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; align-items: start; padding: 4px 0 2px; }
 .sx-field { display: grid; gap: 5px; min-width: 0; }
-.sx-field > span { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+.sx-field > span { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 800; }
 .sx-field small { color: var(--dim); font-size: 0.78rem; }
 .sx-field.wide, .sx-check.wide, .sx-hint.wide, .sx-toggle { grid-column: 1 / -1; }
 .sx-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line-strong); cursor: pointer; }
@@ -88,8 +90,8 @@ textarea { resize: vertical; line-height: 1.45; }
 .sx-toggle.off { opacity: 0.55; cursor: default; }
 
 .sx-group { border-top: 1px solid var(--line); padding: 10px 0 4px; margin-top: 10px; }
-.sx-group > summary { cursor: pointer; font-weight: 700; padding: 4px 0 10px; }
-.sx-group > summary .sx-muted { font-weight: 400; font-size: 0.86rem; }
+.sx-group > summary { cursor: pointer; font-weight: 800; padding: 4px 0 10px; }
+.sx-group > summary .sx-muted { font-weight: 600; font-size: 0.86rem; }
 .sx-card.sx-group { padding: 12px 18px; }
 
 .sx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -111,7 +113,7 @@ textarea { resize: vertical; line-height: 1.45; }
 .sx-conf.medium { color: var(--accent); }
 
 .sx-result { border: 1px solid var(--line); background: rgba(30, 14, 8, 0.7); padding: 14px 16px; margin-bottom: 10px; }
-.sx-result-head { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 700; }
+.sx-result-head { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 800; }
 .sx-result-head a { color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
 .sx-result-head a:hover { color: var(--accent-soft); text-decoration: underline; }
 .sx-rank { color: var(--accent); font-size: 0.85rem; min-width: 1.6em; }

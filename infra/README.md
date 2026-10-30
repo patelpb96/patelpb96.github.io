@@ -184,7 +184,8 @@ left in place (`aws cloudfront delete-function --name patelpb-newsroom-auth --if
 # Search (password-gated Exa search at /search/)
 
 ```
-page (search/index.html, src/SearchPage.jsx)
+page: /search/ simple (search/index.html, src/SimpleSearch.jsx: auto search or deep-lite answer)
+   or /search/advanced/ (search/advanced/index.html, src/SearchPage.jsx: every option); shared src/search-api.js
   -- x-search-key = hex(PBKDF2-SHA256(password, salt, 310k)) from live/search/config.json {v, salt, iter},
      or the device key enrolled once on Preet's PC (localStorage, via /search/#device=<token>) --
   -> POST https://patelpb.com/api/search/{whoami,search,agent,run}

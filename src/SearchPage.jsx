@@ -1,40 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { deriveToken, sha256Hex } from "./search-crypto.js";
+import { api, forgetPassword, host, restoreAccess, unlockWithPassword } from "./search-api.js";
 import "./search.css";
 
-// Password-gated Exa search (/search/). The browser never sees the Exa API key: every call goes
-// through POST /api/search/{whoami,search,agent,run} (lambdas/search/handler.py) with x-search-key.
-// Keys: a device key enrolled once via /search/#device=<token> (infra/search_setup.py device), or
-// the shared password turned into a token with live/search/config.json's salt.
-const API = "/api/search/";
-const CONFIG_URL = "/live/search/config.json";
-const DEVICE_KEY = "search-device-key";
-const REMEMBER_KEY = "search-key";
-
-const store = {
-  get: (s, k) => { try { return s.getItem(k); } catch { return null; } },
-  set: (s, k, v) => { try { s.setItem(k, v); } catch { /* private mode: this tab only */ } },
-  del: (s, k) => { try { s.removeItem(k); } catch { /* ignore */ } },
-};
-const local = typeof localStorage !== "undefined" ? localStorage : null;
-const session = typeof sessionStorage !== "undefined" ? sessionStorage : null;
-
-async function api(action, body, key) {
-  const text = JSON.stringify(body || {});
-  let r;
-  try {
-    r = await fetch(API + action, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-search-key": key, "x-amz-content-sha256": await sha256Hex(text) },
-      body: text,
-    });
-  } catch {
-    return { code: 0, doc: { status: "error", error: "Network error: couldn't reach patelpb.com." } };
-  }
-  let doc;
-  try { doc = await r.json(); } catch { doc = { status: "error", error: `HTTP ${r.status} (not JSON; is /api/search/ attached?)` }; }
-  return { code: r.status, doc };
-}
+// Advanced Exa search (/search/advanced/): every option Exa's search and Agent APIs take, plus
+// the exact request JSON. The simple Google-style page is /search/ (SimpleSearch.jsx); both share
+// access and the API wrapper in search-api.js.
 
 const TYPES = [
   { id: "lite", label: "Lite", note: "Fastest and cheapest, straight from Exa's index. No live fetch or synthesis." },
@@ -156,15 +126,9 @@ function Lock({ onUnlock, notice }) {
     if (!pw || busy) return;
     setBusy(true); setErr("");
     try {
-      const cfg = await fetch(CONFIG_URL, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-      if (!cfg || !cfg.salt || !cfg.iter) throw new Error("Password access isn't set up yet.");
-      const token = await deriveToken(pw, cfg.salt, cfg.iter);
-      const { code, doc } = await api("whoami", {}, token);
-      if (code === 401) throw new Error("Wrong password.");
-      if (code !== 200) throw new Error(doc.error || `HTTP ${code}`);
-      store.set(remember ? local : session, REMEMBER_KEY, token);
+      const { key, who } = await unlockWithPassword(pw, remember);
       setPw("");
-      onUnlock(token, doc);
+      onUnlock(key, who);
     } catch (x) {
       setErr(x.message || "Couldn't unlock.");
     } finally { setBusy(false); }
@@ -232,7 +196,6 @@ function Grounding({ items }) {
   );
 }
 
-const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 const money = (c) => (c && typeof c.total === "number" ? `$${c.total.toFixed(4)}` : null);
 
 function ResultCard({ r, i }) {
@@ -289,26 +252,11 @@ export default function SearchPage() {
   const poll = useRef(0);
   const set = (k) => (e) => setO((p) => ({ ...p, [k]: e?.target ? (e.target.type === "checkbox" ? e.target.checked : e.target.value) : e }));
 
-  // Device enrolment (#device=<token>), then try the stored keys in order.
   useEffect(() => {
-    const m = /[#&]device=([0-9a-f]{64})\b/.exec(location.hash);
-    if (m) {
-      store.set(local, DEVICE_KEY, m[1]);
-      history.replaceState(null, "", location.pathname + location.search);
-    }
-    (async () => {
-      for (const [s, k] of [[local, DEVICE_KEY], [local, REMEMBER_KEY], [session, REMEMBER_KEY]]) {
-        const token = store.get(s, k);
-        if (!token) continue;
-        const { code, doc } = await api("whoami", {}, token);
-        if (code === 200) { setKey(token); setWho(doc); setChecking(false); return; }
-        if (code === 401) {
-          store.del(s, k);
-          if (k === DEVICE_KEY) setNotice("This device's key isn't accepted any more; re-enrol it with infra/search_setup.py device.");
-        }
-      }
+    restoreAccess().then((r) => {
+      if (r.key) { setKey(r.key); setWho(r.who); } else setNotice(r.notice);
       setChecking(false);
-    })();
+    });
     return () => clearTimeout(poll.current);
   }, []);
 
@@ -318,7 +266,7 @@ export default function SearchPage() {
   const built = useMemo(() => buildRequest(o), [o]);
 
   function lock() {
-    for (const [s, k] of [[local, REMEMBER_KEY], [session, REMEMBER_KEY]]) store.del(s, k);
+    forgetPassword();
     clearTimeout(poll.current);
     setKey(null); setWho(null); setRes(null); setRun(null);
   }
@@ -564,7 +512,8 @@ function SiteBar({ children }) {
   return (
     <header className="sx-sitebar">
       <a className="who" href="/">Preet Patel</a>
-      <span className="sx-title">Search</span>
+      <span className="sx-title">Advanced search</span>
+      <a className="sx-mini" href="/search/">Simple search</a>
       <span className="sx-grow" />
       {children}
     </header>
