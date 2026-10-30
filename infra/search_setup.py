@@ -23,6 +23,7 @@ import getpass
 import hashlib
 import json
 import os
+import re
 import secrets
 import sys
 import webbrowser
@@ -101,8 +102,15 @@ def cmd_exa_key() -> None:
     key = getpass.getpass("Exa API key (from dashboard.exa.ai -> API keys): ").strip()
     if len(key) < 16:
         sys.exit("that doesn't look like an Exa API key")
+    # The prompt hides what was pasted, so describe it (never echo it) before storing.
+    if not re.fullmatch(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", key):
+        print(f"That's {len(key)} characters and doesn't look like an Exa key "
+              "(they're 36-character IDs: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).")
+        if input("Store it anyway? [y/N] ").strip().lower() != "y":
+            sys.exit("nothing stored; copy the key again from dashboard.exa.ai and retry")
     put_param(EXA_PARAM, key, secure=True)
-    print(f"stored as a SecureString in {EXA_PARAM}; the Lambda picks it up within 60 s")
+    print(f"stored {len(key)} characters ending in ...{key[-4:]} as a SecureString in {EXA_PARAM}; "
+          "the Lambda picks it up within 60 s")
 
 
 def cmd_status() -> None:
