@@ -908,11 +908,39 @@ function Css() {
         .hero-title { font-size: clamp(2.2rem, 13vw, 4rem); }
         .content-card { padding: 24px; }
       }
+
+      /* Lite mode (.site-root.lite): same palette, type and still starfield, minus everything the GPU has
+         to keep redrawing: twinkle animations, drop-shadow filters on full-screen layers, the blurred
+         see-through top bar, the 3D tilt, entrance animations and large soft glows. */
+      .lite-toggle { display: inline-flex; align-items: center; gap: 8px; }
+      .lite-box { width: 11px; height: 11px; border: 1px solid currentColor; flex: none; }
+      .lite-toggle.on { color: #fff2e6; }
+      .lite-toggle.on .lite-box { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px #1c0e08; }
+      .site-root.lite .bg-scroll-layer { animation: none; filter: none; will-change: auto; opacity: 0.6; }
+      .site-root.lite .bg-scroll-layer::after { display: none; }
+      .site-root.lite .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: #1c0e08; animation: none; }
+      .site-root.lite .brand-mark { -webkit-box-reflect: unset; box-shadow: none; }
+      .site-root.lite .nav-link:hover { box-shadow: none; }
+      .site-root.lite .content-card { perspective: none; background: #1e0f09; }
+      .site-root.lite .hero-card { border-color: rgba(255,180,120,0.3); box-shadow: inset 0 1px 0 rgba(255,179,107,0.55); }
+      .site-root.lite .starfield { animation: none; transition: none; will-change: auto; transform: none; filter: none; }
+      .site-root.lite .starfield-farback, .site-root.lite .starfield-midback, .site-root.lite .starfield-mid { display: none; }
+      .site-root.lite .starfield-back { opacity: 0.7; }
+      .site-root.lite .content-foreground { transform: none; filter: none; transition: none; will-change: auto; transform-style: flat; }
+      .site-root.lite .content-foreground > * { transform: none; text-shadow: 0 1px 12px rgba(30,14,8,0.9); }
+      .site-root.lite .content-foreground > .hero-actions { text-shadow: none; }
+      .site-root.lite .hero-title, .site-root.lite .page-title { text-shadow: 0 1px 12px rgba(30,14,8,0.9), 0 0 28px rgba(255,170,100,0.18); }
+      .site-root.lite .hero-face { box-shadow: 0 0 0 4px rgba(30,14,8,0.55); }
+      .site-root.lite .site-section, .site-root.lite .project-card { animation: none; }
+      .site-root.lite .panel { background: #1d0f08; box-shadow: none; }
+      .site-root.lite .button-link, .site-root.lite .doc-tab.on, .site-root.lite .project-open, .site-root.lite .resume-frame-shell { box-shadow: none; }
+      .site-root.lite .project-card:hover, .site-root.lite .project-card:focus-visible { box-shadow: none; }
+      .site-root.lite .gateway-dot.on { animation: none; box-shadow: none; }
     `}</style>
   );
 }
 
-function HomePage() {
+function HomePage({ lite }) {
   // Mouse-only parallax/tilt. Writes CSS variables straight onto the card once per frame (no React
   // re-render per mouse move). Touch is left alone: on a phone a drag over the card is a scroll.
   const cardRef = useRef(null);
@@ -944,9 +972,9 @@ function HomePage() {
         <motion.div
           className="hero-card content-card"
           ref={cardRef}
-          onPointerMove={handleStarParallax}
-          onPointerLeave={resetStarParallax}
-          initial={{ opacity: 0, y: 24 }}
+          onPointerMove={lite ? undefined : handleStarParallax}
+          onPointerLeave={lite ? undefined : resetStarParallax}
+          initial={lite ? false : { opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9 }}
         >
@@ -1228,7 +1256,30 @@ function useHashRoute() {
   return route;
 }
 
-function Topbar({ route }) {
+// Lite mode: ?lite / ?full in the address set it (and remember it); otherwise the saved choice, and
+// with none saved, on for visitors whose system asks for reduced motion.
+const LITE_KEY = "site-lite";
+function initialLite() {
+  if (typeof window === "undefined") return false;
+  const q = new URLSearchParams(window.location.search);
+  const forced = q.has("full") || q.get("lite") === "0" ? false : q.has("lite") ? true : null;
+  try {
+    if (forced !== null) { localStorage.setItem(LITE_KEY, forced ? "1" : "0"); return forced; }
+    const saved = localStorage.getItem(LITE_KEY);
+    if (saved !== null) return saved === "1";
+  } catch { /* storage blocked: fall through */ }
+  return forced ?? window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+function useLiteMode() {
+  const [lite, setLite] = useState(initialLite);
+  const toggle = () => setLite((v) => {
+    try { localStorage.setItem(LITE_KEY, v ? "0" : "1"); } catch { /* this visit only */ }
+    return !v;
+  });
+  return [lite, toggle];
+}
+
+function Topbar({ route, lite, onToggleLite }) {
   // phone-width menu: remembers the page it was opened on, so changing page closes it
   const [menuRoute, setMenuRoute] = useState(null);
   const menuOpen = menuRoute === route;
@@ -1282,6 +1333,10 @@ function Topbar({ route }) {
               <a href="#/projects" className="nav-link">Projects</a>
             </>
           )}
+          <button type="button" className={`nav-link lite-toggle${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
+            title="Lite mode: a still background with no animation, blur or tilt. Easier on older laptops and phones.">
+            <span className="lite-box" aria-hidden="true" />Lite
+          </button>
         </nav>
       </div>
     </header>
@@ -1290,12 +1345,13 @@ function Topbar({ route }) {
 
 export default function PreetPatelSite() {
   const route = useHashRoute();
+  const [lite, toggleLite] = useLiteMode();
   return (
-    <main className="site-root">
+    <main className={`site-root${lite ? " lite" : ""}`}>
       <Css />
       <div className="bg-scroll-layer" />
-      <Topbar route={route} />
-      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <MovedTo href="/projects/alchemy/" /> : route === "projects/graphics" ? <GraphicsPage /> : route.startsWith("projects/scratch") ? <ScratchPage file={route.split("/")[2]} /> : <HomePage />}
+      <Topbar route={route} lite={lite} onToggleLite={toggleLite} />
+      {route === "projects" ? <ProjectsPortal /> : route === "projects/alchemy" ? <MovedTo href="/projects/alchemy/" /> : route === "projects/graphics" ? <GraphicsPage /> : route.startsWith("projects/scratch") ? <ScratchPage file={route.split("/")[2]} /> : <HomePage lite={lite} />}
       <footer className="footer">© Preet Patel. Graphics: Preet Patel. Layout recreated in React. Built (nearly) in full with Agentic Coding.</footer>
     </main>
   );

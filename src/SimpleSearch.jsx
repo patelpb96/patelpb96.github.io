@@ -4,14 +4,40 @@ import "./search.css";
 import "./search-simple.css";
 
 // Simple Exa search (/search/), laid out like the old Google home page: logo, one box, two buttons.
-// "Search" is an Exa auto search with highlights; "Get an answer" is deep-lite with a plain-text
-// answer. Everything else lives on /search/advanced/. The query sits in the URL hash (#q=…), so the
-// back button and bookmarks work and the query never reaches the server's access logs.
+// "Exa Search" lists pages with highlights; "Get an answer" adds a plain-text answer (deep-lite, or
+// deep when Depth is "Deep research"). "Search options" holds the basics (depth, result count, time,
+// sites), remembered per browser; everything else lives on /search/advanced/. The query and any
+// non-default options sit in the URL hash (#q=…), so Back and bookmarks reproduce a search exactly
+// and the query never reaches the server's access logs.
 const TABS = [["", "All"], ["news", "News"], ["publication", "Papers"], ["company", "Companies"], ["people", "People"]];
+const DEPTHS = [["lite", "Fast"], ["auto", "Balanced"], ["deep-lite", "Thorough"], ["deep", "Deep research"]];
+const DEPTH_NOTES = {
+  lite: "quickest and cheapest, straight from Exa's index.",
+  auto: "Exa's default mix of speed and quality.",
+  "deep-lite": "searches a few angles; a few seconds slower.",
+  deep: "multi-step research; can take up to a minute.",
+};
+const TIMES = [["", "Any time"], ["d", "Past day"], ["w", "Past week"], ["m", "Past month"], ["y", "Past year"]];
+const DAYS = { d: 1, w: 7, m: 31, y: 365 };
+const DEFAULTS = { depth: "auto", n: 10, time: "", sites: "" };
+const OPTS_KEY = "ss-options";
+const noDates = (cat) => cat === "people" || cat === "company"; // Exa rejects date filters there
+const siteList = (s) => s.split(/[\s,]+/).map((x) => x.replace(/^https?:\/\//, "").replace(/\/$/, "")).filter(Boolean);
 
-function buildRequest({ q, cat, answer }) {
-  const req = { query: q, type: answer ? "deep-lite" : "auto", numResults: 10, contents: { highlights: true } };
+function loadOpts() {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(OPTS_KEY) || "{}") }; } catch { return { ...DEFAULTS }; }
+}
+function saveOpts(o) {
+  try { localStorage.setItem(OPTS_KEY, JSON.stringify(o)); } catch { /* private mode */ }
+}
+
+function buildRequest({ q, cat, answer, depth, n, time, sites }) {
+  // Answers need synthesis, which Fast/Balanced don't do, so they step up to deep-lite.
+  const type = answer ? (depth === "deep" ? "deep" : "deep-lite") : depth;
+  const req = { query: q, type, numResults: n, contents: { highlights: true } };
   if (cat) req.category = cat;
+  if (time && !noDates(cat)) req.startPublishedDate = new Date(Date.now() - DAYS[time] * 864e5).toISOString();
+  if (siteList(sites).length) req.includeDomains = siteList(sites);
   if (answer) {
     req.outputSchema = { type: "text" };
     req.systemPrompt = "Answer in a few plain sentences a non-expert can follow. Lead with the direct answer.";
@@ -21,14 +47,26 @@ function buildRequest({ q, cat, answer }) {
 
 const readHash = () => {
   const p = new URLSearchParams(location.hash.slice(1));
-  return { q: (p.get("q") || "").trim(), cat: p.get("cat") || "", answer: p.get("a") === "1" };
+  const depth = p.get("t");
+  return {
+    q: (p.get("q") || "").trim(), cat: p.get("cat") || "", answer: p.get("a") === "1",
+    depth: DEPTHS.some(([v]) => v === depth) ? depth : DEFAULTS.depth,
+    n: Math.min(100, Math.max(1, Number(p.get("n")) || DEFAULTS.n)),
+    time: DAYS[p.get("time")] ? p.get("time") : "", sites: p.get("sites") || "",
+  };
 };
-const hashFor = ({ q, cat, answer }) => {
+const hashFor = ({ q, cat, answer, depth, n, time, sites }) => {
   const p = new URLSearchParams({ q });
   if (cat) p.set("cat", cat);
   if (answer) p.set("a", "1");
+  if (depth !== DEFAULTS.depth) p.set("t", depth);
+  if (n !== DEFAULTS.n) p.set("n", String(n));
+  if (time) p.set("time", time);
+  if (siteList(sites).length) p.set("sites", siteList(sites).join(","));
   return "#" + p.toString();
 };
+const optsOf = ({ depth, n, time, sites }) => ({ depth, n, time, sites });
+const changed = (o) => Object.keys(DEFAULTS).filter((k) => String(o[k]).trim() !== String(DEFAULTS[k]));
 
 // Exa's logo (exa.ai/images/logo/exa-logo-blue.svg), recoloured to this site's palette.
 function ExaLogo({ className }) {
@@ -56,6 +94,34 @@ function Tabs({ cat, onPick }) {
         <button key={v} type="button" className={cat === v ? "on" : ""} aria-pressed={cat === v} onClick={() => onPick(v)}>{label}</button>
       ))}
     </nav>
+  );
+}
+
+function Options({ opts, cat, maxResults, onChange, onApply }) {
+  const set = (k, v) => onChange({ ...opts, [k]: v });
+  const counts = [5, 10, 25, 50, 100].filter((x) => x <= maxResults);
+  return (
+    <div className="ss-opts">
+      <label><span>Depth</span>
+        <select value={opts.depth} onChange={(e) => set("depth", e.target.value)}>{DEPTHS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+      </label>
+      <label><span>Results</span>
+        <select value={opts.n} onChange={(e) => set("n", Number(e.target.value))}>
+          {(counts.includes(opts.n) ? counts : [...counts, opts.n].sort((a, b) => a - b)).map((x) => <option key={x} value={x}>{x}</option>)}
+        </select>
+      </label>
+      <label title={noDates(cat) ? "Exa can't filter companies or people by date" : undefined}><span>Time</span>
+        <select value={noDates(cat) ? "" : opts.time} disabled={noDates(cat)} onChange={(e) => set("time", e.target.value)}>{TIMES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+      </label>
+      <label className="wide"><span>Only these sites</span>
+        <input value={opts.sites} placeholder="e.g. arxiv.org, nytimes.com" onChange={(e) => onChange({ ...opts, sites: e.target.value }, true)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onApply(); } }} />
+      </label>
+      <p className="ss-opts-note">
+        <b>{DEPTHS.find(([v]) => v === opts.depth)[1]}</b>: {DEPTH_NOTES[opts.depth]}
+        {changed(opts).length > 0 && <> <button type="button" className="ss-link" onClick={() => onChange({ ...DEFAULTS })}>Reset</button></>}
+      </p>
+    </div>
   );
 }
 
@@ -137,6 +203,8 @@ export default function SimpleSearch() {
   const [notice, setNotice] = useState("");
   const [q, setQ] = useState(() => readHash().q);
   const [cat, setCat] = useState(() => readHash().cat);
+  const [opts, setOpts] = useState(() => (readHash().q ? optsOf(readHash()) : loadOpts()));
+  const [showOpts, setShowOpts] = useState(false);
   const [shown, setShown] = useState(null); // { q, cat, answer } of the results on screen
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -147,7 +215,7 @@ export default function SimpleSearch() {
   async function run(want, k = key) {
     if (!want.q || !k) return;
     const h = hashFor(want);
-    setShown(want); setQ(want.q); setCat(want.cat); setError("");
+    setShown(want); setQ(want.q); setCat(want.cat); setOpts(optsOf(want)); setError("");
     if (cache.current.has(h)) { setRes(cache.current.get(h)); setBusy(false); return; }
     const mine = ++seq.current;
     setBusy(true); setRes(null);
@@ -163,7 +231,15 @@ export default function SimpleSearch() {
     api("whoami", {}, k).then((r) => r.code === 200 && setWho(r.doc));
   }
 
+  // Typing in "Only these sites" waits for Enter or Search; the dropdowns re-run a visible search at once.
+  function changeOpts(next, typing) {
+    setOpts(next);
+    saveOpts(next);
+    if (shown && !typing) submit({ ...shown, q: q.trim() || shown.q, ...next });
+  }
+
   function submit(want) {
+    want = { ...opts, ...want };
     if (!want.q) return;
     const h = hashFor(want);
     if (location.hash !== h) history.pushState(null, "", location.pathname + location.search + h);
@@ -207,6 +283,8 @@ export default function SimpleSearch() {
     </footer>
   );
 
+  const maxResults = who?.limits?.maxResults || 100;
+
   if (checking) return <main className="ss-page"><p className="ss-sub ss-checking">Checking access…</p></main>;
   if (!key) return <main className="ss-page"><Lock notice={notice} onUnlock={(r) => { setKey(r.key); setWho(r.who); setNotice(""); }} />{footer}</main>;
 
@@ -226,7 +304,11 @@ export default function SimpleSearch() {
             <button type="submit">Exa Search</button>
             <button type="button" onClick={() => submit({ q: q.trim(), cat, answer: true })}>Get an answer</button>
           </div>
-          <p className="ss-sub"><b>Exa Search</b> lists pages. <b>Get an answer</b> reads them and writes a short answer with sources.</p>
+          <button type="button" className="ss-link ss-opts-toggle" aria-expanded={showOpts} onClick={() => setShowOpts(!showOpts)}>
+            Search options{changed(opts).length > 0 && ` (${changed(opts).length} set)`} {showOpts ? "▴" : "▾"}
+          </button>
+          {showOpts && <Options opts={opts} cat={cat} maxResults={maxResults} onChange={changeOpts} onApply={() => submit({ q: q.trim(), cat, answer: false })} />}
+          {!showOpts && <p className="ss-sub"><b>Exa Search</b> lists pages. <b>Get an answer</b> reads them and writes a short answer with sources.</p>}
           {notReady}
         </form>
         {footer}
@@ -248,7 +330,16 @@ export default function SimpleSearch() {
           <button type="button" onClick={() => submit({ q: q.trim(), cat, answer: true })}>Answer</button>
         </div>
       </form>
-      <Tabs cat={cat} onPick={(v) => submit({ q: q.trim() || shown.q, cat: v, answer: shown.answer })} />
+      <div className="ss-tabrow">
+        <Tabs cat={cat} onPick={(v) => submit({ q: q.trim() || shown.q, cat: v, answer: shown.answer })} />
+        <button type="button" className="ss-link ss-opts-toggle" aria-expanded={showOpts} onClick={() => setShowOpts(!showOpts)}>
+          Options{changed(opts).length > 0 && ` (${changed(opts).length})`} {showOpts ? "▴" : "▾"}
+        </button>
+      </div>
+      {showOpts && (
+        <div className="ss-body"><Options opts={opts} cat={cat} maxResults={maxResults} onChange={changeOpts}
+          onApply={() => submit({ q: q.trim() || shown.q, cat, answer: shown.answer })} /></div>
+      )}
       <div className="ss-body">
         {notReady}
         {busy && <p className="ss-status"><span className="sx-spin" aria-hidden="true" /> {shown.answer ? "Reading pages and writing an answer…" : "Searching…"}</p>}

@@ -43,7 +43,23 @@ input.ss-box::-webkit-search-cancel-button { filter: invert(0.8) sepia(1) satura
 .ss-topbox { flex: 1; display: flex; gap: 8px; min-width: 0; max-width: 720px; }
 .ss-topbox input.ss-box { flex: 1; padding: 9px 12px; font-size: 1.05rem; }
 .ss-topbox button { flex: none; padding: 8px 14px; }
-.ss-results-page > .ss-tabs { justify-content: flex-start; width: min(1040px, 100%); margin: 0 auto; padding: 8px 0 8px 132px; border-bottom: 2px solid var(--accent); }
+.ss-tabrow { display: flex; align-items: baseline; gap: 18px; width: min(1040px, 100%); margin: 0 auto; padding: 8px 0 8px 132px; border-bottom: 2px solid var(--accent); }
+.ss-tabrow .ss-tabs { justify-content: flex-start; }
+.ss-tabrow .ss-opts-toggle { margin-left: auto; }
+
+/* Search options (home: under the buttons; results: under the tab row) */
+.ss-opts-toggle { font-size: 0.95rem; text-underline-offset: 3px; }
+.ss-opts {
+  width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; text-align: left;
+  border: 1px solid var(--line-strong); background: var(--panel); padding: 14px 16px; margin: 0;
+}
+.ss-results-page .ss-opts { margin: 14px 0 4px; }
+.ss-opts label { display: grid; gap: 5px; min-width: 0; }
+.ss-opts label.wide, .ss-opts-note { grid-column: 1 / -1; }
+.ss-opts label > span { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; }
+.ss-opts select, .ss-opts input { padding: 8px 10px; }
+.ss-opts-note { margin: 0; color: var(--dim); font-size: 0.9rem; line-height: 1.5; }
+.ss-opts-note b { color: var(--muted); }
 
 .ss-body { width: min(1040px, 100%); margin: 0 auto; padding: 0 0 0 132px; }
 .ss-body > * { max-width: 680px; }
@@ -68,9 +84,12 @@ input.ss-box::-webkit-search-cancel-button { filter: invert(0.8) sepia(1) satura
   .ss-home { margin-top: 9vh; }
   .ss-top { flex-wrap: wrap; gap: 12px; padding-top: 14px; }
   .ss-topbox { flex-basis: 100%; }
-  .ss-results-page > .ss-tabs, .ss-body { padding-left: 0; }
+  .ss-tabrow, .ss-body { padding-left: 0; }
+  .ss-tabrow { flex-wrap: wrap; gap: 6px 18px; }
 }
 @media (max-width: 480px) {
+  .ss-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ss-opts label:nth-of-type(3) { grid-column: 1 / -1; }
   .ss-topbox { flex-wrap: wrap; }
   .ss-topbox input.ss-box { flex-basis: 100%; }
   .ss-topbox button { flex: 1; }
