@@ -1,0 +1,4 @@
+benchmark_id,name,version,category,blurb,higher_is_better,unit
+aa_intelligence_index,AA Intelligence Index,,composite,One number over a fixed suite of benchmarks run by Artificial Analysis rather than the model vendors; higher is better.,true,index points
+aa_coding_index,AA Coding Index,,coding,Artificial Analysis composite for coding tasks as shown by one aggregator; its component tests are not recorded yet.,true,index points
+aa_agentic_index,AA Agentic Index,,agentic,Artificial Analysis composite for multi-step agentic tasks as shown by one aggregator; its component tests are not recorded yet.,true,index points

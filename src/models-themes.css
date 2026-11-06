@@ -1,0 +1,75 @@
+/* Themes for the model tracker, ported from agent-dashboard/index.html (Space, Ember, Walnut, 8-Bit,
+   Paper, Ink). Only the shared variables are copied, not that page's component selectors. Added here:
+   --s1..--s8, a categorical palette per theme (one colour per company), since the dashboard's own
+   status colours are only five. Colour never carries meaning alone: provenance is a marker shape. */
+
+:root, :root[data-theme="space"] {
+  --bg: #05060c; --panel: rgba(12, 14, 26, 0.74); --ink: #e8ebf5; --muted: #9aa3bd;
+  --line: rgba(150, 160, 255, 0.22); --chip: rgba(255, 255, 255, 0.08); --glass: rgba(255, 255, 255, 0.04);
+  --accent: #60a5fa; --hit: #fbbf24;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif; --display: var(--font);
+  --page-bg: radial-gradient(ellipse at 20% -10%, rgba(96, 165, 250, 0.16), transparent 50%), #05060c;
+  --panel-border: 1px solid var(--line); --panel-shadow: none;
+  --s1: #60a5fa; --s2: #f59e0b; --s3: #4ade80; --s4: #f472b6; --s5: #a78bfa; --s6: #22d3ee; --s7: #fb7185; --s8: #a3e635;
+}
+:root[data-theme="ember"] {
+  --bg: #1a0f0a; --panel: rgba(34, 18, 10, 0.82); --ink: #fff2e6; --muted: #e6c7a8;
+  --line: rgba(255, 180, 120, 0.18); --chip: rgba(255, 180, 120, 0.1); --glass: rgba(255, 180, 120, 0.04);
+  --accent: #ffb36b; --hit: #ffd4a3;
+  --font: Georgia, "Times New Roman", Times, serif; --display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --page-bg: radial-gradient(circle at 85% -10%, rgba(255, 154, 77, 0.14), transparent 45%), #1a0f0a;
+  --s1: #ffb36b; --s2: #7fdca4; --s3: #93c5fd; --s4: #f472b6; --s5: #fcd34d; --s6: #c4b5fd; --s7: #fb7185; --s8: #e6c7a8;
+}
+/* Walnut and chrome: mid-century, dark. */
+:root[data-theme="walnut"] {
+  --bg: #0e0a07; --panel: rgba(34, 24, 17, 0.88); --ink: #f1ebe2; --muted: #a8968a;
+  --line: rgba(196, 202, 210, 0.2); --chip: rgba(196, 202, 210, 0.1); --glass: rgba(255, 255, 255, 0.025);
+  --accent: #d7dce3; --hit: #e7c46a;
+  --font: "Jost", system-ui, sans-serif; --display: "Jost", system-ui, sans-serif;
+  --page-bg:
+    radial-gradient(ellipse at 15% 0%, #3a2616 0%, rgba(58, 38, 22, 0) 55%),
+    repeating-linear-gradient(90deg, rgba(255, 230, 200, 0.022) 0 1px, transparent 1px 7px),
+    #0e0a07;
+  --s1: #d4a942; --s2: #c4cad2; --s3: #d98e73; --s4: #9fc4d8; --s5: #8fb58a; --s6: #c9a0dc; --s7: #e7c46a; --s8: #a8733f;
+}
+/* 8-bit: black pixel HUD, square arcade panels. */
+:root[data-theme="8bit"] {
+  --bg: #060913; --panel: rgba(9, 18, 34, 0.96); --ink: #e4f8ff; --muted: #83b9cc;
+  --line: rgba(83, 224, 255, 0.4); --chip: rgba(83, 224, 255, 0.12); --glass: rgba(83, 224, 255, 0.045);
+  --accent: #53e0ff; --hit: #ffe65c;
+  --font: "Courier New", Consolas, monospace; --display: "Press Start 2P", "Courier New", monospace;
+  --page-bg:
+    repeating-linear-gradient(0deg, rgba(83, 224, 255, 0.035) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(90deg, rgba(83, 224, 255, 0.035) 0 1px, transparent 1px 16px),
+    #060913;
+  --panel-border: 2px solid var(--line); --panel-shadow: 3px 3px 0 rgba(0, 0, 0, 0.7);
+  --s1: #53e0ff; --s2: #ffe65c; --s3: #ff5478; --s4: #50ef92; --s5: #bd8cff; --s6: #ff9f43; --s7: #8298b5; --s8: #e4f8ff;
+}
+/* Paper: white stock, jet-black ink and rules, crisp. */
+:root[data-theme="paper"] {
+  --bg: #ffffff; --panel: #ffffff; --ink: #0a0a0a; --muted: #55534e;
+  --line: rgba(10, 10, 10, 0.28); --chip: rgba(10, 10, 10, 0.07); --glass: rgba(10, 10, 10, 0.03);
+  --accent: #0a0a0a; --hit: #b45309; --rule: #0a0a0a; --chosen-bg: #0a0a0a; --chosen-ink: #ffffff;
+  --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; --display: var(--font);
+  --page-bg:
+    repeating-linear-gradient(115deg, rgba(10, 10, 10, 0.02) 0 1px, transparent 1px 4px),
+    #f4f3f0;
+  --panel-border: 1px solid var(--rule); --panel-shadow: 2px 2px 0 rgba(10, 10, 10, 0.9);
+  --s1: #154a85; --s2: #a8261e; --s3: #0b5e40; --s4: #5a3784; --s5: #8a5a00; --s6: #0e7490; --s7: #b91c1c; --s8: #44403c;
+}
+/* Ink: the same look reversed. */
+:root[data-theme="ink"] {
+  --bg: #191919; --panel: #202020; --ink: #f1f1ef; --muted: #a3a29e;
+  --line: rgba(241, 241, 239, 0.26); --chip: rgba(241, 241, 239, 0.08); --glass: rgba(241, 241, 239, 0.03);
+  --accent: #f1f1ef; --hit: #e5b25d; --rule: #f1f1ef; --chosen-bg: #f1f1ef; --chosen-ink: #191919;
+  --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; --display: var(--font);
+  --page-bg: #191919;
+  --panel-border: 1px solid var(--rule); --panel-shadow: 2px 2px 0 rgba(0, 0, 0, 0.85);
+  --s1: #6aa3e8; --s2: #e5786d; --s3: #4cb583; --s4: #a98bd6; --s5: #d9a441; --s6: #4bb5cf; --s7: #e57a8b; --s8: #bdbdb8;
+}
+/* Serif option for Paper and Ink */
+:root:is([data-theme="paper"], [data-theme="ink"])[data-type="serif"] {
+  --font: "Source Serif 4", Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
+:root[data-theme="paper"] { color-scheme: light; }
+:root:not([data-theme="paper"]) { color-scheme: dark; }

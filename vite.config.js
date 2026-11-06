@@ -15,6 +15,7 @@ export default defineConfig({
         newsroom: fileURLToPath(new URL('./projects/newsroom/index.html', import.meta.url)),
         search: fileURLToPath(new URL('./search/index.html', import.meta.url)),
         searchAdvanced: fileURLToPath(new URL('./search/advanced/index.html', import.meta.url)),
+        models: fileURLToPath(new URL('./projects/models/index.html', import.meta.url)),
       },
     },
   },

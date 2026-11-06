@@ -1,0 +1,10 @@
+obs_id,model_id,provider,tok_per_s,reported_date,observed_at,provenance,source_name,source_url,origin
+t001,anthropic/claude-sonnet-5-5,unspecified,136,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t002,openai/gpt-6-1-terra,unspecified,114,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t003,anthropic/claude-opus-5-5,unspecified,94,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t004,google/gemini-4-carbon,unspecified,91,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t005,google/gemini-4-argon,unspecified,88,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t006,anthropic/claude-fable-5-1,unspecified,62,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t007,openai/gpt-6-1-sol,unspecified,60,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t008,openai/gpt-6-astra,unspecified,46,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t009,moonshot/kimi-k3-1-pro,unspecified,27,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
