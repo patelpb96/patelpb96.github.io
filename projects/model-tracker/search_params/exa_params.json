@@ -1,0 +1,10 @@
+{
+  "type": "auto",
+  "category": "news",
+  "includeDomains": [],
+  "contents": {
+    "text": {
+      "maxCharacters": 750
+    }
+  }
+}

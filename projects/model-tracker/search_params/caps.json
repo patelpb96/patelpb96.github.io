@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "n_daily_runs": 2,
+  "slots_utc": ["02:00", "11:00"],
+  "max_exa_calls_per_run": 5,
+  "daily_usd_cap": 2.0,
+  "est_call_usd": 0.05,
+  "window_hours": 24,
+  "num_results": 15,
+  "keep_newest": 5,
+  "triage_chars": 750,
+  "max_fetches_per_run": 5,
+  "history_start": "2025-01-01",
+  "retries": 0,
+  "noteworthy": {
+    "rule_version": "v1",
+    "default_margin_points": 1.0,
+    "margins": {},
+    "frontier_k": 5,
+    "headline_benchmark": "aa_intelligence_index",
+    "price_ratio": 0.25
+  }
+}

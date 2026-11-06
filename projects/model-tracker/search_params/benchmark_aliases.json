@@ -1,0 +1,12 @@
+{
+  "aa_intelligence_index": ["Artificial Analysis Intelligence Index", "Intelligence Index"],
+  "swe_bench_verified": ["SWE-bench Verified", "SWE-Bench Verified"],
+  "swe_bench_pro": ["SWE-bench Pro", "SWE-Bench Pro"],
+  "gpqa_diamond": ["GPQA Diamond", "GPQA"],
+  "aime_2025": ["AIME 2025"],
+  "hle": ["Humanity's Last Exam", "HLE"],
+  "mmlu_pro": ["MMLU-Pro", "MMLU Pro"],
+  "livecodebench": ["LiveCodeBench"],
+  "arc_agi_2": ["ARC-AGI-2"],
+  "terminal_bench": ["Terminal-Bench", "Terminal Bench"]
+}

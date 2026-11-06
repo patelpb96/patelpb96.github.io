@@ -1,0 +1,6 @@
+param_id,lang,concept_id,phrase,phrase_sha256,gloss_en,argon_verdict,status
+en-release-01,en,release,new AI language model released today,fa15738ffe1f40e72461cc23dc7f505e2f4563480feb41708569ec09b99a3fe7,,,approved
+en-bench-01,en,benchmarks,new frontier AI model benchmark results compared to GPT Claude Gemini,683b6a314003b99c889bc765fce372d190c2a919886219cab93cf46c72fab096,,,approved
+en-price-01,en,pricing,new AI model API pricing per million tokens announced,d100d327dd57cc431fef68e8c99184031154ed8d92ca680f10eb215e5368f8c0,,,approved
+en-open-01,en,open_weights,open-weights large language model released on Hugging Face with benchmark scores,780855b4fb1edffd9601218594ff5ae6e98a26f44af2fe9aade07ec7835c7f2d,,,approved
+en-api-01,en,api_availability,AI model now generally available in the API launch announcement,8fb984c121523f15ee4f712877e409265617894e40440dc9119901683488d84d,,,approved
