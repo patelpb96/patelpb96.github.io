@@ -13,13 +13,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import budget as budget_mod
-from . import exa_client, extract, fetch, gate, injection, ledger, lexicon, triage
+from . import exa_client, extract, fetch, gate, injection, jev, ledger, lexicon, triage
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -99,7 +100,9 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
                 continue
             seen.add(h)
             text = r.get("text") or ""
-            inj = injection.screen(text[: caps["triage_chars"]], injection_judge, extra=zh_inj)
+            # The search snippet is only ever read by regexes, never by an agent, so it gets the free pre-screen alone;
+            # the Jev injection judge is kept for the fetched pages an extraction agent could one day read.
+            inj = injection.screen(text[: caps["triage_chars"]], None, extra=zh_inj)
             tri = triage.triage(text, caps["triage_chars"], triage_judge, zh=zh_tri)
             hit_id = f"{run_id}:{h[:10]}"
             story[hit_id] = triage.story_key(text, caps["triage_chars"])
@@ -171,11 +174,15 @@ def main(argv=None) -> int:
     else:
         exa, pages, models = exa_client.LiveExa(), fetch.LivePages(), seed_models
     data_dir = args.data_dir or default_data_dir(args.dry_run)
+    # Jev judges only on live runs and only when TYPESAFE_API_KEY is set; a dry run stays fully deterministic.
+    judges = None if args.dry_run else jev.make_judges(os.environ, params["caps"])
     try:
-        res = run(args.slot, now, data_dir, params, models, exa, pages)
+        res = run(args.slot, now, data_dir, params, models, exa, pages,
+                  triage_judge=judges.triage if judges else None, injection_judge=judges.injection if judges else None)
     except budget_mod.RunRefused as e:
         print(f"refused: {e}", file=sys.stderr)
         return 2
+    res["jev"] = judges.summary() if judges else "off (dry run or no TYPESAFE_API_KEY)"
     print(json.dumps({"data_dir": str(data_dir), **{k: v for k, v in res.items() if k not in {"hits", "candidate_rows"}}}, indent=1))
     for h in res["hits"]:
         print(f"  {h['verdict']:<12} {h['published_at'][:16]:<16} {h['url']}  [{h['reasons'] or h['injection_reasons']}]")

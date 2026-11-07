@@ -10,6 +10,7 @@
   "keep_newest": 5,
   "triage_chars": 750,
   "max_fetches_per_run": 5,
+  "max_jev_calls_per_run": 40,
   "history_start": "2025-01-01",
   "retries": 0,
   "noteworthy": {
