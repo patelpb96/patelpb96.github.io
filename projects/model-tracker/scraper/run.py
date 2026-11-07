@@ -55,9 +55,10 @@ def fetch_order(release_hits: list[dict], rank: dict, phrases: list[dict]) -> li
 
 
 def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dict], exa, pages,
-        triage_judge=None, injection_judge=None, override_requested: bool = False) -> dict:
+        triage_judge=None, injection_judge=None, override_requested: bool = False, budget_cls=None) -> dict:
+    """`budget_cls` lets the Lambda swap in a Budget that also takes an S3 lock and mirrors spend to S3."""
     caps = params["caps"]
-    bud = budget_mod.Budget(data_dir, caps, now)
+    bud = (budget_cls or budget_mod.Budget)(data_dir, caps, now)
     bud.start_run(slot)
     run_id = f"run-{slot}"
     stamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")

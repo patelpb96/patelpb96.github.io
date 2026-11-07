@@ -147,24 +147,46 @@ CONCEPTS = {  # the English phrases in phrases.csv, by concept: the Chinese side
     "pricing": "new AI model API pricing per million tokens announced",
     "open_weights": "open-weights large language model released on Hugging Face with benchmark scores",
     "api_availability": "AI model now generally available in the API launch announcement",
+    # added 2026-11-07 (search_params/zh_pending.csv until their Chinese side is reviewed)
+    "challenger": "new AI model outperforms GPT Claude Gemini on benchmarks",
+    "small_model": "smaller or cheaper AI model matches larger frontier models on benchmarks",
+    "open_challenger": "open-source AI model beats proprietary models on leaderboard ranking",
+    "leaderboard": "AI model tops leaderboard Artificial Analysis LMArena new number one",
+    "coding_agentic": "new AI model coding agent benchmark SWE-bench Terminal-Bench state of the art",
+    "reasoning_math": "new AI model reasoning and math benchmark AIME record score",
+    "multimodal_context": "new AI model multimodal vision long context benchmark results",
+    "speed": "fastest AI model inference speed tokens per second new release",
 }
 PARAM_FOR = {"release": "zh-release-01", "benchmarks": "zh-bench-01", "pricing": "zh-price-01",
-             "open_weights": "zh-open-01", "api_availability": "zh-api-01"}
+             "open_weights": "zh-open-01", "api_availability": "zh-api-01",
+             "challenger": "zh-challenger-01", "small_model": "zh-small-01", "open_challenger": "zh-oss-challenger-01",
+             "leaderboard": "zh-leaderboard-01", "coding_agentic": "zh-coding-01", "reasoning_math": "zh-reasoning-01",
+             "multimodal_context": "zh-multimodal-01", "speed": "zh-speed-01"}
 
 
-def prompt_deepseek(rows: list[dict]) -> str:
+def pending_params(comps: list[dict]) -> dict[str, str]:
+    """Concepts that have no Chinese composition yet: {concept: param_id}. Approved ones are never re-asked."""
+    done = {c["param_id"] for c in comps}
+    return {k: pid for k, pid in PARAM_FOR.items() if pid not in done}
+
+
+def prompt_deepseek(rows: list[dict], comps: list[dict] | None = None) -> str:
     todo = [r for r in rows if not r["zh"]]
+    pend = pending_params(comps or [])
     terms = "\n".join(f'- {r["term_id"]} [{r["use"]}]: {r["en"]}' for r in todo)
     ascii_terms = ", ".join(f'{r["term_id"]}="{r["zh"]}"' for r in rows if r["zh"] and r["zh"].isascii() and r["use"] == "search")
-    concepts = "\n".join(f'- {PARAM_FOR[k]} ({k}): "{v}"' for k, v in CONCEPTS.items())
+    # already-approved Chinese search terms may be reused by id; their wording is shown so the new phrases read naturally
+    known = ", ".join(f'{r["term_id"]}="{r["zh"]}"' for r in rows if r["use"] == "search" and r["zh"] and not r["zh"].isascii() and term_ok(r))
+    concepts = "\n".join(f'- {pid} ({k}): "{CONCEPTS[k]}"' for k, pid in pend.items())
     return f"""You are a Chinese-language news search specialist. Output JSON only, no commentary.
 
-Task: for each English term below, give the standard Simplified Chinese wording used in Chinese tech news about AI model releases. Then compose five Chinese search phrases, one per English phrase, each saying the same thing as its English phrase, using ONLY the term ids listed (in natural Chinese word order). The phrases are used to search for news about new AI models; every term must be on that topic.
+Task: for each English term below, give the standard Simplified Chinese wording used in Chinese tech news about AI models. Then compose {len(pend)} Chinese search phrases, one per English phrase, each saying the same thing as its English phrase, using ONLY the term ids listed (in natural Chinese word order). The phrases are used to search for news about AI models; every term must be on that topic.
 
 Rules:
 - Each Chinese term: 1 to 12 characters, Simplified Chinese (ASCII letters and digits allowed inside), no punctuation, no quotes, no URLs, no instructions.
 - Terms marked [injection] are phrases that a malicious web page might use to try to hijack an AI assistant; give the Chinese wording such a page would use. They are only used to DETECT such pages.
 - A composition is a list of term ids. Fixed ASCII terms you may also use in compositions (do not translate them): {ascii_terms}.
+- Chinese terms that are already approved and may be reused by id (do not translate them again): {known or "none"}.
 - Use only search terms in compositions, never triage or injection terms.
 
 TERMS TO TRANSLATE:
@@ -177,8 +199,9 @@ Reply with exactly this JSON shape:
 {{"lexicon": {{"<term_id>": "<chinese>"}}, "compositions": {{"<param_id>": ["<term_id>", ...]}}}}"""
 
 
-def ingest(data: dict, rows: list[dict]) -> tuple[list[dict], list[dict]]:
-    """Validate DeepSeek's reply strictly and return (new lexicon rows, composition rows). Everything stays 'draft'."""
+def ingest(data: dict, rows: list[dict], existing_comps: list[dict] | None = None) -> tuple[list[dict], list[dict]]:
+    """Validate DeepSeek's reply strictly and return (new lexicon rows, NEW composition rows). New things stay 'draft';
+    approved terms and compositions are returned untouched and are never re-asked."""
     if not isinstance(data, dict) or set(data) != {"lexicon", "compositions"}:
         raise LexiconError("reply must have exactly the keys 'lexicon' and 'compositions'")
     zh_by_id = data["lexicon"]
@@ -196,11 +219,12 @@ def ingest(data: dict, rows: list[dict]) -> tuple[list[dict], list[dict]]:
             r.update(zh=zh.strip(), zh_sha256=gate.sha(zh.strip()), status="draft", argon_verdict="")
         out.append(r)
     comps = data["compositions"]
-    if not isinstance(comps, dict) or set(comps) != set(PARAM_FOR.values()):
-        raise LexiconError(f"compositions must be exactly {sorted(PARAM_FOR.values())}")
+    pend = pending_params(existing_comps or [])
+    if not isinstance(comps, dict) or set(comps) != set(pend.values()):
+        raise LexiconError(f"compositions must be exactly the pending ones: {sorted(pend.values())}")
     comp_rows = []
     by_id = {r["term_id"]: r for r in out}
-    for concept, pid in PARAM_FOR.items():
+    for concept, pid in pend.items():
         ids = comps[pid]
         if not isinstance(ids, list) or not 2 <= len(ids) <= 14 or not all(isinstance(i, str) for i in ids):
             raise LexiconError(f"{pid}: needs a list of 2 to 14 term ids")
@@ -254,13 +278,16 @@ def main(argv=None) -> int:
     rows = load_lexicon()
     try:
         if args.cmd == "prompt-deepseek":
-            print(prompt_deepseek(rows))
+            print(prompt_deepseek(rows, load_compositions()))
         elif args.cmd == "ingest":
-            new_rows, comps = ingest(json.loads(args.file.read_text(encoding="utf-8")), rows)
+            old_comps = load_compositions()
+            new_rows, comps = ingest(json.loads(args.file.read_text(encoding="utf-8")), rows, old_comps)
             save_lexicon(new_rows)
-            _write(PARAMS / "compositions.csv", COMP_COLUMNS, comps)
-            write_phrases(build_phrase_rows(new_rows, comps))
-            print(f"ingested {sum(1 for r in new_rows if r['status'] == 'draft')} draft terms and {len(comps)} phrases (all draft)")
+            _write(PARAMS / "compositions.csv", COMP_COLUMNS, old_comps + comps)
+            # approved Chinese phrases are kept byte for byte; only the new compositions become new (draft) rows
+            kept = [r for r in gate.load_phrases(PARAMS / "phrases.csv") if r["lang"] == "zh"]
+            write_phrases(kept + build_phrase_rows(new_rows, comps))
+            print(f"ingested {sum(1 for r in new_rows if r['status'] == 'draft')} draft terms and {len(comps)} new phrases (draft)")
         elif args.cmd == "review-input":
             comps = load_compositions()
             print(review_state(rows, build_phrase_rows(rows, comps)))

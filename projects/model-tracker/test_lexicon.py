@@ -59,10 +59,17 @@ class ShippedLexiconTests(unittest.TestCase):
         r2 = json.loads((lexicon.PARAMS / "argon_reviews" / "review-02.json").read_text(encoding="utf-8"))
         self.assertEqual(r1["decision"]["verdict"], "drift")
         self.assertEqual((r2["decision"]["verdict"], r2["decision"]["action"], r2["problems"]), ("ok", "continue", []))
-        seen = set(r2["reviewed_hashes"])
+        # Approval only covers what a PASSING review saw. review-02 was Argon; review-03 (2026-11-07) was Opus, by
+        # Preet's choice. Every review names its reviewer, and a failed review (review-01) approves nothing.
+        seen = set()
+        for path in sorted((lexicon.PARAMS / "argon_reviews").glob("review-*.json")):
+            rv = json.loads(path.read_text(encoding="utf-8"))
+            self.assertTrue(rv.get("reviewer"), path.name)
+            if (rv["decision"]["verdict"], rv["decision"]["action"], rv["problems"]) == ("ok", "continue", []):
+                seen |= set(rv["reviewed_hashes"])
         for r in LEX:
             if not r["zh"].isascii():
-                self.assertIn(r["zh_sha256"], seen, r["term_id"])      # approval only covers what Argon saw
+                self.assertIn(r["zh_sha256"], seen, r["term_id"])
         for p in PHRASES:
             if p["lang"] == "zh":
                 self.assertIn(p["phrase_sha256"], seen, p["param_id"])

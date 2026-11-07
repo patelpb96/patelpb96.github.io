@@ -227,3 +227,44 @@ Offline checks: `python -m unittest discover lambdas/search`.
 `python infra/cloudfront_api.py detach` (removes every attached behavior), `cd infra && npx cdk destroy`,
 then `aws ssm delete-parameters --names /patelpb/search/key-sha256 /patelpb/search/device-sha256
 /patelpb/search/exa-api-key /patelpb/search/spend` and `aws s3 rm s3://patelpb-com-site/live/search/config.json`.
+
+# Model tracker scraper (stack `PatelpbModelTracker`)
+
+```
+EventBridge Scheduler patelpb-model-scrape-6h (00/06/12/18 UTC, retries 0)
+  -> Lambda patelpb-model-scrape (projects/model-tracker, handler scraper.lambda_handler.handler)
+  -> Exa (key: SSM /patelpb/search/exa-api-key, shared with the search proxy)
+  -> s3://patelpb-model-tracker-811648143409/state/{hits,runs,candidates}.csv, raw/, locks/, spend/
+```
+
+A separate stack: deploying or destroying it never touches `PatelpbLiveApi`. The state bucket is private
+(raw Exa text is never published), versioned and retained on stack deletion. The Lambda only reads
+`projects/models/data/latest.json` from the site bucket and never writes to it. Caps live in
+`projects/model-tracker/search_params/caps.json`: 4 runs a day, 26 Exa calls a run (one per phrase, 13 English + 13 Chinese), $2 a day; one run
+per slot is enforced by an S3 lock written with `If-None-Match: *`.
+
+## Deploy
+
+```sh
+cd infra && npx cdk diff PatelpbModelTracker && npx cdk deploy PatelpbModelTracker   # needs Preet's go-ahead
+```
+
+Optional Jev judges: create the SecureString `/patelpb/models/typesafe-api-key` (by hand; never paste
+the value into a chat). Without it the judges stay off and triage is regex-only.
+
+## Operate
+
+```sh
+MSYS_NO_PATHCONV=1 aws s3 cp - s3://patelpb-model-tracker-811648143409/state/KILL < /dev/null   # kill switch on
+MSYS_NO_PATHCONV=1 aws s3 rm s3://patelpb-model-tracker-811648143409/state/KILL                # kill switch off
+aws s3 sync s3://patelpb-model-tracker-811648143409/state/ projects/model-tracker/data/ --exclude "raw/*"
+cd projects/model-tracker && python -m scraper.review list                                     # then accept / reject
+```
+
+Accepted candidates change `seed/` and `latest.json` locally; the page changes only after a site deploy.
+Logs: CloudWatch `/aws/lambda/patelpb-model-scrape` (counts and statuses only, no keys or page text).
+
+## Teardown
+
+`npx cdk destroy PatelpbModelTracker` removes the Lambda and the schedule; the state bucket is kept
+(RETAIN) and must be emptied and deleted by hand if it is really no longer wanted.

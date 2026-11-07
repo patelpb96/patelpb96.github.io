@@ -4,3 +4,11 @@ zh-bench-01,benchmarks,new frontier ai model benchmark results compared gpt clau
 zh-price-01,pricing,new ai model api per_million tokens pricing announced
 zh-open-01,open_weights,at hf released openweights llm benchmark scores
 zh-api-01,api_availability,ai model now ga api launch announcement
+zh-challenger-01,challenger,new model outperforms gpt claude gemini benchmark
+zh-small-01,small_model,smaller cheaper model matches larger frontier model benchmark
+zh-oss-challenger-01,open_challenger,opensource model beats proprietary model leaderboard ranking
+zh-leaderboard-01,leaderboard,model tops leaderboard aa lmarena new number_one
+zh-coding-01,coding_agentic,new model coding agent benchmark swebench terminalbench sota
+zh-reasoning-01,reasoning_math,new model reasoning math benchmark aime record scores
+zh-multimodal-01,multimodal_context,new model multimodal vision long_context benchmark results
+zh-speed-01,speed,fastest model inference_speed tokens per_second new released

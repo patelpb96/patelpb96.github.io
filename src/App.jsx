@@ -65,6 +65,16 @@ const projects = [
     art: "newspaper",
   },
   {
+    key: "models",
+    title: "Model Comparison",
+    href: "/projects/models/",
+    external: true,
+    cta: "Compare models",
+    blurb: "Frontier AI models side by side: benchmark scores, price, speed, and cost and time per task, with a price-vs-score frontier and history over time. A scraper checks for new releases every six hours.",
+    tags: ["AI models", "Benchmarks", "Live data"],
+    art: "scatter",
+  },
+  {
     key: "mindmap",
     title: "Mindmap Studio",
     href: "/projects/mindmap/",
@@ -1107,6 +1117,23 @@ function ProjectArt({ kind }) {
           <rect key={"n" + k} x={x - 18} y={y - 8} width="36" height="16" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2" />
         ))}
         <rect x="94" y="48" width="52" height="24" fill="#ff9a4d" stroke="#ffd4a3" strokeWidth="2" />
+      </svg>
+    );
+  }
+  if (kind === "scatter") {
+    // price-vs-score scatter: square points, the leaders on a dashed efficient frontier
+    const pts = [[34, 92], [58, 78], [82, 84], [100, 58], [126, 66], [144, 40], [170, 52], [192, 30], [214, 36]];
+    const front = [[34, 92], [58, 78], [100, 58], [144, 40], [192, 30]];
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <line x1="20" y1="106" x2="230" y2="106" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" />
+        <line x1="20" y1="14" x2="20" y2="106" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" />
+        {[40, 64, 88].map((y) => <line key={y} x1="20" x2="230" y1={y} y2={y} stroke="rgba(255,180,120,0.12)" />)}
+        <polyline fill="none" stroke="#ffd4a3" strokeWidth="2" strokeDasharray="6 4" points={front.map((q) => q.join(",")).join(" ")} />
+        {pts.map(([x, y], k) => {
+          const lead = front.some(([fx, fy]) => fx === x && fy === y);
+          return <rect key={k} x={x - 5} y={y - 5} width="10" height="10" fill={lead ? "#ff9a4d" : "#5a2d14"} stroke={lead ? "#ffd4a3" : "#ffb36b"} strokeWidth="1.5" />;
+        })}
       </svg>
     );
   }

@@ -1,0 +1,50 @@
+{
+ "reviewer": "claude-opus-5-5 via Claude Code (Preet chose Opus instead of Argon for this review, 2026-11-07)",
+ "date": "2026-11-07",
+ "prompt_sha256": "29de2f4436169781780457dc4061a9c4f5fa104359ab2a39545d3d5f76835b3a",
+ "reviewed_hashes": [
+  "21f234b3c51edeb2f46079859f56c751ba2f4a5b6d7ce92a6018416c1a83f2c5",
+  "ce2ad91ea7687917b43dc8ad63f957f58f97f4d00dca91196fd2df68e4dd5d3a",
+  "a9c99ac631170307e8949bedb0ca769889f3ee51bfdd9f05bf1cd8a993c91c1e",
+  "c8ce9fef107c3ebff334a9bad9504f4280d6e56ebba8fae0eeb4058a01d73b4d",
+  "978a73f7820c193924c7849aae46cb4856aafe5365ebf88e414bdda6b12973d2",
+  "3c7718d27e1db98e32e12ea879aa9cedaa4a80da0c561393ac0c29019345d407",
+  "16dc8ea1cf4807b0db5c890f39c970a66f240e2d28617c0a53a7c5e0c0c4cbf0",
+  "6f5700c072071c53a46d63e27bbde228be6efa38c2b79a7363fcdb9c27dfb858",
+  "1ee95aa94712cbae52c8a9e8207c2dadbd40f95014c4cbf95f060f493888d03c",
+  "6570a98f2850fb4fc88b528bd43713d260cbb33471d70e74ec8d828019e762d7",
+  "410195388ed5d740f414ad9c260e0be85724350da2132486e3576c90c00a3d79",
+  "73d7f8f028f065fd128ee530c917800309bae6cf7181e543bbc3df0c1de69dbe",
+  "84f1a53f97f12db528844486fbb92f9d8881342f6b84ac49e56819f6c1e3eb93",
+  "2df7697dbb6128781c7871082454bcfa03686558e5afe7f28f6ca66ecc3b2d1d",
+  "174ddab19e384f945723009dc0642c99982129acec0c73e9a3a0afb08752b098",
+  "132411ba41da7354ea72dc845b626fdccbecee2e4526d5f8f84a425a28509b50",
+  "872c1fa141b5ed8d2f2b99255b4180eff7c3ec3079f98bfb261bfa83aac4ec68",
+  "786e05bf8e2a23cf400c373df7d650d53ea1289763539eff1caf20481965b2e8",
+  "5d7b7e77768bfdfc7a6e1688dc924caa9a7b94752dbe05ade0874bd7ca40832b",
+  "209c47b5910f631d5ef8a22e9f24f619d5f7b3e101529571ecb4c317ea2b1ad9",
+  "1fa7f3ccc97fdf0bd09fb2e2e23d07f952a112c19bb630aeae3c60b884132c16",
+  "caba0e195ca88f89c2013aaaff8f1e8557c6885e686442ab9ab336d928c73151",
+  "198c02dbda21a50d982d60fc9da416c3da04894f673e02659e2054a830a14a18",
+  "bb04885264dcd5f0681a4925b009540e694573bfcbd765511befdee0741ac332",
+  "40f064e8f0abb518b9e4e45813c29e833dd67f0137571a0c8db0c2b6366a67f8",
+  "01080f5f50fcb640cc07e5dd6d6ebf869848171ac461a47d6bc8006d32ea7152",
+  "1814efb6224841ff019b3793abc738c39b6d66d2b2556c48be5b6e4ca6c1ff9d",
+  "e6ebf59b09d88e522f1ac9abd9dcdac8acb4200a72a65544320dfa13331f32c0",
+  "f09e25d6a9ae5cda9518ad17a249483606696f71f26489b54041063eb9fb7719",
+  "f3ff16b8487846f390d1ba08d273c0a7e61ef6600e5f114765fc0ec9de7c1637",
+  "5f08791f901c55d0cee13dfc0f085e1b8f593b1cdaece8589e110ef49338dc00",
+  "c899094074520d629359f4160f0c3982f131cf32ea85132f669041521369e18b"
+ ],
+ "decision": {
+  "verdict": "ok",
+  "action": "continue",
+  "summary": "24 draft terms and 8 draft phrases (drafted by deepseek/deepseek-flash) checked term by term against their English. All are standard Simplified Chinese AI-news wording, on topic, with no URLs, punctuation or instructions; each phrase's gloss is built mechanically from the lexicon and matches its English concept.",
+  "notes": [
+   "推理 means both 'reasoning' and 'inference' in Chinese AI writing; zh-reasoning-01 puts it beside 数学 and AIME (reasoning sense), and zh-speed-01 uses the separate term 推理速度 (inference speed). Both search correctly.",
+   "All eight new phrases say 模型 (model) without 'AI', unlike their English; each carries unambiguous AI context (GPT/Claude/Gemini, LMArena, 基准测试, 多模态, tokens), so this is a small drift, not a blocker.",
+   "纪录 (record result) is the right character, not 记录 (a log)."
+  ]
+ },
+ "problems": []
+}
