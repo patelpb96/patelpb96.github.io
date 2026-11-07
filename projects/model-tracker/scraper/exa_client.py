@@ -40,11 +40,21 @@ def build_request(phrase: str, caps: dict, exa_params: dict, now: datetime) -> d
     return body
 
 
-def newest(results: list[dict], keep: int) -> list[dict]:
+def cutoff_for(now: datetime) -> str:
+    """The latest publishedDate we accept: the run time itself. Later-dated pages are clock errors or scheduled posts."""
+    return now.strftime("%Y-%m-%dT%H:%M:%S.999Z")
+
+
+def is_future(result: dict, cutoff: str) -> bool:
+    return (result.get("publishedDate") or "") > cutoff       # ISO-8601 strings compare chronologically; undated is not "future"
+
+
+def newest(results: list[dict], keep: int, not_after: str | None = None) -> list[dict]:
+    """De-duplicate, drop anything dated after `not_after` (before ranking, so it cannot take a slot), sort newest first."""
     seen, unique = set(), []
     for r in results:
         h = url_hash(r["url"])
-        if h not in seen:
+        if h not in seen and not (not_after and is_future(r, not_after)):
             seen.add(h)
             unique.append(r)
     # ISO-8601 strings sort chronologically; a missing date sorts last.

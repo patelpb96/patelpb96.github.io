@@ -4,7 +4,7 @@
   "slots_utc": ["02:00", "11:00"],
   "max_exa_calls_per_run": 10,
   "daily_usd_cap": 2.0,
-  "est_call_usd": 0.05,
+  "est_call_usd": 0.015,
   "window_hours": 24,
   "num_results": 15,
   "keep_newest": 5,

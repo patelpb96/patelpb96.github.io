@@ -18,6 +18,30 @@ MODEL_NAME = re.compile(r"\b[A-Z][A-Za-z]{1,}[- ]?\d+(?:\.\d+)*[A-Za-z]*\b", re.
 BENCH = re.compile(r"\b(benchmark|SWE-?bench|GPQA|AIME|MMLU|HLE|LiveCodeBench|ARC-AGI|Terminal-?Bench|Intelligence Index)\b", re.I | re.A)
 
 
+# Capitalised words that sit in front of a number without being a model: dates ("November 6"), counts and glue words.
+_NOT_NAMES = {"january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+              "november", "december", "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+              "day", "week", "month", "year", "q", "version", "part", "step", "page", "issue", "vol", "chapter", "episode",
+              "only", "than", "with", "from", "over", "under", "about", "nearly", "just", "hits", "scores", "top", "best",
+              "model", "models", "number", "no"}
+
+
+def story_key(text: str, chars: int) -> str:
+    """The first version-like model name in the opening text, normalised ('Inkling 2' -> 'inkling2'); '' if none.
+    Dates, years and glue words ('November 6', 'Agents 2026', 'Only 28') are skipped: they matched in the first live
+    run and glued unrelated pages into one story. Pages about the same model share a key, so a run fetches one of
+    them, not all. Merging two different models that share a first-mentioned name is the safe error: it costs a
+    fetch, never a wrong score."""
+    for m in MODEL_NAME.finditer((text or "")[:chars]):
+        name = m.group(0)
+        word = re.match(r"[A-Za-z]+", name).group(0).lower()
+        number = re.search(r"\d+(?:\.\d+)*", name).group(0)
+        if word in _NOT_NAMES or re.fullmatch(r"(?:19|20)\d\d", number):
+            continue
+        return re.sub(r"[\s-]+", "", name).lower()
+    return ""
+
+
 def triage(text: str, chars: int, judge: Callable[[str], str] | None = None, zh=None) -> dict:
     """`zh` is an optional (verb_regex, ai_regex) built from the APPROVED lexicon (lexicon.triage_regexes); this
     module holds no Chinese literals. Model names are still matched as ASCII (Qwen3, DeepSeek-V4, GPT 6.1)."""

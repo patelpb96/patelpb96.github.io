@@ -1,4 +1,4 @@
-"""One scheduled run, English-only (PLAN.md, Steps 2).
+"""One scheduled run, English and Chinese phrases (PLAN.md, Steps 2-3).
 
     python -m scraper.run --dry-run --slot 2026-11-06T02 --now 2026-11-06T02:00:00
 
@@ -39,6 +39,20 @@ def load_params(params_dir: Path = PARAMS) -> dict:
     }
 
 
+def default_data_dir(dry_run: bool) -> Path:
+    """Dry runs replay invented fixtures, so they never share a ledger with real hits."""
+    return ROOT / "data" / "dry" if dry_run else ROOT / "data"
+
+
+def fetch_order(release_hits: list[dict], rank: dict, phrases: list[dict]) -> list[dict]:
+    """Who gets the page-fetch slots. Round-robin: every phrase's newest hit before any phrase's second, and within
+    a rank one concept at a time (English then Chinese for the same concept), so five fetches cover five different
+    searches instead of five pages from the first phrase."""
+    concepts = list(dict.fromkeys(p.get("concept_id") or p["param_id"] for p in phrases))
+    pos = {p["param_id"]: (concepts.index(p.get("concept_id") or p["param_id"]), p.get("lang") != "en") for p in phrases}
+    return sorted(release_hits, key=lambda h: (rank[h["hit_id"]], pos.get(h["param_id"], (len(concepts), 0))))
+
+
 def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dict], exa, pages,
         triage_judge=None, injection_judge=None, override_requested: bool = False) -> dict:
     caps = params["caps"]
@@ -48,7 +62,8 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
     stamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     seen = ledger.seen_hashes(data_dir)
     raw, hits, errors, cost, stopped = [], [], [], 0.0, None
-    duplicates = 0
+    duplicates, future_dated, story, rank = 0, 0, {}, {}
+    cutoff = exa_client.cutoff_for(now)
     first_body = None
 
     zh_tri, zh_inj = params.get("zh_triage"), params.get("zh_injection")
@@ -75,7 +90,9 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
         cost += reserved if actual is None else actual
         raw.append({"run_id": run_id, "param_id": row["param_id"], "request": body, "response": doc})
 
-        for r in exa_client.newest(doc.get("results", []), caps["keep_newest"]):
+        results = doc.get("results", [])
+        future_dated += sum(exa_client.is_future(r, cutoff) for r in results)
+        for r in exa_client.newest(results, caps["keep_newest"], not_after=cutoff):
             h = exa_client.url_hash(r["url"])
             if h in seen:
                 duplicates += 1
@@ -84,18 +101,25 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
             text = r.get("text") or ""
             inj = injection.screen(text[: caps["triage_chars"]], injection_judge, extra=zh_inj)
             tri = triage.triage(text, caps["triage_chars"], triage_judge, zh=zh_tri)
+            hit_id = f"{run_id}:{h[:10]}"
+            story[hit_id] = triage.story_key(text, caps["triage_chars"])
+            rank[hit_id] = sum(1 for x in hits if x["param_id"] == row["param_id"])     # 0 = this phrase's newest new hit
             hits.append({
-                "hit_id": f"{run_id}:{h[:10]}", "run_id": run_id, "param_id": row["param_id"], "url_hash": h,
+                "hit_id": hit_id, "run_id": run_id, "param_id": row["param_id"], "url_hash": h,
                 "url": r["url"], "domain": urlsplit(r["url"]).hostname or "", "published_at": r.get("publishedDate") or "",
                 "verdict": "quarantined" if inj["flagged"] else tri["verdict"], "reasons": "; ".join(tri["reasons"]),
                 "injection_flag": inj["flagged"], "injection_reasons": "; ".join(inj["reasons"]),
                 "fetch_status": "", "first_seen_at": stamp,
             })
 
-    candidates, fetched = [], 0
-    for hit in hits:
-        if hit["verdict"] != "release":
+    candidates, fetched, story_owner = [], 0, {}
+    for hit in fetch_order([h for h in hits if h["verdict"] == "release"], rank, params["phrases"]):
+        key = story[hit["hit_id"]]
+        if key and key in story_owner:                      # another page about this model already got (or lost) the slot
+            hit["fetch_status"] = f"skipped: same story as {story_owner[key]}"
             continue
+        if key:
+            story_owner[key] = hit["hit_id"]
         if fetched >= caps.get("max_fetches_per_run", 5):
             hit["fetch_status"] = "skipped: fetch cap"
             continue
@@ -123,14 +147,15 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
         "unsure": sum(h["verdict"] == "unsure" for h in hits), "candidates": len(candidates), "errors": len(errors),
     }
     ledger.append_csv(Path(data_dir) / "runs.csv", ledger.RUN_COLUMNS, [summary])
-    return {**summary, "stopped": stopped, "error_messages": errors, "hits": hits, "candidate_rows": candidates}
+    return {**summary, "future_dated": future_dated, "fetched": fetched, "stopped": stopped, "error_messages": errors,
+            "hits": hits, "candidate_rows": candidates}
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--slot", required=True, help="e.g. 2026-11-06T02 (UTC date + hour); also the lock key")
     ap.add_argument("--now", help="UTC time of the run, ISO format (default: the current time)")
-    ap.add_argument("--data-dir", type=Path, default=ROOT / "data")
+    ap.add_argument("--data-dir", type=Path, default=None, help="default: data/ for --live, data/dry/ for --dry-run")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="replay fixtures; no network")
     mode.add_argument("--live", action="store_true", help="REAL Exa calls (needs EXA_API_KEY); spends money")
@@ -145,12 +170,13 @@ def main(argv=None) -> int:
         exa, pages, models = exa_client.FixtureExa(fx["exa"]), fetch.FixturePages(fx["pages"]), fx["models"] + seed_models
     else:
         exa, pages, models = exa_client.LiveExa(), fetch.LivePages(), seed_models
+    data_dir = args.data_dir or default_data_dir(args.dry_run)
     try:
-        res = run(args.slot, now, args.data_dir, params, models, exa, pages)
+        res = run(args.slot, now, data_dir, params, models, exa, pages)
     except budget_mod.RunRefused as e:
         print(f"refused: {e}", file=sys.stderr)
         return 2
-    print(json.dumps({k: v for k, v in res.items() if k not in {"hits", "candidate_rows"}}, indent=1))
+    print(json.dumps({"data_dir": str(data_dir), **{k: v for k, v in res.items() if k not in {"hits", "candidate_rows"}}}, indent=1))
     for h in res["hits"]:
         print(f"  {h['verdict']:<12} {h['published_at'][:16]:<16} {h['url']}  [{h['reasons'] or h['injection_reasons']}]")
     for c in res["candidate_rows"]:

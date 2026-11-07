@@ -84,7 +84,7 @@ class BudgetTests(unittest.TestCase):
             b.reserve()
         with self.assertRaises(budget.RunRefused):
             b.reserve()
-        tight = budget.Budget(self.tmp / "t", {**CAPS, "daily_usd_cap": 0.06}, NOW)
+        tight = budget.Budget(self.tmp / "t", {**CAPS, "daily_usd_cap": CAPS["est_call_usd"] * 1.5}, NOW)
         tight.reserve()
         with self.assertRaises(budget.RunRefused):
             tight.reserve()
@@ -137,6 +137,13 @@ class ExaTests(unittest.TestCase):
         got = exa_client.newest(rs, 5)
         self.assertEqual([r["url"][-1] for r in got], ["7", "6", "5", "4", "3"])
 
+    def test_future_dated_results_cannot_take_a_slot(self):
+        rs = [{"url": f"https://x.com/{i}", "publishedDate": f"2026-11-0{i}T00:00:00.000Z"} for i in (1, 2, 3)]
+        rs.append({"url": "https://x.com/ahead", "publishedDate": "2026-11-08T00:00:00.000Z"})
+        cutoff = exa_client.cutoff_for(datetime(2026, 11, 3, 12))
+        self.assertEqual([r["url"][-1] for r in exa_client.newest(rs, 2, not_after=cutoff)], ["3", "2"])
+        self.assertEqual(exa_client.newest(rs, 2)[0]["url"], "https://x.com/ahead")      # without the cutoff it wins
+
     def test_live_client_needs_a_key_and_does_not_echo_it(self):
         os.environ.pop("EXA_API_KEY", None)
         with self.assertRaises(exa_client.ExaError):
@@ -144,6 +151,15 @@ class ExaTests(unittest.TestCase):
 
 
 class TriageTests(unittest.TestCase):
+    def test_story_key_groups_pages_about_one_model(self):
+        self.assertEqual(triage.story_key("Thinking Machines launches Inkling 2 Small today", 750), "inkling2")
+        self.assertEqual(triage.story_key("OpenAI unveils GPT-6.1 Terra", 750), "gpt-6.1".replace("-", ""))
+        self.assertEqual(triage.story_key("A recipe for soup", 750), "")
+        # dates, years and glue words are not models (they glued four unrelated pages together in the first live run)
+        self.assertEqual(triage.story_key("November 6 update: Acme ships Orbit-9", 750), "orbit-9".replace("-", ""))
+        self.assertEqual(triage.story_key("Agents 2026 report: Only 28 firms", 750), "")
+        self.assertEqual(triage.story_key("filler " * 200 + "Orbit-9", 750), "")      # only the opening text counts
+
     def test_verdicts(self):
         self.assertEqual(triage.triage("ExampleLab today released Orbit-9, a new AI language model.", 750)["verdict"], "release")
         self.assertEqual(triage.triage("Salt the water well.", 750)["verdict"], "not_release")
@@ -310,7 +326,7 @@ class RunTests(unittest.TestCase):
             self.go("2026-11-06T15", datetime(2026, 11, 6, 15))
 
     def test_dollar_cap_stops_the_run_mid_way(self):
-        # Each call really costs $0.04 and reserves $0.05 first: $0.00+0.05 ok, $0.04+0.05 ok, $0.08+0.05 > $0.09.
+        # Each call really costs $0.04 and reserves the estimate first: $0.00+est ok, $0.04+est ok, $0.08+est > $0.09.
         pricey = copy.deepcopy(FX["exa"])
         for doc in pricey.values():
             doc["costDollars"] = {"total": 0.04}
@@ -344,7 +360,43 @@ class RunTests(unittest.TestCase):
         res, exa = self.go(exa=Flaky(copy.deepcopy(FX["exa"])))
         self.assertEqual(res["errors"], 1)
         self.assertEqual(res["exa_calls"], 10)
-        self.assertAlmostEqual(budget.Budget(self.tmp, CAPS, NOW).spent_today(), 0.05 + 4 * 0.007)
+        self.assertAlmostEqual(budget.Budget(self.tmp, CAPS, NOW).spent_today(), CAPS["est_call_usd"] + 4 * 0.007)
+
+    def test_fetches_spread_across_phrases_and_skip_repeat_stories(self):
+        ph = {p["param_id"]: p["phrase"] for p in PARAMS["phrases"]}
+        arts = {}
+
+        def art(slug, name, minute):
+            url = f"https://news.example.com/{slug}"
+            text = f"Acme released {name}, a new AI language model."
+            arts[url] = text
+            return {"url": url, "publishedDate": f"2026-11-06T01:{minute}:00.000Z", "text": text}
+        docs = {
+            ph["en-release-01"]: {"costDollars": {"total": 0.01}, "results": [
+                art("a1", "Orbit-9", 50), art("a2", "Orbit-9", 40), art("a3", "Quill-3", 30)]},
+            ph["zh-release-01"]: {"costDollars": {"total": 0.01}, "results": [art("z1", "Lumen-5", 45)]},
+            ph["en-bench-01"]: {"costDollars": {"total": 0.01}, "results": [art("b1", "Vega-2", 35)]},
+        }
+        params = {**PARAMS, "caps": {**CAPS, "max_fetches_per_run": 3}}
+        res = run.run("2026-11-06T02", NOW, self.tmp, params, [], exa_client.FixtureExa(docs), fetch.FixturePages(arts))
+        status = {h["url"].rsplit("/", 1)[1]: h["fetch_status"] for h in res["hits"]}
+        self.assertTrue(all(status[s].startswith("ok") for s in ("a1", "z1", "b1")), status)   # one per search, not 3 from the first
+        self.assertTrue(status["a2"].startswith("skipped: same story as run-"), status)        # a repeat of Orbit-9 uses no slot
+        self.assertEqual(status["a3"], "skipped: fetch cap")
+        self.assertEqual(res["fetched"], 3)
+
+    def test_future_dated_pages_are_dropped_and_counted(self):
+        ph = next(p["phrase"] for p in PARAMS["phrases"] if p["param_id"] == "en-release-01")
+        docs = {ph: {"costDollars": {"total": 0.01}, "results": [
+            {"url": "https://x.example.com/ahead", "publishedDate": "2026-11-07T00:00:00.000Z", "text": "Acme released Orbit-9, a new AI model."},
+            {"url": "https://x.example.com/ok", "publishedDate": "2026-11-06T01:00:00.000Z", "text": "Acme released Quill-3, a new AI model."}]}}
+        res = run.run("2026-11-06T02", NOW, self.tmp, PARAMS, [], exa_client.FixtureExa(docs), fetch.FixturePages({}))
+        self.assertEqual([h["url"][-2:] for h in res["hits"]], ["ok"])
+        self.assertEqual(res["future_dated"], 1)
+
+    def test_dry_run_never_shares_the_live_data_folder(self):
+        live, dry = run.default_data_dir(False), run.default_data_dir(True)
+        self.assertEqual((dry.name, dry.parent), ("dry", live))
 
     def test_records_are_written(self):
         self.go()
