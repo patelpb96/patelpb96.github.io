@@ -5,7 +5,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from scraper import budget, exa_client, extract, fetch, gate, injection, noteworthy, run, triage
@@ -15,6 +15,7 @@ PARAMS = run.load_params()
 CAPS = PARAMS["caps"]
 FX = json.loads((ROOT / "scraper" / "fixtures" / "dry_run.json").read_text(encoding="utf-8"))
 NOW = datetime(2026, 11, 6, 2, 0, 0)
+WINDOW_START = (NOW - timedelta(hours=CAPS["window_hours"])).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def zh_row(**kw):
@@ -70,13 +71,14 @@ class BudgetTests(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
         os.environ.pop("MODEL_TRACKER_KILL", None)
 
-    def test_slot_runs_once_and_two_runs_a_day(self):
-        budget.Budget(self.tmp, CAPS, NOW).start_run("2026-11-06T02")
+    def test_slot_runs_once_and_n_runs_a_day(self):
+        budget.Budget(self.tmp, CAPS, NOW).start_run("2026-11-06T00")
         with self.assertRaises(budget.RunRefused):
-            budget.Budget(self.tmp, CAPS, NOW).start_run("2026-11-06T02")
-        budget.Budget(self.tmp, CAPS, NOW).start_run("2026-11-06T11")
+            budget.Budget(self.tmp, CAPS, NOW).start_run("2026-11-06T00")      # a slot is never re-run
+        for hour in (6, 12, 18)[: CAPS["n_daily_runs"] - 1]:
+            budget.Budget(self.tmp, CAPS, NOW).start_run(f"2026-11-06T{hour:02d}")
         with self.assertRaises(budget.RunRefused):
-            budget.Budget(self.tmp, CAPS, NOW).start_run("2026-11-06T15")
+            budget.Budget(self.tmp, CAPS, NOW).start_run("2026-11-06T21")      # one past the daily cap
 
     def test_call_cap_and_dollar_cap(self):
         b = budget.Budget(self.tmp, CAPS, NOW)
@@ -116,7 +118,7 @@ class ExaTests(unittest.TestCase):
     def test_request_has_window_count_and_750_chars(self):
         body = exa_client.build_request("q", CAPS, PARAMS["exa_params"], NOW)
         self.assertEqual(body["numResults"], 15)
-        self.assertEqual(body["startPublishedDate"], "2026-11-05T02:00:00.000Z")
+        self.assertEqual(body["startPublishedDate"], WINDOW_START)
         self.assertEqual(body["contents"]["text"]["maxCharacters"], 750)
         self.assertEqual(body["category"], "news")
         self.assertNotIn("includeDomains", body)   # empty list is dropped
@@ -168,6 +170,16 @@ class TriageTests(unittest.TestCase):
     def test_only_the_first_n_characters_count(self):
         text = "x" * 800 + " ExampleLab released Orbit-9, a new AI model."
         self.assertNotEqual(triage.triage(text, 750)["verdict"], "release")
+
+    def test_challenger_claim_counts_only_with_a_benchmark(self):
+        claim = "Nimbus-3, a small AI model, outperforms Orbit-9 on SWE-bench Verified and GPQA."
+        got = triage.triage(claim, 750)
+        self.assertEqual(got["verdict"], "release")
+        self.assertIn("challenger claim", got["reasons"])
+        # the same verb without a benchmark is not enough: the AI model market "beats" things all the time
+        self.assertEqual(triage.triage("Nimbus-3, a small AI model, beats expectations at the show.", 750)["verdict"], "unsure")
+        # a real release verb keeps its own reason and is not double-labelled
+        self.assertNotIn("challenger claim", triage.triage("Acme released Orbit-9, a new AI model, scoring top on GPQA.", 750)["reasons"])
 
     def test_judge_settles_only_unsure(self):
         self.assertEqual(triage.triage("An analyst discusses the AI model market.", 750, judge=lambda t: "release")["verdict"], "release")
@@ -297,7 +309,8 @@ class RunTests(unittest.TestCase):
 
     def test_first_run(self):
         res, exa = self.go()
-        self.assertEqual(len(exa.calls), 10)                      # one call per approved phrase (5 en + 5 zh), never more
+        self.assertEqual(len(exa.calls), len(PARAMS["phrases"]))   # one call per approved phrase (en + zh), never more
+        self.assertLessEqual(len(exa.calls), CAPS["max_exa_calls_per_run"])
         self.assertEqual((res["new_hits"], res["quarantined"], res["unsure"]), (5, 1, 1))
         verdicts = {h["url"].split("/")[2]: h["verdict"] for h in res["hits"]}
         self.assertEqual(verdicts["spam.example.com"], "quarantined")
@@ -313,17 +326,19 @@ class RunTests(unittest.TestCase):
         _, exa = self.go()
         for body in exa.calls:
             self.assertEqual((body["numResults"], body["category"], body["contents"]["text"]["maxCharacters"]), (15, "news", 750))
-            self.assertEqual(body["startPublishedDate"], "2026-11-05T02:00:00.000Z")
+            self.assertEqual(body["startPublishedDate"], WINDOW_START)
 
     def test_same_slot_is_never_rerun_and_later_run_dedupes(self):
         self.go()
         with self.assertRaises(budget.RunRefused):
             self.go()
-        res, _ = self.go("2026-11-06T11", datetime(2026, 11, 6, 11))
+        res, _ = self.go("2026-11-06T08", datetime(2026, 11, 6, 8))
         self.assertEqual((res["new_hits"], res["candidates"]), (0, 0))
         self.assertGreaterEqual(res["duplicates"], 6)
+        for hour in (11, 14)[: CAPS["n_daily_runs"] - 2]:                  # fill the rest of the day's runs
+            self.go(f"2026-11-06T{hour:02d}", datetime(2026, 11, 6, hour))
         with self.assertRaises(budget.RunRefused):
-            self.go("2026-11-06T15", datetime(2026, 11, 6, 15))
+            self.go("2026-11-06T17", datetime(2026, 11, 6, 17))
 
     def test_dollar_cap_stops_the_run_mid_way(self):
         # Each call really costs $0.04 and reserves the estimate first: $0.00+est ok, $0.04+est ok, $0.08+est > $0.09.
@@ -338,7 +353,7 @@ class RunTests(unittest.TestCase):
     def test_untranslated_chinese_phrase_never_reaches_exa(self):
         params = {**PARAMS, "phrases": PARAMS["phrases"] + [zh_row(argon_verdict="")]}
         res, exa = self.go(params=params)
-        self.assertEqual(len(exa.calls), 10)                      # the 10 approved phrases; the unapproved row never goes out
+        self.assertEqual(len(exa.calls), len(PARAMS["phrases"]))   # every approved phrase; the unapproved row never goes out
         self.assertNotIn(zh_row()["phrase"], [b["query"] for b in exa.calls])
         self.assertEqual(res["errors"], 1)
         self.assertIn("Argon verdict", res["error_messages"][0])
@@ -347,7 +362,7 @@ class RunTests(unittest.TestCase):
         rows = copy.deepcopy(PARAMS["phrases"])
         rows[0]["phrase"] += " edited"
         res, exa = self.go(params={**PARAMS, "phrases": rows})
-        self.assertEqual(len(exa.calls), 9)
+        self.assertEqual(len(exa.calls), len(PARAMS["phrases"]) - 1)
         self.assertEqual(res["errors"], 1)
 
     def test_exa_failure_keeps_the_reservation_and_continues(self):
@@ -359,7 +374,7 @@ class RunTests(unittest.TestCase):
                 return super().search(body)
         res, exa = self.go(exa=Flaky(copy.deepcopy(FX["exa"])))
         self.assertEqual(res["errors"], 1)
-        self.assertEqual(res["exa_calls"], 10)
+        self.assertEqual(res["exa_calls"], len(PARAMS["phrases"]))
         self.assertAlmostEqual(budget.Budget(self.tmp, CAPS, NOW).spent_today(), CAPS["est_call_usd"] + 4 * 0.007)
 
     def test_fetches_spread_across_phrases_and_skip_repeat_stories(self):
@@ -403,7 +418,7 @@ class RunTests(unittest.TestCase):
         for name in ("hits.csv", "candidates.csv", "runs.csv"):
             self.assertTrue((self.tmp / name).exists(), name)
         raw = (self.tmp / "raw" / "2026" / "11" / "06" / "run-2026-11-06T02.jsonl").read_text(encoding="utf-8").splitlines()
-        self.assertEqual(len(raw), 10)
+        self.assertEqual(len(raw), len(PARAMS["phrases"]))
         self.assertNotIn("x-api-key", "\n".join(raw))
 
 

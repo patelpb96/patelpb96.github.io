@@ -16,6 +16,10 @@ AI_WORDS = re.compile(r"\b(AI|LLM|language models?|foundation models?|reasoning 
 # A version-like model name: "Orbit-9", "Qwen3.8", "GPT 6.1", "Llama 4"
 MODEL_NAME = re.compile(r"\b[A-Z][A-Za-z]{1,}[- ]?\d+(?:\.\d+)*[A-Za-z]*\b", re.A)
 BENCH = re.compile(r"\b(benchmark|SWE-?bench|GPQA|AIME|MMLU|HLE|LiveCodeBench|ARC-AGI|Terminal-?Bench|Intelligence Index)\b", re.I | re.A)
+# A challenger claim: a report that a (smaller, cheaper or open) model beats or matches bigger ones. It stands in for
+# the release verb only when a benchmark is also mentioned, so "beats expectations" or "tops the charts" alone do not count.
+CLAIM = re.compile(r"\b(outperform(?:s|ed|ing)?|surpass(?:es|ed|ing)?|beats?|beating|exceed(?:s|ed|ing)?|rivals?|matches|"
+                   r"state[- ]of[- ]the[- ]art|SOTA|tops?|topping|ahead of|leads?|overtakes?|overtook)\b", re.I | re.A)
 
 
 # Capitalised words that sit in front of a number without being a model: dates ("November 6"), counts and glue words.
@@ -50,8 +54,10 @@ def triage(text: str, chars: int, judge: Callable[[str], str] | None = None, zh=
     if zh:
         verb = verb or bool(zh[0] and zh[0].search(head))
         ai = ai or bool(zh[1] and zh[1].search(head))
-    reasons = [label for label, hit in (("release verb", verb), ("AI wording", ai), ("model-like name", name), ("benchmark mention", bench)) if hit]
-    if verb and ai and name:
+    claim = bool(CLAIM.search(head)) and bench
+    reasons = [label for label, hit in (("release verb", verb), ("challenger claim", claim and not verb), ("AI wording", ai),
+                                        ("model-like name", name), ("benchmark mention", bench)) if hit]
+    if (verb or claim) and ai and name:
         verdict = "release"
     elif not ai:
         verdict = "not_release"

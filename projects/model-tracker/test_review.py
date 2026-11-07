@@ -68,10 +68,18 @@ class ReviewTests(unittest.TestCase):
 
     def test_benchmark_outside_the_seed_is_refused(self):
         (self.data / "candidates.csv").unlink()
-        self.add_candidate(self.models[0], "gpqa_diamond", "83.2")
+        self.add_candidate(self.models[0], "not_a_benchmark", "83.2")
         with self.assertRaises(review.ReviewError) as cm:
             review.accept(self.only(), self.data, self.seed, NOW, provenance="third_party", out=self.out)
         self.assertIn("unknown benchmark_id", str(cm.exception))
+
+    def test_a_defined_but_unscored_benchmark_is_accepted_and_appears(self):
+        # GPQA Diamond is defined in the seed with no scores (the page hides it); the first accepted score makes it live.
+        (self.data / "candidates.csv").unlink()
+        self.add_candidate(self.models[0], "gpqa_diamond", "83.2")
+        self.assertNotIn("gpqa_diamond", {s["benchmark_id"] for s in bs.build(self.seed)[0]["scores"]})
+        review.accept(self.only(), self.data, self.seed, NOW, provenance="third_party", out=self.out)
+        self.assertIn("gpqa_diamond", {s["benchmark_id"] for s in json.loads(self.out.read_text(encoding="utf-8"))["scores"]})
 
     def test_candidate_without_a_model_needs_one(self):
         (self.data / "candidates.csv").unlink()

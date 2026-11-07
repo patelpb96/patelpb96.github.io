@@ -42,6 +42,9 @@ const day = (s) => s.slice(0, 10);
 const fmtScore = (v) => v.toFixed(1);
 const fmtPrice = (v) => `$${v >= 10 ? v.toFixed(0) : v.toFixed(2)}`;
 const fmtSpeed = (v) => `${Math.round(v)}`;
+// Efficiency benchmarks (cost, time, latency) carry a unit and are lower-is-better; index-style scores use fmtScore.
+const UNIT_FMT = { USD: (v) => `$${v.toFixed(2)}`, minutes: (v) => `${v.toFixed(1)} min`, seconds: (v) => `${v.toFixed(1)} s` };
+const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
 
 // The newest row per key whose observation day is on or before asOf. Observations are append-only,
 // so "previous dates" is this one query with an earlier asOf.
@@ -267,14 +270,16 @@ function OverTime({ data, asOf, visible, metric, colorOf, hl, modelsById }) {
   let t1 = Math.max(...ts);
   if (t0 === t1) { t0 -= 3 * 864e5; t1 += 3 * 864e5; }
   const vs = series.flatMap((s) => s.pts.map((p) => p.v));
-  const isScore = metric !== "speed" && metric !== "price";
+  const bm = data.benchmarks.find((b) => b.benchmark_id === metric);
+  const unitFmt = bm && UNIT_FMT[bm.unit];
+  const isScore = metric !== "speed" && metric !== "price" && !unitFmt;       // index scores get a tight axis; units start at zero
   const vlo = isScore ? Math.floor((Math.min(...vs) - 4) / 5) * 5 : 0;
   const vhi = isScore ? Math.ceil((Math.max(...vs) + 3) / 5) * 5 : Math.max(...vs) * 1.15;
   const fx = (t) => M.l + ((t - t0) / (t1 - t0)) * (W - M.l - M.r - 90);
   const fy = (v) => H - M.b - ((v - vlo) / (vhi - vlo)) * (H - M.t - M.b);
   const yTicks = Array.from({ length: 5 }, (_, i) => vlo + ((vhi - vlo) / 4) * i);
   const xTicks = Array.from({ length: 4 }, (_, i) => t0 + ((t1 - t0) / 3) * i);
-  const fmtV = metric === "price" ? fmtPrice : isScore ? fmtScore : fmtSpeed;
+  const fmtV = metric === "price" ? fmtPrice : unitFmt || (isScore ? fmtScore : fmtSpeed);
   const single = new Set(ts).size < 2;
 
   return (
@@ -324,6 +329,14 @@ function Dashboard({ data }) {
   const [asOfPick, setAsOfPick] = useState(null);
   const asOf = asOfPick && dates.includes(asOfPick) ? asOfPick : dates[dates.length - 1];
 
+  // A benchmark with no observed score yet (defined in the seed so the review step can accept its first one) stays off the page.
+  const benches = useMemo(() => {
+    const seen = new Set(data.scores.filter((r) => r.status === "observed").map((r) => r.benchmark_id));
+    return data.benchmarks.filter((b) => seen.has(b.benchmark_id));
+  }, [data]);
+  // The scatter's efficient frontier assumes bigger is better on the vertical axis, so lower-is-better measures stay out of it.
+  const quality = useMemo(() => benches.filter((b) => b.higher_is_better), [benches]);
+
   const orgs = useMemo(() => [...new Set(data.models.map((m) => m.org))].sort(), [data]);
   const colorOf = (org) => `var(--s${(orgs.indexOf(org) % 8) + 1})`;
   const modelsById = useMemo(() => new Map(data.models.map((m) => [m.model_id, m])), [data]);
@@ -331,11 +344,11 @@ function Dashboard({ data }) {
   const [hiddenOrgs, setHiddenOrgs] = useState(() => new Set());
   const [tab, setTab] = useState("board");
   const [benchPick, setBenchPick] = useState(null);
-  const bench = benchPick || data.benchmarks[0].benchmark_id;
-  const benchName = data.benchmarks.find((b) => b.benchmark_id === bench).name;
+  const bench = quality.some((b) => b.benchmark_id === benchPick) ? benchPick : quality[0].benchmark_id;
+  const benchName = quality.find((b) => b.benchmark_id === bench).name;
   const [xMetric, setXMetric] = useState("price");
   const [timeMetric, setTimeMetric] = useState("speed");
-  const [sort, setSort] = useState({ key: `b:${data.benchmarks[0].benchmark_id}`, dir: -1 });
+  const [sort, setSort] = useState({ key: `b:${benches[0].benchmark_id}`, dir: -1 });
   const [pinned, setPinned] = useState(() => new Set());
   const [brushed, setBrushed] = useState(() => new Set());
   const hl = useMemo(() => new Set([...pinned, ...brushed]), [pinned, brushed]);
@@ -346,13 +359,13 @@ function Dashboard({ data }) {
     const speed = bestPerModel(latestBy(data.speeds, (r) => `${r.model_id}|${r.provider}`, asOf), (r) => r.tok_per_s, false);
     return data.models.map((m) => {
       const scores = {};
-      for (const b of data.benchmarks) {
+      for (const b of benches) {
         const r = sc.get(`${m.model_id}|${b.benchmark_id}`);
         scores[b.benchmark_id] = r && r.status === "observed" ? r : null;
       }
       return { ...m, scores, price: price.get(m.model_id) || null, speed: speed.get(m.model_id) || null };
     }).filter((m) => m.price || m.speed || Object.values(m.scores).some(Boolean));
-  }, [data, asOf]);
+  }, [data, asOf, benches]);
 
   const rows = useMemo(() => allRows.filter((r) => !hiddenOrgs.has(r.org)), [allRows, hiddenOrgs]);
   const visibleIds = useMemo(() => new Set(rows.map((r) => r.model_id)), [rows]);
@@ -375,20 +388,20 @@ function Dashboard({ data }) {
   }, [rows, sort]);
 
   const cards = useMemo(() => {
-    const out = data.benchmarks.map((b) => {
+    const out = benches.map((b) => {
       let top = null;
       for (const r of rows) {
         const s = r.scores[b.benchmark_id];
         if (s && (!top || (b.higher_is_better ? s.value > top.s.value : s.value < top.s.value))) top = { r, s };
       }
-      return { id: b.benchmark_id, label: `Best: ${b.name}`, top: top && { r: top.r, text: fmtScore(top.s.value) }, blurb: b.blurb };
+      return { id: b.benchmark_id, label: `Best: ${b.name}`, top: top && { r: top.r, text: fmtFor(b)(top.s.value) }, blurb: b.blurb };
     });
     const fast = rows.filter((r) => r.speed).sort((a, b) => b.speed.value - a.speed.value)[0];
     const cheap = rows.filter((r) => r.price).sort((a, b) => a.price.value - b.price.value)[0];
     out.push({ id: "fast", label: "Fastest output", top: fast && { r: fast, text: `${fmtSpeed(fast.speed.value)} tok/s` }, blurb: "Median output tokens per second." });
     out.push({ id: "cheap", label: "Lowest price", top: cheap && { r: cheap, text: `${fmtPrice(cheap.price.value)} / 1M` }, blurb: "3:1 input:output blend, USD per 1M tokens." });
     return out;
-  }, [data, rows]);
+  }, [benches, rows]);
 
   const togglePin = (id) => setPinned((prev) => {
     const next = new Set(prev);
@@ -400,7 +413,8 @@ function Dashboard({ data }) {
     if (next.has(org)) next.delete(org); else next.add(org);
     return next;
   });
-  const setSortKey = (key) => setSort((s) => (s.key === key ? { key, dir: -s.dir } : { key, dir: key === "name" || key === "price" ? 1 : -1 }));
+  const lowerFirst = (key) => key === "name" || key === "price" || benches.some((b) => `b:${b.benchmark_id}` === key && !b.higher_is_better);
+  const setSortKey = (key) => setSort((s) => (s.key === key ? { key, dir: -s.dir } : { key, dir: lowerFirst(key) ? 1 : -1 }));
   const ariaSort = (key) => (sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none");
 
   const selected = [...hl].map((id) => modelsById.get(id)?.display_name).filter(Boolean);
@@ -457,7 +471,7 @@ function Dashboard({ data }) {
               <thead>
                 <tr>
                   <th aria-sort={ariaSort("name")}><button type="button" onClick={() => setSortKey("name")}>Model</button></th>
-                  {data.benchmarks.map((b) => (
+                  {benches.map((b) => (
                     <th key={b.benchmark_id} aria-sort={ariaSort(`b:${b.benchmark_id}`)} title={b.blurb}>
                       <button type="button" onClick={() => setSortKey(`b:${b.benchmark_id}`)}>{b.name}</button>
                     </th>
@@ -470,11 +484,11 @@ function Dashboard({ data }) {
                 {sorted.map((r) => (
                   <tr key={r.model_id} className={hl.has(r.model_id) ? "is-hl" : hl.size ? "is-dim" : ""} onClick={() => togglePin(r.model_id)}>
                     <td><span className="mname"><span className="sw" style={{ background: colorOf(r.org) }} />{r.display_name}<span className="muted">{r.org}</span></span></td>
-                    {data.benchmarks.map((b) => {
+                    {benches.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (
                         <td key={b.benchmark_id} title={`${PROV_LABEL[s.provenance]}: ${s.source_name}${s.effort ? `, ${s.effort}` : ""}`}>
-                          <span className="cellmk"><Glyph shape={SHAPE[s.provenance] || "square"} color={colorOf(r.org)} />{fmtScore(s.value)}</span>
+                          <span className="cellmk"><Glyph shape={SHAPE[s.provenance] || "square"} color={colorOf(r.org)} />{fmtFor(b)(s.value)}</span>
                         </td>
                       ) : <td key={b.benchmark_id} className="na">not observed</td>;
                     })}
@@ -497,7 +511,7 @@ function Dashboard({ data }) {
             <div className="pane-tools">
               <label className="lbl">Score{" "}
                 <select value={bench} onChange={(e) => { setBenchPick(e.target.value); setBrushed(new Set()); }}>
-                  {data.benchmarks.map((b) => <option key={b.benchmark_id} value={b.benchmark_id}>{b.name}</option>)}
+                  {quality.map((b) => <option key={b.benchmark_id} value={b.benchmark_id}>{b.name}</option>)}
                 </select>
               </label>
               <span className="lbl">against</span>
@@ -520,7 +534,7 @@ function Dashboard({ data }) {
                 <select value={timeMetric} onChange={(e) => setTimeMetric(e.target.value)}>
                   <option value="speed">Output speed (tok/s)</option>
                   <option value="price">Price ($ / 1M, blended)</option>
-                  {data.benchmarks.map((b) => <option key={b.benchmark_id} value={b.benchmark_id}>{b.name}</option>)}
+                  {benches.map((b) => <option key={b.benchmark_id} value={b.benchmark_id}>{b.name}</option>)}
                 </select>
               </label>
             </div>

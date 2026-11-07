@@ -2,3 +2,15 @@ benchmark_id,name,version,category,blurb,higher_is_better,unit
 aa_intelligence_index,AA Intelligence Index,,composite,One number over a fixed suite of benchmarks run by Artificial Analysis rather than the model vendors; higher is better.,true,index points
 aa_coding_index,AA Coding Index,,coding,Artificial Analysis composite for coding tasks as shown by one aggregator; its component tests are not recorded yet.,true,index points
 aa_agentic_index,AA Agentic Index,,agentic,Artificial Analysis composite for multi-step agentic tasks as shown by one aggregator; its component tests are not recorded yet.,true,index points
+aa_cost_per_task,AA Cost per task,,cost,"USD Artificial Analysis spent running its task suite on this model at the stated effort setting; lower is cheaper. It reflects how many tokens the model uses, not only its price per token.",false,USD
+aa_time_per_task,AA Time per task,,speed,Minutes the same suite took end to end at the stated effort setting; lower is faster.,false,minutes
+aa_first_token_latency,AA First answer token,,latency,"Seconds until the first token of the final answer arrives, after any reasoning; lower is quicker. High-effort reasoning modes can take minutes.",false,seconds
+gpqa_diamond,GPQA Diamond,,reasoning,198 graduate-level science questions written to resist web search.,true,%
+hle,Humanity's Last Exam,,reasoning,"2,500 expert-written questions across maths, science and the humanities.",true,%
+aime_2025,AIME 2025,,math,Competition mathematics problems from the 2025 American Invitational Mathematics Examination.,true,%
+mmlu_pro,MMLU-Pro,,knowledge,"A harder, ten-option version of the MMLU general-knowledge multiple-choice test.",true,%
+arc_agi_2,ARC-AGI-2,,abstract reasoning,Novel grid puzzles that test reasoning on tasks the model has not seen.,true,%
+swe_bench_verified,SWE-bench Verified,,coding,Real GitHub issues a model must fix so the project's tests pass; human-verified subset.,true,%
+swe_bench_pro,SWE-bench Pro,,coding,"A harder, less contaminated set of software-engineering issues than SWE-bench Verified.",true,%
+livecodebench,LiveCodeBench,,coding,Fresh competitive-programming problems released after model training cutoffs.,true,%
+terminal_bench,Terminal-Bench,,agentic,Multi-step tasks completed in a real command-line environment.,true,%

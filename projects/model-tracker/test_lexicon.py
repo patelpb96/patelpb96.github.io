@@ -1,5 +1,6 @@
 """python -m unittest test_lexicon -v   (from projects/model-tracker)"""
 import copy
+import csv
 import json
 import re
 import shutil
@@ -37,11 +38,17 @@ class ShippedLexiconTests(unittest.TestCase):
             self.assertEqual((shipped[pid]["phrase"], shipped[pid]["gloss_en"], shipped[pid]["phrase_sha256"]),
                              (b["phrase"], b["gloss_en"], b["phrase_sha256"]), pid)
 
-    def test_each_concept_has_an_english_and_a_chinese_phrase(self):
+    def test_each_concept_has_an_english_and_a_chinese_phrase_except_the_listed_pending_ones(self):
+        # search_params/zh_pending.csv names English-only concepts whose Chinese phrase still needs a DeepSeek draft and
+        # an Argon review. The list is exact: a concept can neither be English-only unlisted, nor stay listed once it has zh.
         by = {}
         for p in PHRASES:
             by.setdefault(p["concept_id"], set()).add(p["lang"])
-        self.assertTrue(all(langs == {"en", "zh"} for langs in by.values()), by)
+        with open(lexicon.PARAMS / "zh_pending.csv", newline="", encoding="utf-8") as f:
+            pending = {r["concept_id"] for r in csv.DictReader(f)}
+        english_only = {c for c, langs in by.items() if langs == {"en"}}
+        self.assertEqual(english_only, pending)
+        self.assertTrue(all(langs == {"en", "zh"} for c, langs in by.items() if c not in pending), by)
 
     def test_scraper_code_holds_no_chinese_literals(self):
         for path in (ROOT / "scraper").glob("*.py"):
@@ -164,7 +171,7 @@ class ChineseRunTests(unittest.TestCase):
         zh["phrase"] += zh_of("new")
         exa = exa_client.FixtureExa({})
         res = run.run("2026-11-06T02", NOW, self.tmp, {**PARAMS, "phrases": rows}, [], exa, fetch.FixturePages({}))
-        self.assertEqual(len(exa.calls), 9)
+        self.assertEqual(len(exa.calls), len(PARAMS["phrases"]) - 1)
         self.assertTrue(any("hash does not match" in m for m in res["error_messages"]))
 
 

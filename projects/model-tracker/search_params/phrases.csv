@@ -4,6 +4,14 @@ en-bench-01,en,benchmarks,new frontier AI model benchmark results compared to GP
 en-price-01,en,pricing,new AI model API pricing per million tokens announced,d100d327dd57cc431fef68e8c99184031154ed8d92ca680f10eb215e5368f8c0,,,approved
 en-open-01,en,open_weights,open-weights large language model released on Hugging Face with benchmark scores,780855b4fb1edffd9601218594ff5ae6e98a26f44af2fe9aade07ec7835c7f2d,,,approved
 en-api-01,en,api_availability,AI model now generally available in the API launch announcement,8fb984c121523f15ee4f712877e409265617894e40440dc9119901683488d84d,,,approved
+en-challenger-01,en,challenger,new AI model outperforms GPT Claude Gemini on benchmarks,c5ad7726568b41f81b9bd8e833f2412c279938f7d9204bac9a9917a453f7672c,,,approved
+en-small-01,en,small_model,smaller or cheaper AI model matches larger frontier models on benchmarks,7e7cf0c23f54f8019cd53054415ce7c6a4767b34dac323209b683c63c0d11884,,,approved
+en-oss-challenger-01,en,open_challenger,open-source AI model beats proprietary models on leaderboard ranking,d0303c16bf8467c98e81ef5d4a673ee74f2a151e74e769af0f4a1793983ce3df,,,approved
+en-leaderboard-01,en,leaderboard,AI model tops leaderboard Artificial Analysis LMArena new number one,df4dc0277f784ce8ebb99c76229c64219856506d990c05ddadab9f39a12cd4c4,,,approved
+en-coding-01,en,coding_agentic,new AI model coding agent benchmark SWE-bench Terminal-Bench state of the art,00678d18625b64cf385bbf3ac0ec1eb507821f2b3f959ea8266751827a86c907,,,approved
+en-reasoning-01,en,reasoning_math,new AI model reasoning and math benchmark AIME record score,f909485de8064c67d15adb427c0c634af0ca1c144caf56d305fb731511e18783,,,approved
+en-multimodal-01,en,multimodal_context,new AI model multimodal vision long context benchmark results,d6d1a6bbb68577cdad15c640e046a7f9c74285c8cb9d52d2145066b35c7caa2b,,,approved
+en-speed-01,en,speed,fastest AI model inference speed tokens per second new release,ca386a0da746dafd1fe5aa0a1397376559f9b7f8505286d323b0c1e58b523324,,,approved
 zh-release-01,zh,release,新AI大语言模型今日发布,28feb5fbc8af2942896149f85bd0ac20c62ae74f42608d4bcb52d43ee0fa352b,new AI large language model today released,approved,approved
 zh-bench-01,zh,benchmarks,新前沿AI模型基准测试结果对比GPT Claude Gemini,a97ec1bb0b6e60b1ed29940d230d8c34f8bde58dbf68f82854cc68e8a14dca9a,new frontier AI model benchmark results compared with GPT Claude Gemini,approved,approved
 zh-price-01,zh,pricing,新AI模型API每百万tokens定价公布,306f6d4d347aaf777012f9496fdf53ccab84f243bfecaca86ec11c3910839a27,new AI model API per million tokens pricing announced,approved,approved

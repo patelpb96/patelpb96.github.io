@@ -1,0 +1,9 @@
+concept_id,en_param_id,added,note
+challenger,en-challenger-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
+small_model,en-small-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
+open_challenger,en-oss-challenger-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
+leaderboard,en-leaderboard-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
+coding_agentic,en-coding-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
+reasoning_math,en-reasoning-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
+multimodal_context,en-multimodal-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
+speed,en-speed-01,2026-11-07,needs DeepSeek draft then Argon review before any Chinese phrase is sent
