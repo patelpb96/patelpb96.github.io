@@ -1,0 +1,6 @@
+param_id,concept_id,terms
+zh-release-01,release,new ai llm today released
+zh-bench-01,benchmarks,new frontier ai model benchmark results compared gpt claude gemini
+zh-price-01,pricing,new ai model api per_million tokens pricing announced
+zh-open-01,open_weights,at hf released openweights llm benchmark scores
+zh-api-01,api_availability,ai model now ga api launch announcement

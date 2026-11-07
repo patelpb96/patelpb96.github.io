@@ -2,7 +2,7 @@
   "version": 1,
   "n_daily_runs": 2,
   "slots_utc": ["02:00", "11:00"],
-  "max_exa_calls_per_run": 5,
+  "max_exa_calls_per_run": 10,
   "daily_usd_cap": 2.0,
   "est_call_usd": 0.05,
   "window_hours": 24,

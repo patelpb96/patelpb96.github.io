@@ -8,17 +8,24 @@ from __future__ import annotations
 import re
 from typing import Callable
 
+# re.A: only ASCII letters and digits are "word" characters, so \b still works where an English name is glued to
+# Chinese text (Orbit-9 directly followed by a Chinese verb has no boundary under the default Unicode rules).
 VERBS = re.compile(r"\b(releas(?:e[sd]?|ing)|launch(?:es|ed|ing)?|unveil(?:s|ed|ing)?|announc(?:e[sd]?|ing)|"
-                   r"introduc(?:e[sd]?|ing)|debut(?:s|ed)?|rolls? out|now available|open[- ]sourc(?:e[sd]?|ing))\b", re.I)
-AI_WORDS = re.compile(r"\b(AI|LLM|language models?|foundation models?|reasoning models?|open[- ]weights?|chatbot|model)\b", re.I)
+                   r"introduc(?:e[sd]?|ing)|debut(?:s|ed)?|rolls? out|now available|open[- ]sourc(?:e[sd]?|ing))\b", re.I | re.A)
+AI_WORDS = re.compile(r"\b(AI|LLM|language models?|foundation models?|reasoning models?|open[- ]weights?|chatbot|model)\b", re.I | re.A)
 # A version-like model name: "Orbit-9", "Qwen3.8", "GPT 6.1", "Llama 4"
-MODEL_NAME = re.compile(r"\b[A-Z][A-Za-z]{1,}[- ]?\d+(?:\.\d+)*[A-Za-z]*\b")
-BENCH = re.compile(r"\b(benchmark|SWE-?bench|GPQA|AIME|MMLU|HLE|LiveCodeBench|ARC-AGI|Terminal-?Bench|Intelligence Index)\b", re.I)
+MODEL_NAME = re.compile(r"\b[A-Z][A-Za-z]{1,}[- ]?\d+(?:\.\d+)*[A-Za-z]*\b", re.A)
+BENCH = re.compile(r"\b(benchmark|SWE-?bench|GPQA|AIME|MMLU|HLE|LiveCodeBench|ARC-AGI|Terminal-?Bench|Intelligence Index)\b", re.I | re.A)
 
 
-def triage(text: str, chars: int, judge: Callable[[str], str] | None = None) -> dict:
+def triage(text: str, chars: int, judge: Callable[[str], str] | None = None, zh=None) -> dict:
+    """`zh` is an optional (verb_regex, ai_regex) built from the APPROVED lexicon (lexicon.triage_regexes); this
+    module holds no Chinese literals. Model names are still matched as ASCII (Qwen3, DeepSeek-V4, GPT 6.1)."""
     head = (text or "")[:chars]
     verb, ai, name, bench = (bool(r.search(head)) for r in (VERBS, AI_WORDS, MODEL_NAME, BENCH))
+    if zh:
+        verb = verb or bool(zh[0] and zh[0].search(head))
+        ai = ai or bool(zh[1] and zh[1].search(head))
     reasons = [label for label, hit in (("release verb", verb), ("AI wording", ai), ("model-like name", name), ("benchmark mention", bench)) if hit]
     if verb and ai and name:
         verdict = "release"

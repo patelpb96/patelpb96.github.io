@@ -22,21 +22,22 @@ PATTERNS = [
     ("exfiltration", r"\b(send|post|upload|forward|email)\b[^.\n]{0,40}\b(to|at)\b[^.\n]{0,20}(https?://|\S+@\S+)"),
     ("secrecy", r"\bdo not (tell|inform|mention|show)[^.\n]{0,20}\b(user|human|anyone)\b"),
 ]
-COMPILED = [(name, re.compile(rx, re.I | re.M)) for name, rx in PATTERNS]
+COMPILED = [(name, re.compile(rx, re.I | re.M | re.A)) for name, rx in PATTERNS]   # re.A: \b works next to Chinese text
 MAX_FORMAT_CHARS = 3       # zero-width and other format characters allowed before it counts as hiding text
 
 
-def prescreen(text: str) -> list[str]:
-    found = [name for name, rx in COMPILED if rx.search(text or "")]
+def prescreen(text: str, extra=None) -> list[str]:
+    """`extra` is a list of (name, regex), e.g. the approved Chinese phrases from lexicon.injection_patterns."""
+    found = [name for name, rx in COMPILED + list(extra or []) if rx.search(text or "")]
     hidden = sum(1 for c in (text or "") if unicodedata.category(c) == "Cf")
     if hidden > MAX_FORMAT_CHARS:
         found.append("hidden-format-characters")
     return found
 
 
-def screen(text: str, judge: Callable[[str], float] | None = None, threshold: float = 0.5) -> dict:
+def screen(text: str, judge: Callable[[str], float] | None = None, threshold: float = 0.5, extra=None) -> dict:
     """flagged is True if the pattern pre-screen fires, or the judge's probability reaches the threshold."""
-    reasons = prescreen(text)
+    reasons = prescreen(text, extra)
     prob = None
     if not reasons and judge is not None:
         prob = judge(text)

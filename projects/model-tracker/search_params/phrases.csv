@@ -4,3 +4,8 @@ en-bench-01,en,benchmarks,new frontier AI model benchmark results compared to GP
 en-price-01,en,pricing,new AI model API pricing per million tokens announced,d100d327dd57cc431fef68e8c99184031154ed8d92ca680f10eb215e5368f8c0,,,approved
 en-open-01,en,open_weights,open-weights large language model released on Hugging Face with benchmark scores,780855b4fb1edffd9601218594ff5ae6e98a26f44af2fe9aade07ec7835c7f2d,,,approved
 en-api-01,en,api_availability,AI model now generally available in the API launch announcement,8fb984c121523f15ee4f712877e409265617894e40440dc9119901683488d84d,,,approved
+zh-release-01,zh,release,新AI大语言模型今日发布,28feb5fbc8af2942896149f85bd0ac20c62ae74f42608d4bcb52d43ee0fa352b,new AI large language model today released,approved,approved
+zh-bench-01,zh,benchmarks,新前沿AI模型基准测试结果对比GPT Claude Gemini,a97ec1bb0b6e60b1ed29940d230d8c34f8bde58dbf68f82854cc68e8a14dca9a,new frontier AI model benchmark results compared with GPT Claude Gemini,approved,approved
+zh-price-01,zh,pricing,新AI模型API每百万tokens定价公布,306f6d4d347aaf777012f9496fdf53ccab84f243bfecaca86ec11c3910839a27,new AI model API per million tokens pricing announced,approved,approved
+zh-open-01,zh,open_weights,在Hugging Face发布开放权重大语言模型基准测试得分,dc7008ee07363eedaa7889ab5391c24a3b633540723f3776108e2187439c1b52,at / on Hugging Face released open-weights large language model benchmark scores,approved,approved
+zh-api-01,zh,api_availability,AI模型现在正式可用API上线公告,95457fed93c81f52720546eaafe176b385348c8666eba87cffd23e66b031b75d,AI model now generally available API launch announcement,approved,approved

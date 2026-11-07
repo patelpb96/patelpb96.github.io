@@ -19,7 +19,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import budget as budget_mod
-from . import exa_client, extract, fetch, gate, injection, ledger, triage
+from . import exa_client, extract, fetch, gate, injection, ledger, lexicon, triage
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -27,11 +27,15 @@ PARAMS = ROOT / "search_params"
 
 
 def load_params(params_dir: Path = PARAMS) -> dict:
+    lex = lexicon.load_lexicon(params_dir / "lexicon.csv")
     return {
         "caps": json.loads((params_dir / "caps.json").read_text(encoding="utf-8")),
         "exa_params": json.loads((params_dir / "exa_params.json").read_text(encoding="utf-8")),
         "phrases": gate.load_phrases(params_dir / "phrases.csv"),
         "aliases": extract.load_aliases(params_dir / "benchmark_aliases.json"),
+        # Only terms that are approved AND unchanged since review; the code itself holds no Chinese text.
+        "zh_triage": lexicon.triage_regexes(lex),
+        "zh_injection": lexicon.injection_patterns(lex),
     }
 
 
@@ -47,10 +51,9 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
     duplicates = 0
     first_body = None
 
+    zh_tri, zh_inj = params.get("zh_triage"), params.get("zh_injection")
     for row in params["phrases"]:
-        if row["lang"] != "en":
-            continue                                  # Chinese phrases wait for the Argon ledger (PLAN.md, Steps 3)
-        try:
+        try:                                          # every phrase, in any language, goes through the Argon gate
             gate.check_phrase(row, override_requested)
             body = exa_client.build_request(row["phrase"], caps, params["exa_params"], now)
             gate.check_request(body, params["phrases"], override_requested)
@@ -79,8 +82,8 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
                 continue
             seen.add(h)
             text = r.get("text") or ""
-            inj = injection.screen(text[: caps["triage_chars"]], injection_judge)
-            tri = triage.triage(text, caps["triage_chars"], triage_judge)
+            inj = injection.screen(text[: caps["triage_chars"]], injection_judge, extra=zh_inj)
+            tri = triage.triage(text, caps["triage_chars"], triage_judge, zh=zh_tri)
             hits.append({
                 "hit_id": f"{run_id}:{h[:10]}", "run_id": run_id, "param_id": row["param_id"], "url_hash": h,
                 "url": r["url"], "domain": urlsplit(r["url"]).hostname or "", "published_at": r.get("publishedDate") or "",
@@ -101,7 +104,7 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
         if page is None:
             hit["fetch_status"] = "unavailable"
             continue
-        inj = injection.screen(page, injection_judge)
+        inj = injection.screen(page, injection_judge, extra=zh_inj)
         if inj["flagged"]:
             hit.update(verdict="quarantined", injection_flag=True, injection_reasons="; ".join(inj["reasons"]), fetch_status="quarantined")
             continue

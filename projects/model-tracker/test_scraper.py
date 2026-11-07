@@ -26,10 +26,13 @@ def zh_row(**kw):
 
 
 class GateTests(unittest.TestCase):
-    def test_shipped_phrases_are_valid_and_ascii(self):
+    def test_shipped_phrases_all_pass_and_chinese_ones_are_glossed(self):
+        self.assertEqual({r["lang"] for r in PARAMS["phrases"]}, {"en", "zh"})
         for row in PARAMS["phrases"]:
             gate.check_phrase(row)
-            self.assertTrue(row["phrase"].isascii())
+            if not row["phrase"].isascii():
+                self.assertTrue(row["gloss_en"])
+                self.assertEqual(row["argon_verdict"], "approved")
 
     def test_approved_non_ascii_passes(self):
         gate.check_phrase(zh_row())
@@ -278,7 +281,7 @@ class RunTests(unittest.TestCase):
 
     def test_first_run(self):
         res, exa = self.go()
-        self.assertEqual(len(exa.calls), 5)                       # one call per English phrase, never more
+        self.assertEqual(len(exa.calls), 10)                      # one call per approved phrase (5 en + 5 zh), never more
         self.assertEqual((res["new_hits"], res["quarantined"], res["unsure"]), (5, 1, 1))
         verdicts = {h["url"].split("/")[2]: h["verdict"] for h in res["hits"]}
         self.assertEqual(verdicts["spam.example.com"], "quarantined")
@@ -319,14 +322,16 @@ class RunTests(unittest.TestCase):
     def test_untranslated_chinese_phrase_never_reaches_exa(self):
         params = {**PARAMS, "phrases": PARAMS["phrases"] + [zh_row(argon_verdict="")]}
         res, exa = self.go(params=params)
-        self.assertEqual(len(exa.calls), 5)                       # the zh row is skipped (English-only phase)
-        self.assertTrue(all(b["query"].isascii() for b in exa.calls))
+        self.assertEqual(len(exa.calls), 10)                      # the 10 approved phrases; the unapproved row never goes out
+        self.assertNotIn(zh_row()["phrase"], [b["query"] for b in exa.calls])
+        self.assertEqual(res["errors"], 1)
+        self.assertIn("Argon verdict", res["error_messages"][0])
 
     def test_edited_phrase_is_refused_before_any_call(self):
         rows = copy.deepcopy(PARAMS["phrases"])
         rows[0]["phrase"] += " edited"
         res, exa = self.go(params={**PARAMS, "phrases": rows})
-        self.assertEqual(len(exa.calls), 4)
+        self.assertEqual(len(exa.calls), 9)
         self.assertEqual(res["errors"], 1)
 
     def test_exa_failure_keeps_the_reservation_and_continues(self):
@@ -338,7 +343,7 @@ class RunTests(unittest.TestCase):
                 return super().search(body)
         res, exa = self.go(exa=Flaky(copy.deepcopy(FX["exa"])))
         self.assertEqual(res["errors"], 1)
-        self.assertEqual(res["exa_calls"], 5)
+        self.assertEqual(res["exa_calls"], 10)
         self.assertAlmostEqual(budget.Budget(self.tmp, CAPS, NOW).spent_today(), 0.05 + 4 * 0.007)
 
     def test_records_are_written(self):
@@ -346,7 +351,7 @@ class RunTests(unittest.TestCase):
         for name in ("hits.csv", "candidates.csv", "runs.csv"):
             self.assertTrue((self.tmp / name).exists(), name)
         raw = (self.tmp / "raw" / "2026" / "11" / "06" / "run-2026-11-06T02.jsonl").read_text(encoding="utf-8").splitlines()
-        self.assertEqual(len(raw), 5)
+        self.assertEqual(len(raw), 10)
         self.assertNotIn("x-api-key", "\n".join(raw))
 
 
