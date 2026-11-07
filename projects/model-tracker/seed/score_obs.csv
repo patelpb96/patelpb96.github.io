@@ -13,3 +13,6 @@ s011,openai/gpt-6-astra,aa_coding_index,76.9,observed,2026-11-06,2026-11-06,Max,
 s012,openai/gpt-6-astra,aa_agentic_index,51.0,observed,2026-11-06,2026-11-06,Max,,,third_party_aggregator,MultipleChat (relaying Artificial Analysis),https://multiple.chat/benchmarks,manual
 s013,anthropic/claude-fable-5-1,aa_coding_index,80.7,observed,2026-11-06,2026-11-06,Xhigh,,,third_party_aggregator,MultipleChat (relaying Artificial Analysis),https://multiple.chat/benchmarks,manual
 s014,anthropic/claude-fable-5-1,aa_agentic_index,57.2,observed,2026-11-06,2026-11-06,Xhigh,,,third_party_aggregator,MultipleChat (relaying Artificial Analysis),https://multiple.chat/benchmarks,manual
+s015,deepseek/deepseek-v4-1-flash-1017,aa_intelligence_index,33,observed,2026-11-07,2026-11-07,Max,,,third_party,Artificial Analysis (LLM leaderboard),https://artificialanalysis.ai/leaderboards/models,manual
+s016,mistral/mistral-large-4,aa_intelligence_index,26,observed,2026-11-07,2026-11-07,High,,,third_party,Artificial Analysis (LLM leaderboard),https://artificialanalysis.ai/leaderboards/models,manual
+s017,alibaba/qwen3-8-max-0902,aa_intelligence_index,34,observed,2026-11-07,2026-11-07,,,,third_party,Artificial Analysis (LLM leaderboard),https://artificialanalysis.ai/leaderboards/models,manual

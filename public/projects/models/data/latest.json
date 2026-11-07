@@ -1,8 +1,19 @@
 {
  "schema": 1,
  "history_start": "2025-01-01",
- "note": "Seed data, entered by hand on 2026-11-06 from third-party leaderboards that relay Artificial Analysis numbers (temperature2.com, multiple.chat). Not live yet: no scraper is running. Blank cells are not observed. Effort labels (High, Max, Xhigh) come from the same family of leaderboards; the aggregators disagree on tok/s for some models, which is why every row carries its source.",
+ "note": "Seed data, entered by hand on 2026-11-06 from third-party leaderboards that relay Artificial Analysis numbers (temperature2.com, multiple.chat). DeepSeek, Mistral and Alibaba rows were added by hand on 2026-11-07 from Artificial Analysis's own leaderboard and release pages (prices there are list prices; the 3:1 blend is computed here). Not live yet: no scraper is running. Blank cells are not observed. Effort labels (High, Max, Xhigh) come from the same family of leaderboards; the aggregators disagree on tok/s for some models, which is why every row carries its source.",
  "models": [
+  {
+   "model_id": "alibaba/qwen3-8-max-0902",
+   "org": "Alibaba",
+   "family": "Qwen",
+   "version_label": "3.8 Max 0902",
+   "display_name": "Qwen3.8 Max (0902)",
+   "class": "",
+   "open_weights": null,
+   "release_date": null,
+   "origin": "manual"
+  },
   {
    "model_id": "anthropic/claude-fable-5-1",
    "org": "Anthropic",
@@ -37,6 +48,17 @@
    "origin": "manual"
   },
   {
+   "model_id": "deepseek/deepseek-v4-1-flash-1017",
+   "org": "DeepSeek",
+   "family": "DeepSeek",
+   "version_label": "V4.1 Flash 1017",
+   "display_name": "DeepSeek V4.1 Flash 1017",
+   "class": "open_weights",
+   "open_weights": true,
+   "release_date": "2026-10-17",
+   "origin": "manual"
+  },
+  {
    "model_id": "google/gemini-4-argon",
    "org": "Google",
    "family": "Gemini",
@@ -67,6 +89,17 @@
    "class": "proprietary",
    "open_weights": false,
    "release_date": null,
+   "origin": "manual"
+  },
+  {
+   "model_id": "mistral/mistral-large-4",
+   "org": "Mistral",
+   "family": "Mistral",
+   "version_label": "Large 4",
+   "display_name": "Mistral Large 4",
+   "class": "open_weights",
+   "open_weights": true,
+   "release_date": "2026-10-29",
    "origin": "manual"
   },
   {
@@ -367,6 +400,54 @@
    "source_name": "MultipleChat (relaying Artificial Analysis)",
    "source_url": "https://multiple.chat/benchmarks",
    "origin": "manual"
+  },
+  {
+   "obs_id": "s015",
+   "model_id": "deepseek/deepseek-v4-1-flash-1017",
+   "benchmark_id": "aa_intelligence_index",
+   "value": 33.0,
+   "status": "observed",
+   "reported_date": "2026-11-07",
+   "observed_at": "2026-11-07",
+   "effort": "Max",
+   "shots": "",
+   "tools": "",
+   "provenance": "third_party",
+   "source_name": "Artificial Analysis (LLM leaderboard)",
+   "source_url": "https://artificialanalysis.ai/leaderboards/models",
+   "origin": "manual"
+  },
+  {
+   "obs_id": "s016",
+   "model_id": "mistral/mistral-large-4",
+   "benchmark_id": "aa_intelligence_index",
+   "value": 26.0,
+   "status": "observed",
+   "reported_date": "2026-11-07",
+   "observed_at": "2026-11-07",
+   "effort": "High",
+   "shots": "",
+   "tools": "",
+   "provenance": "third_party",
+   "source_name": "Artificial Analysis (LLM leaderboard)",
+   "source_url": "https://artificialanalysis.ai/leaderboards/models",
+   "origin": "manual"
+  },
+  {
+   "obs_id": "s017",
+   "model_id": "alibaba/qwen3-8-max-0902",
+   "benchmark_id": "aa_intelligence_index",
+   "value": 34.0,
+   "status": "observed",
+   "reported_date": "2026-11-07",
+   "observed_at": "2026-11-07",
+   "effort": "",
+   "shots": "",
+   "tools": "",
+   "provenance": "third_party",
+   "source_name": "Artificial Analysis (LLM leaderboard)",
+   "source_url": "https://artificialanalysis.ai/leaderboards/models",
+   "origin": "manual"
   }
  ],
  "prices": [
@@ -495,6 +576,34 @@
    "source_name": "temperature2 (relaying Artificial Analysis)",
    "source_url": "https://temperature2.com/models/",
    "origin": "manual"
+  },
+  {
+   "obs_id": "p010",
+   "model_id": "deepseek/deepseek-v4-1-flash-1017",
+   "provider": "DeepSeek API (peak rate)",
+   "input_per_1m": 0.3,
+   "output_per_1m": 1.2,
+   "blended_3to1_per_1m": 0.525,
+   "reported_date": "2026-11-07",
+   "observed_at": "2026-11-07",
+   "provenance": "third_party",
+   "source_name": "Artificial Analysis release page; 3:1 blend computed from list prices",
+   "source_url": "https://artificialanalysis.ai/models/releases/deepseek-v4-1-flash-1017",
+   "origin": "manual"
+  },
+  {
+   "obs_id": "p011",
+   "model_id": "mistral/mistral-large-4",
+   "provider": "Mistral API",
+   "input_per_1m": 0.7,
+   "output_per_1m": 2.1,
+   "blended_3to1_per_1m": 1.05,
+   "reported_date": "2026-11-07",
+   "observed_at": "2026-11-07",
+   "provenance": "third_party",
+   "source_name": "Artificial Analysis release page; 3:1 blend computed from list prices",
+   "source_url": "https://artificialanalysis.ai/models/releases/mistral-large-4",
+   "origin": "manual"
   }
  ],
  "speeds": [
@@ -604,6 +713,30 @@
    "provenance": "third_party_aggregator",
    "source_name": "temperature2 (relaying Artificial Analysis)",
    "source_url": "https://temperature2.com/models/",
+   "origin": "manual"
+  },
+  {
+   "obs_id": "t010",
+   "model_id": "deepseek/deepseek-v4-1-flash-1017",
+   "provider": "unspecified",
+   "tok_per_s": 171.0,
+   "reported_date": "2026-11-07",
+   "observed_at": "2026-11-07",
+   "provenance": "third_party",
+   "source_name": "Artificial Analysis release page",
+   "source_url": "https://artificialanalysis.ai/models/releases/deepseek-v4-1-flash-1017",
+   "origin": "manual"
+  },
+  {
+   "obs_id": "t011",
+   "model_id": "mistral/mistral-large-4",
+   "provider": "unspecified",
+   "tok_per_s": 98.0,
+   "reported_date": "2026-11-07",
+   "observed_at": "2026-11-07",
+   "provenance": "third_party",
+   "source_name": "Artificial Analysis release page",
+   "source_url": "https://artificialanalysis.ai/models/releases/mistral-large-4",
    "origin": "manual"
   }
  ]

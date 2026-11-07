@@ -8,3 +8,5 @@ p006,openai/gpt-6-1-terra,unspecified,,,2.00,2026-11-06,2026-11-06,third_party_a
 p007,google/gemini-4-argon,unspecified,,,8.00,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
 p008,anthropic/claude-fable-5-1,unspecified,,,20.00,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
 p009,moonshot/kimi-k3-1-pro,unspecified,,,4.00,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+p010,deepseek/deepseek-v4-1-flash-1017,DeepSeek API (peak rate),0.30,1.20,0.525,2026-11-07,2026-11-07,third_party,Artificial Analysis release page; 3:1 blend computed from list prices,https://artificialanalysis.ai/models/releases/deepseek-v4-1-flash-1017,manual
+p011,mistral/mistral-large-4,Mistral API,0.70,2.10,1.05,2026-11-07,2026-11-07,third_party,Artificial Analysis release page; 3:1 blend computed from list prices,https://artificialanalysis.ai/models/releases/mistral-large-4,manual

@@ -9,3 +9,6 @@ google/gemini-4-argon,Google,Gemini,4 Argon,Gemini 4 Argon,proprietary,false,,ma
 meta/muse-wonder-full,Meta,Muse,Wonder Full,Muse Wonder Full,proprietary,false,,manual
 anthropic/claude-fable-5-1,Anthropic,Claude,Fable 5.1,Claude Fable 5.1,proprietary,false,,manual
 moonshot/kimi-k3-1-pro,Moonshot AI,Kimi,K3.1 Pro,Kimi K3.1 Pro,proprietary,false,,manual
+deepseek/deepseek-v4-1-flash-1017,DeepSeek,DeepSeek,V4.1 Flash 1017,DeepSeek V4.1 Flash 1017,open_weights,true,2026-10-17,manual
+mistral/mistral-large-4,Mistral,Mistral,Large 4,Mistral Large 4,open_weights,true,2026-10-29,manual
+alibaba/qwen3-8-max-0902,Alibaba,Qwen,3.8 Max 0902,Qwen3.8 Max (0902),,,,manual

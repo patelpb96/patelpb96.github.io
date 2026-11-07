@@ -8,3 +8,5 @@ t006,anthropic/claude-fable-5-1,unspecified,62,2026-11-06,2026-11-06,third_party
 t007,openai/gpt-6-1-sol,unspecified,60,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
 t008,openai/gpt-6-astra,unspecified,46,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
 t009,moonshot/kimi-k3-1-pro,unspecified,27,2026-11-06,2026-11-06,third_party_aggregator,temperature2 (relaying Artificial Analysis),https://temperature2.com/models/,manual
+t010,deepseek/deepseek-v4-1-flash-1017,unspecified,171,2026-11-07,2026-11-07,third_party,Artificial Analysis release page,https://artificialanalysis.ai/models/releases/deepseek-v4-1-flash-1017,manual
+t011,mistral/mistral-large-4,unspecified,98,2026-11-07,2026-11-07,third_party,Artificial Analysis release page,https://artificialanalysis.ai/models/releases/mistral-large-4,manual

@@ -23,6 +23,9 @@ a { color: var(--accent); }
 :root:is([data-theme="paper"], [data-theme="ink"]) .seg button[aria-selected="true"] { background: var(--chosen-bg); color: var(--chosen-ink); box-shadow: none; }
 button:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 select { background: var(--chip); border: 1px solid var(--line); padding: 4px 8px; }
+/* --chip is translucent, so the browser draws the open list on its own white while the text stays the theme's light
+   ink (light on light). Options get the page's opaque background and ink explicitly. */
+select option, select optgroup { background: var(--bg); color: var(--ink); }
 .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 
 .mt-note { font-size: 13px; color: var(--muted); border-left: 3px solid var(--hit); padding: 4px 10px; margin: 0; }
