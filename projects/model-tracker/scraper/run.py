@@ -45,13 +45,14 @@ def default_data_dir(dry_run: bool) -> Path:
     return ROOT / "data" / "dry" if dry_run else ROOT / "data"
 
 
-def fetch_order(release_hits: list[dict], rank: dict, phrases: list[dict]) -> list[dict]:
+def fetch_order(release_hits: list[dict], rank: dict, phrases: list[dict], stale: dict | None = None) -> list[dict]:
     """Who gets the page-fetch slots. Round-robin: every phrase's newest hit before any phrase's second, and within
     a rank one concept at a time (English then Chinese for the same concept), so five fetches cover five different
-    searches instead of five pages from the first phrase."""
+    searches instead of five pages from the first phrase. Hits that look re-dated (triage.stale_reasons) go last."""
     concepts = list(dict.fromkeys(p.get("concept_id") or p["param_id"] for p in phrases))
     pos = {p["param_id"]: (concepts.index(p.get("concept_id") or p["param_id"]), p.get("lang") != "en") for p in phrases}
-    return sorted(release_hits, key=lambda h: (rank[h["hit_id"]], pos.get(h["param_id"], (len(concepts), 0))))
+    stale = stale or {}
+    return sorted(release_hits, key=lambda h: (bool(stale.get(h["hit_id"])), rank[h["hit_id"]], pos.get(h["param_id"], (len(concepts), 0))))
 
 
 def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dict], exa, pages,
@@ -64,7 +65,7 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
     stamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     seen = ledger.seen_hashes(data_dir)
     raw, hits, errors, cost, stopped = [], [], [], 0.0, None
-    duplicates, future_dated, story, rank = 0, 0, {}, {}
+    duplicates, future_dated, story, rank, stale = 0, 0, {}, {}, {}
     cutoff = exa_client.cutoff_for(now)
     first_body = None
 
@@ -107,17 +108,18 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
             tri = triage.triage(text, caps["triage_chars"], triage_judge, zh=zh_tri)
             hit_id = f"{run_id}:{h[:10]}"
             story[hit_id] = triage.story_key(text, caps["triage_chars"])
+            stale[hit_id] = triage.stale_reasons(text, r["url"], now, caps["triage_chars"])
             rank[hit_id] = sum(1 for x in hits if x["param_id"] == row["param_id"])     # 0 = this phrase's newest new hit
             hits.append({
                 "hit_id": hit_id, "run_id": run_id, "param_id": row["param_id"], "url_hash": h,
                 "url": r["url"], "domain": urlsplit(r["url"]).hostname or "", "published_at": r.get("publishedDate") or "",
-                "verdict": "quarantined" if inj["flagged"] else tri["verdict"], "reasons": "; ".join(tri["reasons"]),
+                "verdict": "quarantined" if inj["flagged"] else tri["verdict"], "reasons": "; ".join(tri["reasons"] + [f"possibly re-dated ({x})" for x in stale[hit_id]]),
                 "injection_flag": inj["flagged"], "injection_reasons": "; ".join(inj["reasons"]),
                 "fetch_status": "", "first_seen_at": stamp,
             })
 
     candidates, fetched, story_owner = [], 0, {}
-    for hit in fetch_order([h for h in hits if h["verdict"] == "release"], rank, params["phrases"]):
+    for hit in fetch_order([h for h in hits if h["verdict"] == "release"], rank, params["phrases"], stale):
         key = story[hit["hit_id"]]
         if key and key in story_owner:                      # another page about this model already got (or lost) the slot
             hit["fetch_status"] = f"skipped: same story as {story_owner[key]}"
@@ -151,7 +153,7 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
         "unsure": sum(h["verdict"] == "unsure" for h in hits), "candidates": len(candidates), "errors": len(errors),
     }
     ledger.append_csv(Path(data_dir) / "runs.csv", ledger.RUN_COLUMNS, [summary])
-    return {**summary, "future_dated": future_dated, "fetched": fetched, "stopped": stopped, "error_messages": errors,
+    return {**summary, "future_dated": future_dated, "stale_suspects": sum(bool(v) for v in stale.values()), "fetched": fetched, "stopped": stopped, "error_messages": errors,
             "hits": hits, "candidate_rows": candidates}
 
 

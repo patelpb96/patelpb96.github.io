@@ -7,6 +7,7 @@ The run itself is scraper.run.run, unchanged. This module only moves state betwe
   s3://<STATE_BUCKET>/state/spend/<day>.json                     uploaded after EVERY reservation, so a crash over-counts
   s3://<STATE_BUCKET>/state/raw/YYYY/MM/DD/<run_id>.jsonl         raw Exa requests and responses (private, never published)
   s3://<STATE_BUCKET>/state/KILL                                 kill switch: if this object exists, nothing runs
+  s3://<STATE_BUCKET>/state/aa/YYYY/MM/DD/<slot>.json            Artificial Analysis reference snapshot (one free GET per run)
 
 Secrets come from SSM at call time and are never logged: the Exa key (EXA_KEY_PARAM, required) and the TypeSafe key
 for the Jev judges (TYPESAFE_KEY_PARAM, optional: missing means the judges are off). Nothing here writes to the
@@ -21,6 +22,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import aa_source
 from . import budget as budget_mod
 from . import exa_client, fetch, jev
 from . import run as run_mod
@@ -121,7 +123,22 @@ def _param(ssm, name: str | None, required: bool) -> str | None:
         raise RuntimeError(f"could not read SSM parameter {name}: {type(e).__name__}") from None   # never the value
 
 
-def run_once(now: datetime, s3, ssm, env: dict, params: dict | None = None, exa=None, pages=None) -> dict:
+def aa_snapshot(state: S3State, now: datetime, slot: str, caps: dict, tracked: set[str], html: str | None = None) -> dict:
+    """Rescan the reference source and keep its observations privately. Never fatal: the news run stands alone."""
+    try:
+        recs = aa_source.records(html if html is not None else aa_source.fetch_html(caps["aa"]["url"]))
+        chosen = aa_source.select(recs, caps["aa"]["min_index"], tracked)
+        obs = aa_source.observations(chosen, now.strftime("%Y-%m-%d"))
+        rel = f"aa/{now:%Y/%m/%d}/{slot}.json"
+        (state.local / rel).parent.mkdir(parents=True, exist_ok=True)
+        (state.local / rel).write_text(json.dumps({"slot": slot, "records": len(recs), **obs}), encoding="utf-8")
+        state.put(rel)
+        return {"status": "ok", "records": len(recs), "tracked": len(chosen), "key": rel}
+    except Exception as e:                                          # layout change, timeout: report, don't fail the run
+        return {"status": "error", "error": f"{type(e).__name__}: {str(e)[:200]}"}
+
+
+def run_once(now: datetime, s3, ssm, env: dict, params: dict | None = None, exa=None, pages=None, aa_html=None) -> dict:
     day, slot = now.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%dT%H")
     work = Path(tempfile.mkdtemp(prefix=f"mt-{slot}-"))
     try:
@@ -141,8 +158,9 @@ def run_once(now: datetime, s3, ssm, env: dict, params: dict | None = None, exa=
         except budget_mod.RunRefused as e:
             return {"status": "refused", "slot": slot, "reason": str(e)}
         uploaded = push(state)
+        aa = aa_snapshot(state, now, slot, params["caps"], {m["model_id"] for m in models}, aa_html)
         summary = {k: v for k, v in res.items() if k not in {"hits", "candidate_rows"}}
-        return {"status": "ok", **summary, "jev": judges.summary() if judges else "off", "uploaded": uploaded}
+        return {"status": "ok", **summary, "jev": judges.summary() if judges else "off", "aa": aa, "uploaded": uploaded}
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

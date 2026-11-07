@@ -43,7 +43,16 @@ const fmtScore = (v) => v.toFixed(1);
 const fmtPrice = (v) => `$${v >= 10 ? v.toFixed(0) : v.toFixed(2)}`;
 const fmtSpeed = (v) => `${Math.round(v)}`;
 // Efficiency benchmarks (cost, time, latency) carry a unit and are lower-is-better; index-style scores use fmtScore.
-const UNIT_FMT = { USD: (v) => `$${v.toFixed(2)}`, minutes: (v) => `${v.toFixed(1)} min`, seconds: (v) => `${v.toFixed(1)} s` };
+const UNIT_FMT = {
+  USD: (v) => `$${v.toFixed(2)}`, minutes: (v) => `${v.toFixed(1)} min`, seconds: (v) => `${v.toFixed(1)} s`,
+  "k tokens": (v) => (v >= 1000 ? `${+(v / 1000).toFixed(2)}M` : `${Math.round(v)}k`), Elo: (v) => `${Math.round(v)}`,
+};
+// Leaderboard column groups. Overview keeps the table readable; the rest are one click away.
+const OVERVIEW = new Set(["aa_intelligence_index", "aa_coding_index", "aa_agentic_index", "aa_cost_per_task", "aa_time_per_task"]);
+const EFFICIENCY = new Set(["cost", "speed", "latency", "spec"]);
+const COLS = [["overview", "Overview"], ["evals", "Evaluations"], ["efficiency", "Cost & speed"]];
+const inGroup = (b, g) => (g === "overview" ? OVERVIEW.has(b.benchmark_id)
+  : g === "efficiency" ? EFFICIENCY.has(b.category) : !OVERVIEW.has(b.benchmark_id) && !EFFICIENCY.has(b.category));
 const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
 
 // The newest row per key whose observation day is on or before asOf. Observations are append-only,
@@ -336,9 +345,12 @@ function Dashboard({ data }) {
   }, [data]);
   // The scatter's efficient frontier assumes bigger is better on the vertical axis, so lower-is-better measures stay out of it.
   const quality = useMemo(() => benches.filter((b) => b.higher_is_better), [benches]);
+  const [cols, setCols] = useState("overview");
+  const shown = useMemo(() => benches.filter((b) => inGroup(b, cols)), [benches, cols]);
+  const showMoney = cols !== "evals";
 
   const orgs = useMemo(() => [...new Set(data.models.map((m) => m.org))].sort(), [data]);
-  const colorOf = (org) => `var(--s${(orgs.indexOf(org) % 8) + 1})`;
+  const colorOf = (org) => `var(--s${(orgs.indexOf(org) % 16) + 1})`;
   const modelsById = useMemo(() => new Map(data.models.map((m) => [m.model_id, m])), [data]);
 
   const [hiddenOrgs, setHiddenOrgs] = useState(() => new Set());
@@ -388,7 +400,7 @@ function Dashboard({ data }) {
   }, [rows, sort]);
 
   const cards = useMemo(() => {
-    const out = benches.map((b) => {
+    const out = benches.filter((b) => OVERVIEW.has(b.benchmark_id)).map((b) => {
       let top = null;
       for (const r of rows) {
         const s = r.scores[b.benchmark_id];
@@ -467,24 +479,32 @@ function Dashboard({ data }) {
 
         {tab === "board" && (
           <div className="tbl-wrap" style={{ marginTop: 10 }}>
+            <div className="pane-tools">
+              <div className="seg" role="group" aria-label="Columns">
+                {COLS.map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={cols === id} onClick={() => setCols(id)}>{label}</button>
+                ))}
+              </div>
+              <span className="muted">{shown.length + (showMoney ? 2 : 0)} columns · click a header to sort</span>
+            </div>
             <table>
               <thead>
                 <tr>
                   <th aria-sort={ariaSort("name")}><button type="button" onClick={() => setSortKey("name")}>Model</button></th>
-                  {benches.map((b) => (
+                  {shown.map((b) => (
                     <th key={b.benchmark_id} aria-sort={ariaSort(`b:${b.benchmark_id}`)} title={b.blurb}>
                       <button type="button" onClick={() => setSortKey(`b:${b.benchmark_id}`)}>{b.name}</button>
                     </th>
                   ))}
-                  <th aria-sort={ariaSort("price")} title="USD per 1M tokens, 3:1 input:output blend"><button type="button" onClick={() => setSortKey("price")}>$ / 1M</button></th>
-                  <th aria-sort={ariaSort("speed")} title="Median output tokens per second"><button type="button" onClick={() => setSortKey("speed")}>tok/s</button></th>
+                  {showMoney && <th aria-sort={ariaSort("price")} title="USD per 1M tokens, 3:1 input:output blend"><button type="button" onClick={() => setSortKey("price")}>$ / 1M</button></th>}
+                  {showMoney && <th aria-sort={ariaSort("speed")} title="Median output tokens per second"><button type="button" onClick={() => setSortKey("speed")}>tok/s</button></th>}
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((r) => (
                   <tr key={r.model_id} className={hl.has(r.model_id) ? "is-hl" : hl.size ? "is-dim" : ""} onClick={() => togglePin(r.model_id)}>
                     <td><span className="mname"><span className="sw" style={{ background: colorOf(r.org) }} />{r.display_name}<span className="muted">{r.org}</span></span></td>
-                    {benches.map((b) => {
+                    {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (
                         <td key={b.benchmark_id} title={`${PROV_LABEL[s.provenance]}: ${s.source_name}${s.effort ? `, ${s.effort}` : ""}`}>
@@ -492,12 +512,12 @@ function Dashboard({ data }) {
                         </td>
                       ) : <td key={b.benchmark_id} className="na">not observed</td>;
                     })}
-                    {r.price ? (
+                    {showMoney && (r.price ? (
                       <td title={`${PROV_LABEL[r.price.row.provenance]}: ${r.price.row.source_name}`}>{fmtPrice(r.price.value)}</td>
-                    ) : <td className="na">not observed</td>}
-                    {r.speed ? (
+                    ) : <td className="na">not observed</td>)}
+                    {showMoney && (r.speed ? (
                       <td title={`${PROV_LABEL[r.speed.row.provenance]}: ${r.speed.row.source_name}`}>{fmtSpeed(r.speed.value)}</td>
-                    ) : <td className="na">not observed</td>}
+                    ) : <td className="na">not observed</td>)}
                   </tr>
                 ))}
               </tbody>

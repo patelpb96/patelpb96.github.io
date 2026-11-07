@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from scraper import exa_client, fetch, lambda_handler as lh, run
+from test_aa_source import RECS, page
 
 FX = json.loads((Path(__file__).parent / "scraper" / "fixtures" / "dry_run.json").read_text(encoding="utf-8"))
 NOW = datetime(2026, 11, 6, 2, 0, 0)
@@ -60,10 +61,11 @@ class LambdaTests(unittest.TestCase):
         self.s3 = FakeS3()
         self.s3.objects[("site-b", ENV["MODELS_KEY"])] = json.dumps({"models": FX["models"]}).encode()
         self.ssm = FakeSSM({"/p/exa": "exa-test-key"})
+        self.aa_html = page(RECS)
 
     def go(self, now=NOW, ssm=None):
         exa = exa_client.FixtureExa(FX["exa"])
-        out = lh.run_once(now, self.s3, ssm or self.ssm, ENV, exa=exa, pages=fetch.FixturePages(FX["pages"]))
+        out = lh.run_once(now, self.s3, ssm or self.ssm, ENV, exa=exa, pages=fetch.FixturePages(FX["pages"]), aa_html=self.aa_html)
         return out, exa
 
     def test_first_run_writes_ledgers_raw_lock_and_spend(self):
@@ -116,6 +118,18 @@ class LambdaTests(unittest.TestCase):
             lh.run_once(NOW, self.s3, FakeSSM({}), ENV, pages=fetch.FixturePages({}))
         self.assertIn("/p/exa", str(cm.exception))
         self.assertNotIn("state/locks/2026-11-06T02.lock", self.s3.keys())   # failed before taking the slot
+
+    def test_reference_snapshot_is_saved_privately(self):
+        out, _ = self.go()
+        self.assertEqual(out["aa"]["status"], "ok")
+        body = json.loads(self.s3.objects[("state-b", "state/" + out["aa"]["key"])])
+        self.assertIn("spacexai/grok-4-7", {m["model_id"] for m in body["models"]})
+
+    def test_reference_failure_never_fails_the_run(self):
+        self.aa_html = "<html>layout changed</html>"
+        out, _ = self.go()
+        self.assertEqual((out["status"], out["aa"]["status"]), ("ok", "error"))
+        self.assertIn("state/hits.csv", self.s3.keys())
 
     def test_result_has_no_page_text_or_keys(self):
         out, _ = self.go()

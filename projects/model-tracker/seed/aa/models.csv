@@ -1,0 +1,28 @@
+model_id,org,family,version_label,display_name,class,open_weights,release_date,origin
+alibaba/qwen3-8-max-0902,Alibaba,Alibaba,Qwen3.8 Max (0902),Qwen3.8 Max (0902),proprietary,false,,scraped
+anthropic/claude-fable-5-1,Anthropic,Anthropic,Claude Fable 5.1,Claude Fable 5.1,proprietary,false,,scraped
+anthropic/claude-haiku-5-5,Anthropic,Anthropic,Claude Haiku 5.5,Claude Haiku 5.5,proprietary,false,,scraped
+anthropic/claude-opus-5-5,Anthropic,Anthropic,Claude Opus 5.5,Claude Opus 5.5,proprietary,false,,scraped
+anthropic/claude-sonnet-5-5,Anthropic,Anthropic,Claude Sonnet 5.5,Claude Sonnet 5.5,proprietary,false,,scraped
+deepseek/deepseek-v4-1-flash-1017,DeepSeek,DeepSeek,DeepSeek V4.1 Flash 1017,DeepSeek V4.1 Flash 1017,open_weights,true,,scraped
+google/gemini-3-8-flash,Google,Google,Gemini 3.8 Flash,Gemini 3.8 Flash,proprietary,false,,scraped
+google/gemini-4-argon,Google,Google,Gemini 4 Argon,Gemini 4 Argon,proprietary,false,,scraped
+google/gemini-4-carbon,Google,Google,Gemini 4 Carbon,Gemini 4 Carbon,proprietary,false,,scraped
+inclusionai/ling-3-1-flash-1019,InclusionAI,InclusionAI,Ling 3.1 Flash 1019,Ling 3.1 Flash 1019,open_weights,true,,scraped
+meta/muse-wonder,Meta,Meta,Muse Wonder,Muse Wonder,proprietary,false,,scraped
+meta/muse-wonder-full,Meta,Meta,Muse Wonder Full,Muse Wonder Full,proprietary,false,,scraped
+minimax/minimax-m3-1-flash,MiniMax,MiniMax,MiniMax-M3.1-Flash,MiniMax-M3.1-Flash,open_weights,true,,scraped
+mistral/mistral-large-4,Mistral,Mistral,Mistral Large 4,Mistral Large 4,open_weights,true,,scraped
+moonshot/kimi-k3-1-pro,Moonshot AI,Moonshot AI,Kimi K3.1 Pro,Kimi K3.1 Pro,open_weights,true,,scraped
+openai/gpt-6-1-sol,OpenAI,OpenAI,GPT-6.1 Sol,GPT-6.1 Sol,proprietary,false,,scraped
+openai/gpt-6-1-terra,OpenAI,OpenAI,GPT-6.1 Terra,GPT-6.1 Terra,proprietary,false,,scraped
+openai/gpt-6-astra,OpenAI,OpenAI,GPT-6 Astra,GPT-6 Astra,proprietary,false,,scraped
+openai/gpt-6-luna,OpenAI,OpenAI,GPT-6 Luna,GPT-6 Luna,proprietary,false,,scraped
+spacexai/grok-4-7,SpaceXAI,SpaceXAI,Grok 4.7,Grok 4.7,proprietary,false,,scraped
+stepfun/step-5-preview,StepFun,StepFun,Step 5 Preview,Step 5 Preview,open_weights,true,,scraped
+tencent/tencent-hy4,Tencent,Tencent,Tencent Hy4,Tencent Hy4,proprietary,false,,scraped
+thinking-machines/inkling-2-small,Thinking Machines,Thinking Machines,Inkling 2 Small,Inkling 2 Small,proprietary,false,,scraped
+xiaomi/mimo-v2-6-flash,Xiaomi,Xiaomi,MiMo-V2.6-Flash,MiMo-V2.6-Flash,open_weights,true,,scraped
+xiaomi/mimo-v2-6-pro,Xiaomi,Xiaomi,MiMo-V2.6-Pro,MiMo-V2.6-Pro,open_weights,true,,scraped
+zai/glm-5-3,Z AI,Z AI,GLM-5.3,GLM-5.3,open_weights,true,,scraped
+zai/glm-5-3-flash,Z AI,Z AI,GLM-5.3-Flash,GLM-5.3-Flash,open_weights,true,,scraped

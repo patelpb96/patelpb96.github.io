@@ -14,3 +14,18 @@ swe_bench_verified,SWE-bench Verified,,coding,Real GitHub issues a model must fi
 swe_bench_pro,SWE-bench Pro,,coding,"A harder, less contaminated set of software-engineering issues than SWE-bench Verified.",true,%
 livecodebench,LiveCodeBench,,coding,Fresh competitive-programming problems released after model training cutoffs.,true,%
 terminal_bench,Terminal-Bench,,agentic,Multi-step tasks completed in a real command-line environment.,true,%
+aa_context_window,Context window,,spec,"Longest input the model accepts, in thousands of tokens, as listed by Artificial Analysis.",true,k tokens
+aa_terminalbench_4,Terminal-Bench 4.0,4.0,agentic,"Multi-step tasks in a real command-line environment, run by Artificial Analysis; % solved.",true,%
+aa_automationbench,AutomationBench,,agentic,Artificial Analysis's business-automation tasks across tools and apps; partial-credit score in %.,true,%
+aa_briefcase_elo,AA-Briefcase,1.1,agentic,"Agentic knowledge work (analyst-style briefs) judged head to head; an Elo rating, higher is better.",true,Elo
+aa_frontiercode_2,FrontierCode 2.0,2.0,coding,"Hard, recent software-engineering tasks; % solved.",true,%
+aa_scicode,SciCode,,coding,Scientific programming problems from research code; % of sub-problems solved.,true,%
+aa_hle_diamond,HLE-Diamond,,reasoning,The hardest verified subset of Humanity's Last Exam; % correct.,true,%
+aa_hle,Humanity's Last Exam,,reasoning,"2,500 expert-written questions across maths, science and the humanities; % correct.",true,%
+aa_critpt_v2_hard,CritPt v2 (hard),2,reasoning,"Research-level physics problems, hard subset; % correct.",true,%
+aa_terminalbench_science,Terminal-Bench Science,0.1,reasoning,Scientific computing tasks in a terminal; % solved.,true,%
+aa_lcr,Long-context reasoning,,long context,Artificial Analysis's reasoning questions over very long documents; % correct.,true,%
+aa_gdp_pdf,GDP.pdf,,documents,Answering questions from long economic PDF reports; % fully correct.,true,%
+aa_mmmu_pro,MMMU-Pro,,vision,College-level questions that need images and text together; % correct.,true,%
+aa_omniscience,AA-Omniscience,1.1,knowledge,"Knowledge reliability: correct answers minus hallucinations, -100 to 100; refusing costs nothing.",true,net score
+aa_non_hallucination,Non-hallucination rate,1.1,knowledge,Share of AA-Omniscience questions it did not answer wrongly (100 minus the hallucination rate); %.,true,%

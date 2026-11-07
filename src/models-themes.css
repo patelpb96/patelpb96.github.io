@@ -1,6 +1,6 @@
 /* Themes for the model tracker, ported from agent-dashboard/index.html (Space, Ember, Walnut, 8-Bit,
    Paper, Ink). Only the shared variables are copied, not that page's component selectors. Added here:
-   --s1..--s8, a categorical palette per theme (one colour per company), since the dashboard's own
+   --s1..--s16, a categorical palette per theme (one colour per company), since the dashboard's own
    status colours are only five. Colour never carries meaning alone: provenance is a marker shape. */
 
 :root, :root[data-theme="space"] {
@@ -10,7 +10,7 @@
   --font: system-ui, -apple-system, "Segoe UI", sans-serif; --display: var(--font);
   --page-bg: radial-gradient(ellipse at 20% -10%, rgba(96, 165, 250, 0.16), transparent 50%), #05060c;
   --panel-border: 1px solid var(--line); --panel-shadow: none;
-  --s1: #60a5fa; --s2: #f59e0b; --s3: #4ade80; --s4: #f472b6; --s5: #a78bfa; --s6: #22d3ee; --s7: #fb7185; --s8: #a3e635;
+  --s1: #60a5fa; --s2: #f59e0b; --s3: #4ade80; --s4: #f472b6; --s5: #a78bfa; --s6: #22d3ee; --s7: #fb7185; --s8: #a3e635; --s9: #f97316; --s10: #2dd4bf; --s11: #e879f9; --s12: #fde047; --s13: #818cf8; --s14: #34d399; --s15: #fca5a5; --s16: #cbd5e1;
 }
 :root[data-theme="ember"] {
   --bg: #1a0f0a; --panel: rgba(34, 18, 10, 0.82); --ink: #fff2e6; --muted: #e6c7a8;
@@ -18,7 +18,7 @@
   --accent: #ffb36b; --hit: #ffd4a3;
   --font: Georgia, "Times New Roman", Times, serif; --display: "Playfair Display", Georgia, "Times New Roman", serif;
   --page-bg: radial-gradient(circle at 85% -10%, rgba(255, 154, 77, 0.14), transparent 45%), #1a0f0a;
-  --s1: #ffb36b; --s2: #7fdca4; --s3: #93c5fd; --s4: #f472b6; --s5: #fcd34d; --s6: #c4b5fd; --s7: #fb7185; --s8: #e6c7a8;
+  --s1: #ffb36b; --s2: #7fdca4; --s3: #93c5fd; --s4: #f472b6; --s5: #fcd34d; --s6: #c4b5fd; --s7: #fb7185; --s8: #e6c7a8; --s9: #67e8f9; --s10: #fda4af; --s11: #bef264; --s12: #d8b4fe; --s13: #fdba74; --s14: #5eead4; --s15: #f0abfc; --s16: #a5b4fc;
 }
 /* Walnut and chrome: mid-century, dark. */
 :root[data-theme="walnut"] {
@@ -30,7 +30,7 @@
     radial-gradient(ellipse at 15% 0%, #3a2616 0%, rgba(58, 38, 22, 0) 55%),
     repeating-linear-gradient(90deg, rgba(255, 230, 200, 0.022) 0 1px, transparent 1px 7px),
     #0e0a07;
-  --s1: #d4a942; --s2: #c4cad2; --s3: #d98e73; --s4: #9fc4d8; --s5: #8fb58a; --s6: #c9a0dc; --s7: #e7c46a; --s8: #a8733f;
+  --s1: #d4a942; --s2: #c4cad2; --s3: #d98e73; --s4: #9fc4d8; --s5: #8fb58a; --s6: #c9a0dc; --s7: #e7c46a; --s8: #a8733f; --s9: #7fb3a6; --s10: #d6869d; --s11: #b9a77a; --s12: #8c9fd8; --s13: #c2d68a; --s14: #e09a5c; --s15: #a3b1b8; --s16: #d5b2a0;
 }
 /* 8-bit: black pixel HUD, square arcade panels. */
 :root[data-theme="8bit"] {
@@ -43,7 +43,7 @@
     repeating-linear-gradient(90deg, rgba(83, 224, 255, 0.035) 0 1px, transparent 1px 16px),
     #060913;
   --panel-border: 2px solid var(--line); --panel-shadow: 3px 3px 0 rgba(0, 0, 0, 0.7);
-  --s1: #53e0ff; --s2: #ffe65c; --s3: #ff5478; --s4: #50ef92; --s5: #bd8cff; --s6: #ff9f43; --s7: #8298b5; --s8: #e4f8ff;
+  --s1: #53e0ff; --s2: #ffe65c; --s3: #ff5478; --s4: #50ef92; --s5: #bd8cff; --s6: #ff9f43; --s7: #8298b5; --s8: #e4f8ff; --s9: #ff6ad5; --s10: #7cff4f; --s11: #ffb000; --s12: #4f9dff; --s13: #ff8a5c; --s14: #00e5c3; --s15: #c9ff3b; --s16: #b38bff;
 }
 /* Paper: white stock, jet-black ink and rules, crisp. */
 :root[data-theme="paper"] {
@@ -55,7 +55,7 @@
     repeating-linear-gradient(115deg, rgba(10, 10, 10, 0.02) 0 1px, transparent 1px 4px),
     #f4f3f0;
   --panel-border: 1px solid var(--rule); --panel-shadow: 2px 2px 0 rgba(10, 10, 10, 0.9);
-  --s1: #154a85; --s2: #a8261e; --s3: #0b5e40; --s4: #5a3784; --s5: #8a5a00; --s6: #0e7490; --s7: #b91c1c; --s8: #44403c;
+  --s1: #154a85; --s2: #a8261e; --s3: #0b5e40; --s4: #5a3784; --s5: #8a5a00; --s6: #0e7490; --s7: #b91c1c; --s8: #44403c; --s9: #9a3412; --s10: #1d4ed8; --s11: #15803d; --s12: #a21caf; --s13: #0f766e; --s14: #854d0e; --s15: #be185d; --s16: #4338ca;
 }
 /* Ink: the same look reversed. */
 :root[data-theme="ink"] {
@@ -65,7 +65,7 @@
   --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; --display: var(--font);
   --page-bg: #191919;
   --panel-border: 1px solid var(--rule); --panel-shadow: 2px 2px 0 rgba(0, 0, 0, 0.85);
-  --s1: #6aa3e8; --s2: #e5786d; --s3: #4cb583; --s4: #a98bd6; --s5: #d9a441; --s6: #4bb5cf; --s7: #e57a8b; --s8: #bdbdb8;
+  --s1: #6aa3e8; --s2: #e5786d; --s3: #4cb583; --s4: #a98bd6; --s5: #d9a441; --s6: #4bb5cf; --s7: #e57a8b; --s8: #bdbdb8; --s9: #f2b45c; --s10: #7cc0a6; --s11: #d38ad9; --s12: #8fb0f0; --s13: #e0c76a; --s14: #6fcfbe; --s15: #f09a6b; --s16: #b7a6e6;
 }
 /* Serif option for Paper and Ink */
 :root:is([data-theme="paper"], [data-theme="ink"])[data-type="serif"] {

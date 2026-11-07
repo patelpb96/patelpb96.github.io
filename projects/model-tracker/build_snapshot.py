@@ -81,6 +81,16 @@ def build(seed: Path) -> tuple[dict | None, list[str]]:
     meta = json.loads((seed / "meta.json").read_text(encoding="utf-8"))
     history_start = meta["history_start"]
     data = {name: read_csv(seed / f"{name}.csv", cols, errors) for name, cols in TABLES.items()}
+    # seed/aa/ is written by scraper/aa_source.py from Artificial Analysis's own data. Hand-entered models keep their
+    # attributes (the AA row for the same id is dropped); AA observations are appended next to the hand ones.
+    aa_dir = seed / "aa"
+    if aa_dir.is_dir():
+        hand_ids = {m["model_id"] for m in data["models"]}
+        for name, cols in TABLES.items():
+            if name == "benchmarks" or not (aa_dir / f"{name}.csv").exists():
+                continue
+            rows = read_csv(aa_dir / f"{name}.csv", cols, errors)
+            data[name] += [r for r in rows if name != "models" or r["model_id"] not in hand_ids]
 
     model_ids, bench_ids, obs_ids = set(), set(), set()
     for m in data["models"]:

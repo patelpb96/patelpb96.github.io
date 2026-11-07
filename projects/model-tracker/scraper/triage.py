@@ -46,6 +46,26 @@ def story_key(text: str, chars: int) -> str:
     return ""
 
 
+URL_DATE = re.compile(r"/(20\d\d)[/-](\d{1,2})(?:[/-]\d{1,2})?/")
+YEAR = re.compile(r"(?<!\d)(20[0-3]\d)(?!\d)")
+
+
+def stale_reasons(text: str, url: str, now, chars: int) -> list[str]:
+    """Signs that a hit Exa dates 'today' is an old story re-posted or re-crawled (seen in the first live runs:
+    'What is GLM 5.1?' when 5.3 was current, a 2022 paper, a 2025 launch). A flag lowers fetch priority; it never
+    deletes a hit, because a genuinely new page can quote old years."""
+    out = []
+    m = URL_DATE.search(url or "")
+    if m:
+        age = (now.year - int(m.group(1))) * 12 + (now.month - int(m.group(2)))
+        if age > 1:
+            out.append(f"URL dated {m.group(1)}-{int(m.group(2)):02d}")
+    years = [int(y) for y in YEAR.findall((text or "")[:chars])]
+    if years and max(years) < now.year:
+        out.append(f"opening text only mentions {max(years)} or earlier")
+    return out
+
+
 def triage(text: str, chars: int, judge: Callable[[str], str] | None = None, zh=None) -> dict:
     """`zh` is an optional (verb_regex, ai_regex) built from the APPROVED lexicon (lexicon.triage_regexes); this
     module holds no Chinese literals. Model names are still matched as ASCII (Qwen3, DeepSeek-V4, GPT 6.1)."""
