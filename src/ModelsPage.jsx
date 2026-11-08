@@ -333,7 +333,7 @@ function OverTime({ data, asOf, visible, metric, colorOf, hl, modelsById }) {
 
 // ---------------------------------------------------------------------------------------------------
 
-function Dashboard({ data }) {
+function Dashboard({ data, intro }) {
   const dates = useMemo(() => [...new Set([...data.scores, ...data.prices, ...data.speeds].map((r) => day(r.observed_at)))].sort(), [data]);
   const [asOfPick, setAsOfPick] = useState(null);
   const asOf = asOfPick && dates.includes(asOfPick) ? asOfPick : dates[dates.length - 1];
@@ -430,10 +430,33 @@ function Dashboard({ data }) {
   const ariaSort = (key) => (sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none");
 
   const selected = [...hl].map((id) => modelsById.get(id)?.display_name).filter(Boolean);
-  const tabs = [["board", "Leaderboard"], ["compare", "Compare"], ["time", "Over time"]];
+  const tabs = [["board", "Leaderboard"], ["time", "Over time"]];
 
   return (
     <>
+      <section className="mt-panel mt-hero" aria-label="Score against price or speed">
+      <div>
+        <div className="pane-tools">
+          <label className="lbl">Score{" "}
+            <select value={bench} onChange={(e) => { setBenchPick(e.target.value); setBrushed(new Set()); }}>
+              {quality.map((b) => <option key={b.benchmark_id} value={b.benchmark_id}>{b.name}</option>)}
+            </select>
+          </label>
+          <span className="lbl">against</span>
+          <div className="seg" role="group" aria-label="Horizontal axis">
+            <button type="button" aria-pressed={xMetric === "price"} onClick={() => { setXMetric("price"); setBrushed(new Set()); }}>Price</button>
+            <button type="button" aria-pressed={xMetric === "speed"} onClick={() => { setXMetric("speed"); setBrushed(new Set()); }}>Speed</button>
+          </div>
+          <span className="muted">Hover for details, click to pin, drag a box to select.</span>
+        </div>
+        <Scatter rows={rows} bench={bench} benchName={benchName} xMetric={xMetric} colorOf={colorOf}
+          hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} />
+        {selected.length > 0 && <p className="sel-list">Highlighted: {selected.join(", ")}</p>}
+      </div>
+      </section>
+
+      {intro}
+
       <section className="mt-filters" aria-label="Filters">
         <span className="lbl">Companies</span>
         <div className="chips">
@@ -526,27 +549,6 @@ function Dashboard({ data }) {
           </div>
         )}
 
-        {tab === "compare" && (
-          <div style={{ marginTop: 10 }}>
-            <div className="pane-tools">
-              <label className="lbl">Score{" "}
-                <select value={bench} onChange={(e) => { setBenchPick(e.target.value); setBrushed(new Set()); }}>
-                  {quality.map((b) => <option key={b.benchmark_id} value={b.benchmark_id}>{b.name}</option>)}
-                </select>
-              </label>
-              <span className="lbl">against</span>
-              <div className="seg" role="group" aria-label="Horizontal axis">
-                <button type="button" aria-pressed={xMetric === "price"} onClick={() => { setXMetric("price"); setBrushed(new Set()); }}>Price</button>
-                <button type="button" aria-pressed={xMetric === "speed"} onClick={() => { setXMetric("speed"); setBrushed(new Set()); }}>Speed</button>
-              </div>
-              <span className="muted">Hover for details, click to pin, drag a box to select.</span>
-            </div>
-            <Scatter rows={rows} bench={bench} benchName={benchName} xMetric={xMetric} colorOf={colorOf}
-              hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} />
-            {selected.length > 0 && <p className="sel-list">Highlighted: {selected.join(", ")}</p>}
-          </div>
-        )}
-
         {tab === "time" && (
           <div style={{ marginTop: 10 }}>
             <div className="pane-tools">
@@ -568,7 +570,7 @@ function Dashboard({ data }) {
 
 export default function ModelsPage() {
   const [theme, setTheme] = useState(initialTheme);
-  const [type, setType] = useState(() => (readPref(TYPE_KEY) === "serif" ? "serif" : "sans"));
+  const [type, setType] = useState(() => (readPref(TYPE_KEY) === "sans" ? "sans" : "serif"));
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
@@ -589,31 +591,38 @@ export default function ModelsPage() {
     return () => { live = false; };
   }, []);
 
+  // The chart is the takeaway, so it comes first; title, theme and the data note follow it.
+  const intro = (
+    <>
+        <header className="mt-head">
+          <div>
+            <h1 className="mt-title">Model tracker</h1>
+            <p className="mt-sub">Frontier AI models by benchmark score, price and speed. <a href="/">patelpb.com</a></p>
+          </div>
+          <div className="mt-tools">
+            <div className="seg" role="group" aria-label="Theme">
+              {THEMES.map(([id, label]) => (
+                <button key={id} type="button" aria-pressed={theme === id} onClick={() => setTheme(id)}>{label}</button>
+              ))}
+            </div>
+            {SERIF_THEMES.includes(theme) && (
+              <div className="seg" role="group" aria-label="Typeface">
+                <button type="button" aria-pressed={type === "sans"} onClick={() => setType("sans")}>Sans</button>
+                <button type="button" aria-pressed={type === "serif"} onClick={() => setType("serif")}>Serif</button>
+              </div>
+            )}
+          </div>
+        </header>
+        {data && <p className="mt-note">{data.note}</p>}
+    </>
+  );
+
   return (
     <main className="mt">
-      <header className="mt-head">
-        <div>
-          <h1 className="mt-title">Model tracker</h1>
-          <p className="mt-sub">Frontier AI models by benchmark score, price and speed. <a href="/">patelpb.com</a></p>
-        </div>
-        <div className="mt-tools">
-          <div className="seg" role="group" aria-label="Theme">
-            {THEMES.map(([id, label]) => (
-              <button key={id} type="button" aria-pressed={theme === id} onClick={() => setTheme(id)}>{label}</button>
-            ))}
-          </div>
-          {SERIF_THEMES.includes(theme) && (
-            <div className="seg" role="group" aria-label="Typeface">
-              <button type="button" aria-pressed={type === "sans"} onClick={() => setType("sans")}>Sans</button>
-              <button type="button" aria-pressed={type === "serif"} onClick={() => setType("serif")}>Serif</button>
-            </div>
-          )}
-        </div>
-      </header>
-      {data && <p className="mt-note">{data.note}</p>}
+      {!data && intro}
       {error && <p className="mt-note" role="alert">Could not load the data ({error}).</p>}
       {!data && !error && <p className="empty">Loading…</p>}
-      {data && <Dashboard data={data} />}
+      {data && <Dashboard data={data} intro={intro} />}
     </main>
   );
 }
