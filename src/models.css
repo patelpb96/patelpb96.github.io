@@ -75,7 +75,8 @@ svg.chart { width: 100%; height: auto; display: block; touch-action: pan-y; user
 .chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
 .chart .axis { stroke: var(--line); }
 .chart .grid { stroke: var(--line); stroke-dasharray: 2 4; opacity: 0.7; }
-.chart .frontier { stroke: var(--hit); stroke-width: 1.5; fill: none; stroke-dasharray: 5 3; }
+/* quiet on purpose: the logos are the data, the frontier is a guide underneath them */
+.frontier { stroke: var(--muted); stroke-width: 1.25; fill: none; stroke-dasharray: 2 4; opacity: 0.8; }
 .chart .brush { fill: var(--chip); stroke: var(--accent); stroke-dasharray: 3 2; }
 .chart .pt { cursor: pointer; transition: opacity 0.12s; }
 .chart .pt:focus-visible { outline: none; }
@@ -92,7 +93,7 @@ svg.chart { width: 100%; height: auto; display: block; touch-action: pan-y; user
 .tip b { font-size: 13px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin-top: 8px; align-items: center; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
-.sel-list { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.sel-list { margin: 8px 0 0; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
 .empty { color: var(--muted); padding: 24px 0; }
 
 @media (max-width: 640px) {
@@ -103,3 +104,24 @@ svg.chart { width: 100%; height: auto; display: block; touch-action: pan-y; user
 @media (prefers-reduced-motion: reduce) {
   .chart .pt, .chart .mark { transition: none; }
 }
+
+/* collapsible sections */
+.folds { display: grid; gap: 0; border-bottom: 1px solid var(--line); }
+.fold { border-top: 1px solid var(--line); min-width: 0; }
+.mt-hero .fold { margin-top: 10px; }
+.fold > summary { list-style: none; display: flex; align-items: center; gap: 9px; padding: 9px 0; cursor: pointer; user-select: none; }
+.fold > summary::-webkit-details-marker { display: none; }
+.mt-hero .fold > summary { padding-bottom: 0; }
+.mt-hero .fold[open] > summary { padding-bottom: 9px; }
+.fold-mk { width: 11px; height: 11px; flex: none; position: relative; }
+.fold-mk::before, .fold-mk::after { content: ""; position: absolute; background: var(--ink); }
+.fold-mk::before { left: 0; right: 0; top: 5px; height: 1px; }
+.fold-mk::after { top: 0; bottom: 0; left: 5px; width: 1px; }
+.fold[open] > summary .fold-mk::after { display: none; }
+.fold-t { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.fold > summary:hover .fold-t { text-decoration: underline; text-underline-offset: 3px; }
+.fold-m { color: var(--muted); font-size: 12px; margin-left: auto; text-align: right; }
+.fold-body { padding: 0 0 12px; }
+.mt-hero .fold-body { padding-bottom: 0; }
+.fold-p { margin: 0; font-size: 13px; color: var(--muted); }
+.folds > .fold:first-child { border-top: 0; }

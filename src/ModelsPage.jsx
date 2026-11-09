@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import "./models-themes.css";
 import "./models.css";
 import { LOGOS } from "./models-logos.js";
@@ -39,6 +39,9 @@ function initialTheme() {
   if (THEMES.some(([id]) => id === saved)) return saved;
   return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "ink" : "paper";
 }
+
+// On a wide screen the filter and the summary cards start open; on a phone they start folded so the table is close.
+const ROOMY = typeof window !== "undefined" && window.innerWidth >= 720;
 
 const day = (s) => s.slice(0, 10);
 const fmtScore = (v) => v.toFixed(1);
@@ -131,6 +134,45 @@ function useChartSize() {
   return [setNode, W, W < 560 ? 360 : Math.round(Math.min(480, W * 0.56))];
 }
 
+// A collapsible section (native <details>, so it works with the keyboard and without script state to break).
+// Whether it is open is remembered per viewer.
+function Fold({ id, title, meta, defaultOpen = false, children }) {
+  const key = `models-fold-${id}`;
+  const [open, setOpen] = useState(() => {
+    const saved = readPref(key);
+    return saved === "1" ? true : saved === "0" ? false : defaultOpen;
+  });
+  const onToggle = (e) => {
+    const now = e.currentTarget.open;
+    if (now === open) return;
+    setOpen(now);
+    writePref(key, now ? "1" : "0");
+  };
+  return (
+    <details className="fold" open={open} onToggle={onToggle}>
+      <summary>
+        <span className="fold-mk" aria-hidden="true" />
+        <span className="fold-t">{title}</span>
+        {meta && <span className="fold-m">{meta}</span>}
+      </summary>
+      <div className="fold-body">{children}</div>
+    </details>
+  );
+}
+
+function ScatterKey({ xMetric }) {
+  return (
+    <>
+      <p className="fold-p">Hover or tap a logo for details. Click it to pin the model, or drag a box to select several; pinned models are highlighted in the table below too.</p>
+      <div className="legend" aria-label="Chart legend">
+        <span>Each point is the company's logo, in its colour from the company filter.</span>
+        <span><svg width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true"><rect x={-6} y={-6} width={12} height={12} fill="none" stroke="currentColor" strokeDasharray="3 2" /></svg>Dashed box: not a third-party measurement</span>
+        <span><svg width="26" height="8" aria-hidden="true"><line className="frontier" x1="0" y1="4" x2="26" y2="4" /></svg>Efficient frontier: nothing else is as {xMetric === "price" ? "cheap" : "fast"} and as good</span>
+      </div>
+    </>
+  );
+}
+
 function Legend() {
   return (
     <div className="legend" aria-label="Marker legend">
@@ -149,6 +191,7 @@ const M = { l: 52, r: 24, t: 14, b: 44 };
 
 function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, togglePin, setBrushed }) {
   const svgRef = useRef(null);
+  const maskId = `cut${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const [sizeRef, W, H] = useChartSize();
   const [hover, setHover] = useState(null);
   const [drag, setDrag] = useState(null);
@@ -238,7 +281,15 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
         <rect x={M.l} y={M.t} width={W - M.l - M.r} height={H - M.t - M.b} fill="transparent" style={{ cursor: "crosshair" }}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)} />
         {front.length > 1 && (
-          <polyline className="frontier" points={front.map((p) => `${fx(p.x)},${fy(p.y)}`).join(" ")} />
+          <>
+            {/* The frontier stops short of every logo: a mask cuts a small square out of the line at each point,
+                so nothing shows through the gaps in a mark, whatever the theme's background is. */}
+            <mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={W} height={H}>
+              <rect width={W} height={H} fill="#fff" />
+              {pts.map((p) => <rect key={p.r.model_id} x={fx(p.x) - 12} y={fy(p.y) - 12} width={24} height={24} fill="#000" />)}
+            </mask>
+            <polyline className="frontier" mask={`url(#${maskId})`} pointerEvents="none" points={front.map((p) => `${fx(p.x)},${fy(p.y)}`).join(" ")} />
+          </>
         )}
         {drag && (
           <rect className="brush" x={Math.min(drag.x0, drag.x1)} y={Math.min(drag.y0, drag.y1)}
@@ -279,11 +330,6 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
           <span className="muted">{PROV_LABEL[hs.provenance]}: {hs.source_name}</span>
         </div>
       )}
-      <div className="legend" aria-label="Chart legend">
-        <span>Each point is the company's logo, in its colour from the company filter.</span>
-        <span><svg width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true"><rect x={-6} y={-6} width={12} height={12} fill="none" stroke="currentColor" strokeDasharray="3 2" /></svg>Dashed box: not a third-party measurement</span>
-        <span><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--hit)" strokeWidth="1.5" strokeDasharray="5 3" /></svg>Efficient frontier: nothing else is as {xMetric === "price" ? "cheap" : "fast"} and as good</span>
-      </div>
     </div>
   );
 }
@@ -480,7 +526,6 @@ function Dashboard({ data, intro }) {
   return (
     <>
       <section className="mt-panel mt-hero" aria-label="Score against price or speed">
-      <div>
         <div className="pane-tools">
           <label className="lbl">Score{" "}
             <select value={bench} onChange={(e) => { setBenchPick(e.target.value); setBrushed(new Set()); }}>
@@ -492,51 +537,66 @@ function Dashboard({ data, intro }) {
             <button type="button" aria-pressed={xMetric === "price"} onClick={() => { setXMetric("price"); setBrushed(new Set()); }}>Price</button>
             <button type="button" aria-pressed={xMetric === "speed"} onClick={() => { setXMetric("speed"); setBrushed(new Set()); }}>Speed</button>
           </div>
-          <span className="muted">Hover for details, click to pin, drag a box to select.</span>
         </div>
         <Scatter rows={rows} bench={bench} benchName={benchName} xMetric={xMetric} colorOf={colorOf}
           hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} />
-        {selected.length > 0 && <p className="sel-list">Highlighted: {selected.join(", ")}</p>}
-      </div>
+        {selected.length > 0 && (
+          <p className="sel-list">
+            <span>Highlighted: {selected.join(", ")}</span>
+            <button type="button" className="chip" onClick={() => { setPinned(new Set()); setBrushed(new Set()); }}>Clear</button>
+          </p>
+        )}
+        <Fold id="howto" title="How to read this chart">
+          <ScatterKey xMetric={xMetric} />
+        </Fold>
       </section>
 
       {intro}
 
-      <section className="mt-filters" aria-label="Filters">
-        <span className="lbl">Companies</span>
-        <div className="chips">
-          {orgs.map((org) => (
-            <button key={org} type="button" className="chip" aria-pressed={!hiddenOrgs.has(org)} onClick={() => toggleOrg(org)}>
-              <OrgMark org={org} color={colorOf(org)} />{org}
-            </button>
-          ))}
-        </div>
-        {dates.length > 0 && (
-          <label className="lbl">As of{" "}
-            <select value={asOf} onChange={(e) => setAsOfPick(e.target.value)} aria-label="Show data as of this date">
-              {dates.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </label>
-        )}
-        {hl.size > 0 && (
-          <button type="button" className="chip" onClick={() => { setPinned(new Set()); setBrushed(new Set()); }}>Clear {hl.size} highlighted</button>
-        )}
-      </section>
-
-      <section className="mt-cards" aria-label="Best in each area">
-        {cards.map((c) => (
-          <div key={c.id} className="mt-card">
-            <div className="k">{c.label}</div>
-            {c.top ? (
-              <>
-                <div className="v"><OrgMark org={c.top.r.org} color={colorOf(c.top.r.org)} size={18} />{c.top.r.display_name}</div>
-                <div className="n">{c.top.r.org} · {c.top.text}</div>
-              </>
-            ) : <div className="v muted">not observed</div>}
-            <div className="blurb">{c.blurb}</div>
+      <div className="folds">
+        <Fold id="companies" title="Companies" meta={`${orgs.length - hiddenOrgs.size} of ${orgs.length} shown · as of ${asOf}`} defaultOpen={ROOMY}>
+          <div className="mt-filters">
+            <div className="chips">
+              {orgs.map((org) => (
+                <button key={org} type="button" className="chip" aria-pressed={!hiddenOrgs.has(org)} onClick={() => toggleOrg(org)}>
+                  <OrgMark org={org} color={colorOf(org)} />{org}
+                </button>
+              ))}
+            </div>
+            {hiddenOrgs.size > 0 && (
+              <button type="button" className="chip" onClick={() => setHiddenOrgs(new Set())}>Show all</button>
+            )}
+            {dates.length > 0 && (
+              <label className="lbl">As of{" "}
+                <select value={asOf} onChange={(e) => setAsOfPick(e.target.value)} aria-label="Show data as of this date">
+                  {dates.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </label>
+            )}
           </div>
-        ))}
-      </section>
+        </Fold>
+
+        <Fold id="best" title="Best in each area" meta={`${cards.length} measures`} defaultOpen={ROOMY}>
+          <div className="mt-cards">
+            {cards.map((c) => (
+              <div key={c.id} className="mt-card">
+                <div className="k">{c.label}</div>
+                {c.top ? (
+                  <>
+                    <div className="v"><OrgMark org={c.top.r.org} color={colorOf(c.top.r.org)} size={18} />{c.top.r.display_name}</div>
+                    <div className="n">{c.top.r.org} · {c.top.text}</div>
+                  </>
+                ) : <div className="v muted">not observed</div>}
+                <div className="blurb">{c.blurb}</div>
+              </div>
+            ))}
+          </div>
+        </Fold>
+
+        <Fold id="about" title="About this data" meta="sources and caveats">
+          <p className="mt-note">{data.note}</p>
+        </Fold>
+      </div>
 
       <section className="mt-panel">
         <div className="tabs" role="tablist" aria-label="Views">
@@ -658,7 +718,6 @@ export default function ModelsPage() {
             )}
           </div>
         </header>
-        {data && <p className="mt-note">{data.note}</p>}
     </>
   );
 
