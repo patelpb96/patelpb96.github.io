@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./models-themes.css";
 import "./models.css";
+import { LOGOS } from "./models-logos.js";
 
 const DATA_URL = "/projects/models/data/latest.json";
 const THEME_KEY = "models-theme";
@@ -9,7 +10,8 @@ const THEMES = [["ember", "Ember"], ["walnut", "Walnut"], ["space", "Space"], ["
 const SERIF_THEMES = ["paper", "ink"];
 
 // Marker shapes follow the agent dashboard's vocabulary: squares, diamonds and a cross, never rounded.
-// Shape = where the number came from; colour = company. Neither carries meaning alone.
+// In the table and the over-time chart, shape = where the number came from and colour = company.
+// In the scatter each point is the company's own mark (models-logos.js), tinted with that same colour.
 const SHAPE = { third_party: "square", third_party_aggregator: "square", self_reported: "diamond", community: "cross", manual_entry: "dashed" };
 const SHAPE_LABEL = {
   square: "Third-party measurement",
@@ -95,6 +97,40 @@ function Glyph({ shape, color, size = 4.5 }) {
   );
 }
 
+// A company's mark in one colour, centred on the origin; `half` is half its side. No mark on file: a plain square.
+function Mark({ org, color, half }) {
+  const paths = LOGOS[org];
+  if (!paths) return <rect x={-half * 0.7} y={-half * 0.7} width={half * 1.4} height={half * 1.4} fill={color} />;
+  return (
+    <g transform={`translate(${-half} ${-half}) scale(${half / 12})`} fill={color} fillRule="evenodd">
+      {paths.map((d) => <path key={d.slice(0, 24)} d={d} />)}
+    </g>
+  );
+}
+
+function OrgMark({ org, color, size = 14 }) {
+  return (
+    <svg className="omark" width={size} height={size} viewBox="-12 -12 24 24" aria-hidden="true">
+      <Mark org={org} color={color} half={12} />
+    </svg>
+  );
+}
+
+// Charts are drawn at the size they are shown (one SVG unit = one CSS pixel), so text and marks stay the same
+// size on a phone as on a desktop instead of shrinking with the page.
+function useChartSize() {
+  const [node, setNode] = useState(null);
+  const [width, setWidth] = useState(() => Math.min(720, (typeof window !== "undefined" ? window.innerWidth : 720) - 62));
+  useEffect(() => {
+    if (!node || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(([e]) => setWidth(Math.round(e.contentRect.width)));
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [node]);
+  const W = Math.max(300, Math.min(width, 1180));
+  return [setNode, W, W < 560 ? 360 : Math.round(Math.min(480, W * 0.56))];
+}
+
 function Legend() {
   return (
     <div className="legend" aria-label="Marker legend">
@@ -109,12 +145,11 @@ function Legend() {
 // Scatter: any benchmark against price (log) or speed, with the efficient frontier, hover, click to pin,
 // and click-and-drag to brush a box of points.
 
-const W = 720;
-const H = 400;
 const M = { l: 52, r: 24, t: 14, b: 44 };
 
 function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, togglePin, setBrushed }) {
   const svgRef = useRef(null);
+  const [sizeRef, W, H] = useChartSize();
   const [hover, setHover] = useState(null);
   const [drag, setDrag] = useState(null);
 
@@ -175,9 +210,11 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
 
   const hp = hover && pts.find((p) => p.r.model_id === hover);
   const hs = hp && hp.r.scores[bench];
+  // Highlighted points are drawn last so a pinned model is never hidden under a neighbour.
+  const drawn = hl.size ? [...pts].sort((a, b) => hl.has(a.r.model_id) - hl.has(b.r.model_id)) : pts;
 
   return (
-    <div className="chart-wrap">
+    <div className="chart-wrap" ref={sizeRef}>
       <svg ref={svgRef} className="chart" viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`${benchName} against ${xMetric}`}>
         {yTicks.map((v) => (
           <g key={`y${v}`}>
@@ -207,11 +244,13 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
           <rect className="brush" x={Math.min(drag.x0, drag.x1)} y={Math.min(drag.y0, drag.y1)}
             width={Math.abs(drag.x1 - drag.x0)} height={Math.abs(drag.y1 - drag.y0)} pointerEvents="none" />
         )}
-        {pts.map((p) => {
+        {drawn.map((p) => {
           const id = p.r.model_id;
           const on = hl.has(id);
           const dim = hl.size > 0 && !on;
           const sc = p.r.scores[bench];
+          const third = (SHAPE[sc.provenance] || "square") === "square";
+          const flip = fx(p.x) > W - 150;
           return (
             <g key={id} className={`pt${dim ? " dim" : ""}`} transform={`translate(${fx(p.x)} ${fy(p.y)})`}
               tabIndex={0} role="button" aria-pressed={pinned.has(id)}
@@ -220,10 +259,12 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePin(id); } }}
               onPointerEnter={() => setHover(id)} onPointerLeave={() => setHover(null)}
               onFocus={() => setHover(id)} onBlur={() => setHover(null)}>
-              <rect x={-14} y={-14} width={28} height={28} fill="transparent" />
-              <rect className={`ring${on ? " on" : ""}`} x={-11} y={-11} width={22} height={22} />
-              <Shape shape={SHAPE[sc.provenance] || "square"} size={6} color={colorOf(p.r.org)} />
-              {(on || hover === id) && <text className="plabel" x={11} y={-9}>{p.r.display_name}</text>}
+              <rect x={-15} y={-15} width={30} height={30} fill="transparent" />
+              <rect className={`ring${on ? " on" : ""}${third ? "" : " unverified"}`} x={-13} y={-13} width={26} height={26} />
+              <g className="mark"><Mark org={p.r.org} color={colorOf(p.r.org)} half={9} /></g>
+              {(on || hover === id) && (
+                <text className="plabel" x={flip ? -15 : 15} y={-12} textAnchor={flip ? "end" : "start"}>{p.r.display_name}</text>
+              )}
             </g>
           );
         })}
@@ -238,8 +279,11 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
           <span className="muted">{PROV_LABEL[hs.provenance]}: {hs.source_name}</span>
         </div>
       )}
-      <Legend />
-      <div className="legend"><span><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--hit)" strokeWidth="1.5" strokeDasharray="5 3" /></svg>Efficient frontier: nothing else is as {xMetric === "price" ? "cheap" : "fast"} and as good</span></div>
+      <div className="legend" aria-label="Chart legend">
+        <span>Each point is the company's logo, in its colour from the company filter.</span>
+        <span><svg width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true"><rect x={-6} y={-6} width={12} height={12} fill="none" stroke="currentColor" strokeDasharray="3 2" /></svg>Dashed box: not a third-party measurement</span>
+        <span><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--hit)" strokeWidth="1.5" strokeDasharray="5 3" /></svg>Efficient frontier: nothing else is as {xMetric === "price" ? "cheap" : "fast"} and as good</span>
+      </div>
     </div>
   );
 }
@@ -251,6 +295,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
 const T0 = (s) => Date.parse(`${day(s)}T00:00:00Z`);
 
 function OverTime({ data, asOf, visible, metric, colorOf, hl, modelsById }) {
+  const [sizeRef, W, H] = useChartSize();
   const series = useMemo(() => {
     let rows;
     let valueOf;
@@ -292,7 +337,7 @@ function OverTime({ data, asOf, visible, metric, colorOf, hl, modelsById }) {
   const single = new Set(ts).size < 2;
 
   return (
-    <div className="chart-wrap">
+    <div className="chart-wrap" ref={sizeRef}>
       <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`${metric} over time`}>
         {yTicks.map((v) => (
           <g key={v}>
@@ -462,7 +507,7 @@ function Dashboard({ data, intro }) {
         <div className="chips">
           {orgs.map((org) => (
             <button key={org} type="button" className="chip" aria-pressed={!hiddenOrgs.has(org)} onClick={() => toggleOrg(org)}>
-              <span className="sw" style={{ background: colorOf(org) }} />{org}
+              <OrgMark org={org} color={colorOf(org)} />{org}
             </button>
           ))}
         </div>
@@ -484,7 +529,7 @@ function Dashboard({ data, intro }) {
             <div className="k">{c.label}</div>
             {c.top ? (
               <>
-                <div className="v"><span className="sw" style={{ background: colorOf(c.top.r.org) }} />{c.top.r.display_name}</div>
+                <div className="v"><OrgMark org={c.top.r.org} color={colorOf(c.top.r.org)} size={18} />{c.top.r.display_name}</div>
                 <div className="n">{c.top.r.org} · {c.top.text}</div>
               </>
             ) : <div className="v muted">not observed</div>}
@@ -526,7 +571,7 @@ function Dashboard({ data, intro }) {
               <tbody>
                 {sorted.map((r) => (
                   <tr key={r.model_id} className={hl.has(r.model_id) ? "is-hl" : hl.size ? "is-dim" : ""} onClick={() => togglePin(r.model_id)}>
-                    <td><span className="mname"><span className="sw" style={{ background: colorOf(r.org) }} />{r.display_name}<span className="muted">{r.org}</span></span></td>
+                    <td><span className="mname"><OrgMark org={r.org} color={colorOf(r.org)} />{r.display_name}<span className="muted">{r.org}</span></span></td>
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (
