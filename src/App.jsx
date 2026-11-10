@@ -32,7 +32,7 @@ const sections = [
 // The Resume/CV section shows one document at a time; the resume is the default.
 const cvDocs = [
   { key: "resume", label: "Resume", pdf: `${base}/assets/Resume_public.pdf`, page: `${base}/images/resume_page.webp`, h: 1743, blurb: "One page: recent roles, skills and education." },
-  { key: "cv", label: "CV", pdf: `${base}/assets/CV_public.pdf`, page: `${base}/images/cv_page.webp`, h: 1744, blurb: "Two pages: full research history and publications." },
+  { key: "cv", label: "CV", pdf: `${base}/assets/CV_public.pdf`, page: `${base}/images/cv_page.webp`, h: 1744, blurb: "Three pages: full research history, projects and publications." },
 ];
 const projects = [
   {
