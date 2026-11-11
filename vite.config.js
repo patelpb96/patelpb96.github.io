@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
+import modelsDevRunner from './scripts/models-dev-runner.mjs'
 
 export default defineConfig({
   base: '/', // <-- this is correct for your repo name
-  plugins: [react()],
+  // modelsDevRunner: the model tracker's local Run panel endpoints; dev server only, never in a build.
+  plugins: [react(), modelsDevRunner()],
   build: {
     rollupOptions: {
       // Each HTML entry builds to the same path under dist/, so the alchemy page lands at

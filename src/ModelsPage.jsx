@@ -839,6 +839,62 @@ function Dashboard({ data, intro }) {
   );
 }
 
+// ---------------------------------------------------------------------------------------------------
+// Local Run panel: only rendered by the dev server (`npm run dev`), talking to scripts/models-dev-runner.mjs.
+
+async function callRunner(route) {
+  const r = await fetch(`/__models/${route}`, { method: "POST", headers: { "X-Models-Dev": "1" } });
+  const body = await r.json().catch(() => ({ ok: false, detail: `HTTP ${r.status}` }));
+  return body;
+}
+
+function RunPanel({ onRefreshed }) {
+  const [busy, setBusy] = useState(null);
+  const [log, setLog] = useState([]);
+  const note = (kind, text) => setLog((l) => [{ t: new Date().toLocaleTimeString(), kind, text }, ...l].slice(0, 6));
+
+  const refresh = async () => {
+    setBusy("refresh");
+    const r = await callRunner("refresh").catch((e) => ({ ok: false, detail: String(e) }));
+    setBusy(null);
+    if (!r.ok) return note("err", `Refresh failed at ${r.step || "request"}: ${r.detail}`);
+    const a = r.added || {};
+    note("ok", `Refreshed from ${r.records} reference records: ${a.models || 0} new models, ${a.score_obs || 0} new scores, ${a.price_obs || 0} prices, ${a.speed_obs || 0} speeds. The page now shows ${r.snapshot.models ?? "?"} models.`);
+    onRefreshed();
+  };
+  const scan = async () => {
+    if (!window.confirm("Run the news scan now?\n\nIt costs about $0.31 in search calls and uses one of today's 4 scheduled runs, so the last scheduled run today will be skipped.")) return;
+    setBusy("scan");
+    const r = await callRunner("scan").catch((e) => ({ ok: false, detail: String(e) }));
+    setBusy(null);
+    if (!r.ok) return note("err", `Scan failed at ${r.step || "request"}: ${r.detail}`);
+    if (r.status === "refused") return note("err", `Scan refused: ${r.reason}`);
+    note("ok", `Scan ${r.slot}: ${r.exa_calls} searches, $${(r.cost_usd ?? 0).toFixed(2)}, ${r.new_hits} new stories (${r.duplicates} seen before), ${r.candidates} candidate numbers to review, ${r.stale_suspects ?? 0} look re-dated. Reference snapshot: ${r.reference || "n/a"}.`);
+  };
+
+  return (
+    <section className="run-panel" aria-label="Local run controls">
+      <div className="run-head">
+        <span className="fold-t">Local runs</span>
+        <span className="muted">Only on your dev server; patelpb.com never shows this. Neither button deploys.</span>
+      </div>
+      <div className="run-btns">
+        <button type="button" className="chip" disabled={!!busy} onClick={refresh}>
+          {busy === "refresh" ? "Refreshing…" : "Refresh data"}<span className="muted"> · free, about 10 s</span>
+        </button>
+        <button type="button" className="chip" disabled={!!busy} onClick={scan}>
+          {busy === "scan" ? "Scanning… (up to 5 min)" : "Run news scan"}<span className="muted"> · about $0.31</span>
+        </button>
+      </div>
+      {log.length > 0 && (
+        <ul className="run-log">
+          {log.map((l, i) => <li key={i} className={l.kind}><span className="muted">{l.t}</span> {l.text}</li>)}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function ModelsPage() {
   const [theme, setTheme] = useState(initialTheme);
   const [type, setType] = useState(() => (readPref(TYPE_KEY) === "sans" ? "sans" : "serif"));
@@ -853,14 +909,15 @@ export default function ModelsPage() {
     document.documentElement.dataset.type = type;
     writePref(TYPE_KEY, type);
   }, [type]);
+  const [reloads, setReloads] = useState(0);
   useEffect(() => {
     let live = true;
-    fetch(DATA_URL)
+    fetch(reloads ? `${DATA_URL}?t=${Date.now()}` : DATA_URL)       // after a local refresh, skip the browser cache
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((d) => { if (live) setData(d); })
+      .then((d) => { if (live) { setData(d); setError(null); } })
       .catch((e) => { if (live) setError(e.message || String(e)); });
     return () => { live = false; };
-  }, []);
+  }, [reloads]);
 
   // The chart is the takeaway, so it comes first; title, theme and the data note follow it.
   const intro = (
@@ -889,6 +946,8 @@ export default function ModelsPage() {
 
   return (
     <main className="mt">
+      {/* import.meta.env.DEV is false in `vite build`, so the panel and its code are dropped from the live site. */}
+      {import.meta.env.DEV && <RunPanel onRefreshed={() => setReloads((n) => n + 1)} />}
       {!data && intro}
       {error && <p className="mt-note" role="alert">Could not load the data ({error}).</p>}
       {!data && !error && <p className="empty">Loading…</p>}
