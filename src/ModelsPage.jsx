@@ -61,13 +61,16 @@ const inGroup = (b, g) => (g === "overview" ? OVERVIEW.has(b.benchmark_id)
   : g === "efficiency" ? EFFICIENCY.has(b.category) : !OVERVIEW.has(b.benchmark_id) && !EFFICIENCY.has(b.category));
 const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
 
-// Superscore = output tok/s x (blended price per 1M tokens x Intelligence Index) / (time per task x cost per task).
-// Units: tok/s, USD per 1M tokens, seconds (same clock as tok/s; the data stores minutes), USD. Needs all five numbers.
-const SUPER_BLURB = "Superscore: output tok/s x (blended price per 1M tokens x AA Intelligence Index) / (AA time per task in seconds x AA cost per task). Higher is better.";
+// Superscore = output tok/s x (blended price per 1M tokens x Intelligence Index) x (non-hallucination rate / 100)
+//              / (time per task x cost per task).
+// The non-hallucination factor keeps only the share of answers that are not made up. Units: tok/s, USD per 1M tokens,
+// %, seconds (same clock as tok/s; the data stores minutes), USD. Needs all six numbers.
+const SUPER_BLURB = "Superscore: output tok/s x (blended price per 1M tokens x AA Intelligence Index) x (non-hallucination rate / 100) / (AA time per task in seconds x AA cost per task). Higher is better.";
 function superscore(r) {
   const idx = r.scores.aa_intelligence_index, cost = r.scores.aa_cost_per_task, time = r.scores.aa_time_per_task;
-  if (!idx || !cost || !time || !r.price || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
-  return (r.speed.value * r.price.value * idx.value) / (time.value * 60 * cost.value);
+  const nh = r.scores.aa_non_hallucination;
+  if (!idx || !cost || !time || !nh || !r.price || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
+  return (r.speed.value * r.price.value * idx.value * (nh.value / 100)) / (time.value * 60 * cost.value);
 }
 // Three significant figures, so small scores stay readable instead of rounding to 0.00.
 const fmtSuper = (v) => (v >= 100 ? v.toFixed(0) : String(+v.toPrecision(3)));
@@ -150,8 +153,8 @@ function useChartSize() {
     ro.observe(node);
     return () => ro.disconnect();
   }, [node]);
-  const W = Math.max(300, Math.min(width, 1180));
-  return [setNode, W, W < 560 ? 360 : Math.round(Math.min(480, W * 0.56))];
+  const W = Math.max(300, Math.min(width, 1600));
+  return [setNode, W, W < 560 ? 380 : Math.round(Math.min(640, W * 0.52))];
 }
 
 // A collapsible section (native <details>, so it works with the keyboard and without script state to break).
@@ -180,9 +183,27 @@ function Fold({ id, title, meta, defaultOpen = false, children }) {
   );
 }
 
-function ScatterKey({ xMetric }) {
+const X_EXPLAIN = {
+  price: ["Price (horizontal, log scale)", "What one million tokens costs through the model's cheapest listed provider, blending input and output 3:1 (three input tokens for every output token, a typical chat mix). Each step right on the axis is a multiple, not a fixed amount, so $0.20 to $2 is the same distance as $2 to $20."],
+  speed: ["Output speed (horizontal)", "Median tokens per second the model streams once it starts answering, through its fastest listed provider, as measured by Artificial Analysis. Higher is faster; it does not include the time spent thinking before the first token."],
+};
+
+function ScatterKey({ xMetric, benchObj }) {
+  const [xName, xText] = X_EXPLAIN[xMetric];
   return (
     <>
+      <dl className="explain">
+        <dt>{benchObj.name} (vertical)</dt>
+        <dd>{benchObj.blurb}{/(higher|lower) is (better|cheaper|faster|quicker)/i.test(benchObj.blurb) ? "" : benchObj.higher_is_better ? " Higher is better." : " Lower is better."}</dd>
+        <dt>{xName}</dt>
+        <dd>{xText}</dd>
+        <dt>Reading the two together</dt>
+        <dd>
+          {xMetric === "price"
+            ? `Up and to the left is better: a higher ${benchObj.name} for less money. The dotted frontier joins the models nothing else beats on both, so anything below it has a cheaper or equal option that scores at least as well.`
+            : `Up and to the right is better: a higher ${benchObj.name} at a faster speed. The dotted frontier joins the models nothing else beats on both, so anything below it has a faster or equal option that scores at least as well.`}
+        </dd>
+      </dl>
       <p className="fold-p">Hover or tap a logo for details. Click it to pin the model, or drag a box to select several; pinned models are highlighted in the table below too.</p>
       <div className="legend" aria-label="Chart legend">
         <span>Each point is the company's logo.</span>
@@ -214,6 +235,11 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
   const svgRef = useRef(null);
   const maskId = `cut${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const [sizeRef, W, H] = useChartSize();
+  // Axis text at twice the page's chart size on a wide screen (a bit less on a phone, where 22px would crowd
+  // the plot); the margins grow with it so tick numbers and axis titles never overlap the data.
+  const FT = W < 560 ? 15 : 22;
+  const FL = W < 560 ? 16 : 24;
+  const M = { l: Math.round(FT * 2.4 + FL + 18), r: 28, t: 16, b: Math.round(FT + FL + 30) };
   const [hover, setHover] = useState(null);
   const [drag, setDrag] = useState(null);
 
@@ -245,7 +271,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
 
   const xTicks = xMetric === "price"
     ? [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100].filter((t) => t >= xlo && t <= xhi)
-    : Array.from({ length: 5 }, (_, i) => Math.round((xhi / 5) * i / 10) * 10);
+    : niceTicks(0, xhi, W < 560 ? 4 : 7).filter((t) => t <= xhi);
 
   // A point is on the frontier when no other point is at least as cheap (or fast) and at least as good.
   const betterX = (a, b) => (xMetric === "price" ? a.x <= b.x : a.x >= b.x);
@@ -289,21 +315,21 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
         {yTicks.map((v) => (
           <g key={`y${v}`}>
             <line className="grid" x1={M.l} x2={W - M.r} y1={fy(v)} y2={fy(v)} />
-            <text x={M.l - 8} y={fy(v) + 4} textAnchor="end">{v}</text>
+            <text className="tick" x={M.l - 10} y={fy(v) + FT * 0.35} textAnchor="end" style={{ fontSize: FT }}>{v}</text>
           </g>
         ))}
         {xTicks.map((v) => (
           <g key={`x${v}`}>
             <line className="grid" x1={fx(v)} x2={fx(v)} y1={M.t} y2={H - M.b} />
-            <text x={fx(v)} y={H - M.b + 16} textAnchor="middle">{xMetric === "price" ? `$${v}` : v}</text>
+            <text className="tick" x={fx(v)} y={H - M.b + FT + 6} textAnchor="middle" style={{ fontSize: FT }}>{xMetric === "price" ? `$${v}` : v}</text>
           </g>
         ))}
         <line className="axis" x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} />
         <line className="axis" x1={M.l} x2={M.l} y1={M.t} y2={H - M.b} />
-        <text x={(M.l + W - M.r) / 2} y={H - 6} textAnchor="middle">
-          {xMetric === "price" ? "Price, USD per 1M tokens (3:1 blend, log scale)" : "Output speed, tokens per second"}
+        <text className="axlabel" x={(M.l + W - M.r) / 2} y={H - 8} textAnchor="middle" style={{ fontSize: FL }}>
+          {xMetric === "price" ? (W < 560 ? "Price, USD / 1M tokens (log)" : "Price, USD per 1M tokens (3:1 blend, log scale)") : "Output speed, tokens per second"}
         </text>
-        <text x={14} y={(M.t + H - M.b) / 2} textAnchor="middle" transform={`rotate(-90 14 ${(M.t + H - M.b) / 2})`}>{benchName}</text>
+        <text className="axlabel" x={FL} y={(M.t + H - M.b) / 2} textAnchor="middle" transform={`rotate(-90 ${FL} ${(M.t + H - M.b) / 2})`} style={{ fontSize: FL }}>{benchName}</text>
 
         <rect x={M.l} y={M.t} width={W - M.l - M.r} height={H - M.t - M.b} fill="transparent" style={{ cursor: "crosshair" }}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)} />
@@ -668,8 +694,8 @@ function Dashboard({ data, intro }) {
             <button type="button" className="chip" onClick={() => { setPinned(new Set()); setBrushed(new Set()); }}>Clear</button>
           </p>
         )}
-        <Fold id="howto" title="How to read this chart">
-          <ScatterKey xMetric={xMetric} />
+        <Fold id="explain" title="How to read this chart" meta={`${benchName} vs ${xMetric === "price" ? "price" : "output speed"}`} defaultOpen={ROOMY}>
+          <ScatterKey xMetric={xMetric} benchObj={quality.find((b) => b.benchmark_id === bench)} />
         </Fold>
       </section>
 
@@ -757,8 +783,8 @@ function Dashboard({ data, intro }) {
                     style={champs.has(r.model_id) ? { "--c": colorOf(r.org) } : undefined} onClick={() => togglePin(r.model_id)}>
                     <td><span className="mname"><OrgMark org={r.org} color={champs.has(r.model_id) ? colorOf(r.org) : "var(--ink)"} />{r.display_name}<span className="muted">{r.org}</span><BestTags list={champs.get(r.model_id)} /></span></td>
                     {showSuper && (r.superscore != null ? (
-                      <td className="super" title={`${SUPER_BLURB}\n${fmtSpeed(r.speed.value)} tok/s x ${fmtPrice(r.price.value)} x ${fmtScore(r.scores.aa_intelligence_index.value)} / (${Math.round(r.scores.aa_time_per_task.value * 60)} s x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)})`}>{fmtSuper(r.superscore)}</td>
-                    ) : <td className="na super" title="Needs output speed, a price, the Intelligence Index, time per task and cost per task.">not observed</td>)}
+                      <td className="super" title={`${SUPER_BLURB}\n${fmtSpeed(r.speed.value)} tok/s x ${fmtPrice(r.price.value)} x ${fmtScore(r.scores.aa_intelligence_index.value)} x ${(r.scores.aa_non_hallucination.value / 100).toFixed(2)} / (${Math.round(r.scores.aa_time_per_task.value * 60)} s x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)})`}>{fmtSuper(r.superscore)}</td>
+                    ) : <td className="na super" title="Needs output speed, a price, the Intelligence Index, the non-hallucination rate, time per task and cost per task.">not observed</td>)}
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (
