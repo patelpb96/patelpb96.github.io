@@ -138,3 +138,14 @@ svg.chart { width: 100%; height: auto; display: block; touch-action: pan-y; user
 .bar-fill { display: block; height: 100%; background: var(--ink); opacity: 0.75; }
 .bar-v { text-align: right; }
 @media (max-width: 520px) { .bars li { grid-template-columns: minmax(96px, 42%) 1fr 56px; gap: 6px; font-size: 12px; } }
+
+/* winners of a "best in each area" card: company colour, tinted square, tags. --c is set per element. */
+.chart .champ { fill: color-mix(in srgb, var(--c) 16%, transparent); stroke: var(--c); stroke-width: 1; }
+.best-tags { display: inline-flex; flex-wrap: nowrap; gap: 4px; margin-left: 4px; }
+.best-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 5px; border: 1px solid var(--c, var(--hit)); color: var(--ink); background: color-mix(in srgb, var(--c, var(--hit)) 14%, transparent); white-space: nowrap; }
+.tip .best-tags { margin: 3px 0 0; }
+tbody tr.is-champ { box-shadow: inset 3px 0 0 var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); }
+tbody tr.is-champ.is-hl { background: var(--chip); }
+.bars li.is-champ { box-shadow: inset 3px 0 0 var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); padding-left: 6px; }
+.bars li.is-champ .bar-fill { background: var(--c); opacity: 0.9; }
+.bars li.is-champ .bar-name { font-weight: 600; }

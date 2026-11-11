@@ -60,6 +60,14 @@ const COLS = [["overview", "Overview"], ["evals", "Evaluations"], ["efficiency",
 const inGroup = (b, g) => (g === "overview" ? OVERVIEW.has(b.benchmark_id)
   : g === "efficiency" ? EFFICIENCY.has(b.category) : !OVERVIEW.has(b.benchmark_id) && !EFFICIENCY.has(b.category));
 const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
+// Short names for the "best in" tags on winning models.
+const SHORT = { aa_intelligence_index: "Intelligence", aa_coding_index: "Coding", aa_agentic_index: "Agentic",
+  aa_cost_per_task: "Cost per task", aa_time_per_task: "Time per task", fast: "Speed", cheap: "Price" };
+
+function BestTags({ list }) {
+  if (!list || !list.length) return null;
+  return <span className="best-tags">{list.map((t) => <span key={t} className="best-tag">Best {t}</span>)}</span>;
+}
 
 // The newest row per key whose observation day is on or before asOf. Observations are append-only,
 // so "previous dates" is this one query with an earlier asOf.
@@ -167,6 +175,7 @@ function ScatterKey({ xMetric }) {
       <p className="fold-p">Hover or tap a logo for details. Click it to pin the model, or drag a box to select several; pinned models are highlighted in the table below too.</p>
       <div className="legend" aria-label="Chart legend">
         <span>Each point is the company's logo.</span>
+        <span><svg width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true"><rect className="champ" x={-6} y={-6} width={12} height={12} style={{ "--c": "var(--hit)" }} /></svg>In colour, on a tinted square: best in one of the areas below (also marked in the table)</span>
         <span><svg width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true"><rect x={-6} y={-6} width={12} height={12} fill="none" stroke="currentColor" strokeDasharray="3 2" /></svg>Dashed box: not a third-party measurement</span>
         <span><svg width="26" height="8" aria-hidden="true"><line className="frontier" x1="0" y1="4" x2="26" y2="4" /></svg>Efficient frontier: nothing else is as {xMetric === "price" ? "cheap" : "fast"} and as good</span>
       </div>
@@ -190,7 +199,7 @@ function Legend() {
 
 const M = { l: 52, r: 24, t: 14, b: 44 };
 
-function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, togglePin, setBrushed }) {
+function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned, togglePin, setBrushed }) {
   const svgRef = useRef(null);
   const maskId = `cut${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const [sizeRef, W, H] = useChartSize();
@@ -209,8 +218,14 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
   const ys = pts.map((p) => p.y);
   const xlo = xMetric === "price" ? Math.min(...xs) * 0.8 : 0;
   const xhi = Math.max(...xs) * (xMetric === "price" ? 1.25 : 1.1);
-  const ylo = Math.floor((Math.min(...ys) - 4) / 5) * 5;
-  const yhi = Math.ceil((Math.max(...ys) + 3) / 5) * 5;
+  // A handful of round-number ticks whatever the range (a 0-100 index or a 500k-1M token window).
+  const pad = Math.max(2, (Math.max(...ys) - Math.min(...ys)) * 0.06);
+  // Padding never pushes the axis below 0 or past 100 when the data itself stays inside those bounds.
+  const lo = Math.min(...ys) >= 0 ? Math.max(0, Math.min(...ys) - pad) : Math.min(...ys) - pad;
+  const hi = Math.max(...ys) <= 100 ? Math.min(100, Math.max(...ys) + pad) : Math.max(...ys) + pad;
+  const yTicks = niceTicks(lo, hi, 6);
+  const ylo = yTicks[0];
+  const yhi = yTicks[yTicks.length - 1];
   const fx = (v) => {
     const t = xMetric === "price" ? (Math.log(v) - Math.log(xlo)) / (Math.log(xhi) - Math.log(xlo)) : (v - xlo) / (xhi - xlo);
     return M.l + t * (W - M.l - M.r);
@@ -220,8 +235,6 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
   const xTicks = xMetric === "price"
     ? [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100].filter((t) => t >= xlo && t <= xhi)
     : Array.from({ length: 5 }, (_, i) => Math.round((xhi / 5) * i / 10) * 10);
-  const yTicks = [];
-  for (let v = ylo; v <= yhi; v += 5) yTicks.push(v);
 
   // A point is on the frontier when no other point is at least as cheap (or fast) and at least as good.
   const betterX = (a, b) => (xMetric === "price" ? a.x <= b.x : a.x >= b.x);
@@ -255,7 +268,9 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
   const hp = hover && pts.find((p) => p.r.model_id === hover);
   const hs = hp && hp.r.scores[bench];
   // Highlighted points are drawn last so a pinned model is never hidden under a neighbour.
-  const drawn = hl.size ? [...pts].sort((a, b) => hl.has(a.r.model_id) - hl.has(b.r.model_id)) : pts;
+  // Winners of a "best in each area" card are drawn above the rest, and highlighted models above everything.
+  const rank = (p) => (hl.has(p.r.model_id) ? 2 : champs.has(p.r.model_id) ? 1 : 0);
+  const drawn = [...pts].sort((a, b) => rank(a) - rank(b));
 
   return (
     <div className="chart-wrap" ref={sizeRef}>
@@ -313,7 +328,8 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
               onFocus={() => setHover(id)} onBlur={() => setHover(null)}>
               <rect x={-15} y={-15} width={30} height={30} fill="transparent" />
               <rect className={`ring${on ? " on" : ""}${third ? "" : " unverified"}`} x={-13} y={-13} width={26} height={26} />
-              <g className="mark"><Mark org={p.r.org} color="var(--ink)" half={9} /></g>
+              {champs.has(id) && <rect className="champ" x={-12} y={-12} width={24} height={24} style={{ "--c": colorOf(p.r.org) }} />}
+              <g className="mark"><Mark org={p.r.org} color={champs.has(id) ? colorOf(p.r.org) : "var(--ink)"} half={champs.has(id) ? 9.5 : 9} /></g>
               {(on || hover === id) && (
                 <text className="plabel" x={flip ? -15 : 15} y={-12} textAnchor={flip ? "end" : "start"}>{p.r.display_name}</text>
               )}
@@ -326,6 +342,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
           style={{ left: `${(fx(hp.x) / W) * 100}%`, top: `${(fy(hp.y) / H) * 100}%` }}>
           <b>{hp.r.display_name}</b><br />
           {hp.r.org}<br />
+          {champs.has(hp.r.model_id) && <><BestTags list={champs.get(hp.r.model_id)} /><br /></>}
           {benchName}: {fmtScore(hs.value)}{hs.effort ? ` (${hs.effort})` : ""}<br />
           {xMetric === "price" ? `Price: ${fmtPrice(hp.x)} per 1M` : `Speed: ${fmtSpeed(hp.x)} tok/s`}<br />
           <span className="muted">{PROV_LABEL[hs.provenance]}: {hs.source_name}</span>
@@ -367,7 +384,7 @@ function spreadLabels(items, gap, top, bottom) {
   return sorted;
 }
 
-function OverTime({ data, asOf, visible, metric, colorOf, hl, modelsById }) {
+function OverTime({ data, asOf, visible, metric, colorOf, champs, hl, modelsById }) {
   const [sizeRef, W, H] = useChartSize();
   const bm = data.benchmarks.find((b) => b.benchmark_id === metric);
   const higher = metric === "price" ? false : metric === "speed" ? true : bm ? !!bm.higher_is_better : true;
@@ -416,10 +433,12 @@ function OverTime({ data, asOf, visible, metric, colorOf, hl, modelsById }) {
         <ol className="bars" aria-label={`${bm ? bm.name : metric}, current values`}>
           {ranked.map((x) => {
             const on = hl.has(x.key);
+            const champ = champs.has(x.key);
+            const c = colorOf(x.model.org);
             return (
-              <li key={x.key} className={on ? "is-hl" : hl.size ? "is-dim" : ""}
+              <li key={x.key} className={`${on ? "is-hl" : hl.size ? "is-dim" : ""}${champ ? " is-champ" : ""}`} style={champ ? { "--c": c } : undefined}
                 title={`${PROV_LABEL[x.last.row.provenance]}: ${x.last.row.source_name}, ${day(x.last.row.observed_at)}`}>
-                <span className="bar-name"><OrgMark org={x.model.org} color="var(--ink)" />{x.model.display_name}</span>
+                <span className="bar-name"><OrgMark org={x.model.org} color={champ ? c : "var(--ink)"} />{x.model.display_name}</span>
                 <span className="bar-track"><span className="bar-fill" style={{ width: `${Math.max(1.5, (x.last.v / top) * 100)}%` }} /></span>
                 <span className="bar-v">{fmtV(x.last.v)}</span>
               </li>
@@ -514,7 +533,7 @@ function Dashboard({ data, intro }) {
     return data.benchmarks.filter((b) => seen.has(b.benchmark_id));
   }, [data]);
   // The scatter's efficient frontier assumes bigger is better on the vertical axis, so lower-is-better measures stay out of it.
-  const quality = useMemo(() => benches.filter((b) => b.higher_is_better), [benches]);
+  const quality = useMemo(() => benches.filter((b) => b.higher_is_better && b.category !== "spec"), [benches]);
   const [cols, setCols] = useState("overview");
   const shown = useMemo(() => benches.filter((b) => inGroup(b, cols)), [benches, cols]);
   const showMoney = cols !== "evals";
@@ -584,6 +603,16 @@ function Dashboard({ data, intro }) {
     out.push({ id: "cheap", label: "Lowest price", top: cheap && { r: cheap, text: `${fmtPrice(cheap.price.value)} / 1M` }, blurb: "3:1 input:output blend, USD per 1M tokens." });
     return out;
   }, [benches, rows]);
+  const champs = useMemo(() => {
+    const m = new Map();
+    for (const c of cards) {
+      if (!c.top) continue;
+      const id = c.top.r.model_id;
+      if (!m.has(id)) m.set(id, []);
+      m.get(id).push(SHORT[c.id] || c.label.replace(/^Best: /, ""));
+    }
+    return m;
+  }, [cards]);
 
   const togglePin = (id) => setPinned((prev) => {
     const next = new Set(prev);
@@ -617,7 +646,7 @@ function Dashboard({ data, intro }) {
             <button type="button" aria-pressed={xMetric === "speed"} onClick={() => { setXMetric("speed"); setBrushed(new Set()); }}>Speed</button>
           </div>
         </div>
-        <Scatter rows={rows} bench={bench} benchName={benchName} xMetric={xMetric} colorOf={colorOf}
+        <Scatter rows={rows} bench={bench} benchName={benchName} xMetric={xMetric} colorOf={colorOf} champs={champs}
           hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} />
         {selected.length > 0 && (
           <p className="sel-list">
@@ -709,8 +738,9 @@ function Dashboard({ data, intro }) {
               </thead>
               <tbody>
                 {sorted.map((r) => (
-                  <tr key={r.model_id} className={hl.has(r.model_id) ? "is-hl" : hl.size ? "is-dim" : ""} onClick={() => togglePin(r.model_id)}>
-                    <td><span className="mname"><OrgMark org={r.org} color="var(--ink)" />{r.display_name}<span className="muted">{r.org}</span></span></td>
+                  <tr key={r.model_id} className={`${hl.has(r.model_id) ? "is-hl" : hl.size ? "is-dim" : ""}${champs.has(r.model_id) ? " is-champ" : ""}`}
+                    style={champs.has(r.model_id) ? { "--c": colorOf(r.org) } : undefined} onClick={() => togglePin(r.model_id)}>
+                    <td><span className="mname"><OrgMark org={r.org} color={champs.has(r.model_id) ? colorOf(r.org) : "var(--ink)"} />{r.display_name}<span className="muted">{r.org}</span><BestTags list={champs.get(r.model_id)} /></span></td>
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (
@@ -744,7 +774,7 @@ function Dashboard({ data, intro }) {
                 </select>
               </label>
             </div>
-            <OverTime data={data} asOf={asOf} visible={visibleIds} metric={timeMetric} colorOf={colorOf} hl={hl} modelsById={modelsById} />
+            <OverTime data={data} asOf={asOf} visible={visibleIds} metric={timeMetric} colorOf={colorOf} champs={champs} hl={hl} modelsById={modelsById} />
           </div>
         )}
       </section>
