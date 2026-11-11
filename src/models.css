@@ -125,3 +125,16 @@ svg.chart { width: 100%; height: auto; display: block; touch-action: pan-y; user
 .mt-hero .fold-body { padding-bottom: 0; }
 .fold-p { margin: 0; font-size: 13px; color: var(--muted); }
 .folds > .fold:first-child { border-top: 0; }
+
+/* over time: faint unchanged lines, label leaders, and the ranked list used when nothing has changed */
+.chart .faint { opacity: 0.45; }
+.chart .leader { stroke: var(--muted); stroke-width: 0.75; }
+.bars { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.bars li { display: grid; grid-template-columns: minmax(120px, 34%) 1fr 72px; gap: 10px; align-items: center; font-size: 13px; padding: 2px 0; }
+.bars li.is-hl { background: var(--chip); box-shadow: inset 3px 0 0 var(--accent); }
+.bars li.is-dim { opacity: 0.4; }
+.bar-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 10px; background: var(--glass); border: 1px solid var(--line); }
+.bar-fill { display: block; height: 100%; background: var(--ink); opacity: 0.75; }
+.bar-v { text-align: right; }
+@media (max-width: 520px) { .bars li { grid-template-columns: minmax(96px, 42%) 1fr 56px; gap: 6px; font-size: 12px; } }

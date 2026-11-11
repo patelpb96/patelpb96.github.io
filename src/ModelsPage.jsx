@@ -11,7 +11,8 @@ const SERIF_THEMES = ["paper", "ink"];
 
 // Marker shapes follow the agent dashboard's vocabulary: squares, diamonds and a cross, never rounded.
 // In the table and the over-time chart, shape = where the number came from and colour = company.
-// In the scatter each point is the company's own mark (models-logos.js), tinted with that same colour.
+// In the scatter each point is the company's own mark (models-logos.js) in the theme's ink colour; only the
+// "best in each area" cards tint marks with the company colour.
 const SHAPE = { third_party: "square", third_party_aggregator: "square", self_reported: "diamond", community: "cross", manual_entry: "dashed" };
 const SHAPE_LABEL = {
   square: "Third-party measurement",
@@ -165,7 +166,7 @@ function ScatterKey({ xMetric }) {
     <>
       <p className="fold-p">Hover or tap a logo for details. Click it to pin the model, or drag a box to select several; pinned models are highlighted in the table below too.</p>
       <div className="legend" aria-label="Chart legend">
-        <span>Each point is the company's logo, in its colour from the company filter.</span>
+        <span>Each point is the company's logo.</span>
         <span><svg width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true"><rect x={-6} y={-6} width={12} height={12} fill="none" stroke="currentColor" strokeDasharray="3 2" /></svg>Dashed box: not a third-party measurement</span>
         <span><svg width="26" height="8" aria-hidden="true"><line className="frontier" x1="0" y1="4" x2="26" y2="4" /></svg>Efficient frontier: nothing else is as {xMetric === "price" ? "cheap" : "fast"} and as good</span>
       </div>
@@ -312,7 +313,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
               onFocus={() => setHover(id)} onBlur={() => setHover(null)}>
               <rect x={-15} y={-15} width={30} height={30} fill="transparent" />
               <rect className={`ring${on ? " on" : ""}${third ? "" : " unverified"}`} x={-13} y={-13} width={26} height={26} />
-              <g className="mark"><Mark org={p.r.org} color={colorOf(p.r.org)} half={9} /></g>
+              <g className="mark"><Mark org={p.r.org} color="var(--ink)" half={9} /></g>
               {(on || hover === id) && (
                 <text className="plabel" x={flip ? -15 : 15} y={-12} textAnchor={flip ? "end" : "start"}>{p.r.display_name}</text>
               )}
@@ -335,89 +336,167 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, hl, pinned, toggleP
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Over time: one line per model + provider (or model + effort for scores). Each rescan appends a row,
-// so a flat line means "checked and unchanged".
+// Over time: one line per model, its best value each day (cheapest provider, fastest provider, best effort).
+// Rescans append a row even when nothing moved, so a model whose value never changed is drawn as a faint guide
+// without a label, and a measure where nothing has changed yet (a context window, say) is shown as a ranked
+// list of current values instead of a stack of identical flat lines.
 
 const T0 = (s) => Date.parse(`${day(s)}T00:00:00Z`);
+const DAY_MS = 864e5;
+
+// Round-number axis ticks ("nice numbers").
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || Math.abs(hi) || 1;
+  const raw = span / Math.max(1, n - 1);
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw);
+  const start = Math.floor(lo / step) * step;
+  const end = Math.ceil(hi / step) * step;
+  const out = [];
+  for (let v = start; v <= end + step / 2; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+// Spread labels apart vertically so none overlap; keeps them inside [top, bottom].
+function spreadLabels(items, gap, top, bottom) {
+  const sorted = [...items].sort((x, y) => x.y - y.y);
+  for (let i = 1; i < sorted.length; i++) sorted[i].y = Math.max(sorted[i].y, sorted[i - 1].y + gap);
+  const over = sorted.length ? sorted[sorted.length - 1].y - bottom : 0;
+  if (over > 0) for (const it of sorted) it.y -= over;
+  for (let i = 0; i < sorted.length; i++) sorted[i].y = Math.max(sorted[i].y, top + i * gap);
+  return sorted;
+}
 
 function OverTime({ data, asOf, visible, metric, colorOf, hl, modelsById }) {
   const [sizeRef, W, H] = useChartSize();
+  const bm = data.benchmarks.find((b) => b.benchmark_id === metric);
+  const higher = metric === "price" ? false : metric === "speed" ? true : bm ? !!bm.higher_is_better : true;
+
   const series = useMemo(() => {
     let rows;
     let valueOf;
-    let keyOf;
-    if (metric === "speed") { rows = data.speeds; valueOf = (r) => r.tok_per_s; keyOf = (r) => `${r.model_id}|${r.provider}`; }
-    else if (metric === "price") { rows = data.prices; valueOf = (r) => r.blended_3to1_per_1m; keyOf = (r) => `${r.model_id}|${r.provider}`; }
-    else {
-      rows = data.scores.filter((r) => r.benchmark_id === metric && r.status === "observed");
-      valueOf = (r) => r.value;
-      keyOf = (r) => `${r.model_id}|${r.effort || "setup n/a"}`;
-    }
-    const groups = new Map();
+    if (metric === "speed") { rows = data.speeds; valueOf = (r) => r.tok_per_s; }
+    else if (metric === "price") { rows = data.prices; valueOf = (r) => r.blended_3to1_per_1m; }
+    else { rows = data.scores.filter((r) => r.benchmark_id === metric && r.status === "observed"); valueOf = (r) => r.value; }
+    const byModel = new Map();                                   // model -> day -> best row that day
     for (const r of rows) {
-      if (!visible.has(r.model_id) || day(r.observed_at) > asOf || valueOf(r) == null) continue;
-      const k = keyOf(r);
-      if (!groups.has(k)) groups.set(k, []);
-      groups.get(k).push({ t: T0(r.observed_at), v: valueOf(r), row: r });
+      const v = valueOf(r);
+      if (!visible.has(r.model_id) || day(r.observed_at) > asOf || v == null) continue;
+      if (!byModel.has(r.model_id)) byModel.set(r.model_id, new Map());
+      const days = byModel.get(r.model_id);
+      const cur = days.get(day(r.observed_at));
+      if (!cur || (higher ? v > cur.v : v < cur.v)) days.set(day(r.observed_at), { t: T0(r.observed_at), v, row: r });
     }
-    return [...groups.entries()].map(([k, pts]) => ({ key: k, model: modelsById.get(k.split("|")[0]), sub: k.split("|")[1], pts: pts.sort((a, b) => a.t - b.t) }));
-  }, [data, asOf, visible, metric, modelsById]);
+    return [...byModel.entries()].filter(([id]) => modelsById.has(id)).map(([id, days]) => {
+      const pts = [...days.values()].sort((x, y) => x.t - y.t);
+      const vals = pts.map((q) => q.v);
+      return { key: id, model: modelsById.get(id), pts, last: pts[pts.length - 1], changed: Math.max(...vals) - Math.min(...vals) > 1e-9 };
+    });
+  }, [data, asOf, visible, metric, modelsById, higher]);
 
   if (!series.length) return <p className="empty">No observations for this measure yet.</p>;
 
-  const ts = series.flatMap((s) => s.pts.map((p) => p.t));
+  const unitFmt = bm && UNIT_FMT[bm.unit];
+  const isScore = metric !== "speed" && metric !== "price" && !unitFmt;
+  const fmtV = metric === "price" ? fmtPrice : unitFmt || (isScore ? fmtScore : fmtSpeed);
+  const ts = series.flatMap((x) => x.pts.map((q) => q.t));
+  const firstDay = new Date(Math.min(...ts)).toISOString().slice(0, 10);
+  const moved = series.filter((x) => x.changed);
+
+  // Nothing has changed: a ranked list of each model's current value says more than identical flat lines.
+  if (!moved.length) {
+    const ranked = [...series].sort((x, y) => (higher ? y.last.v - x.last.v : x.last.v - y.last.v));
+    const top = Math.max(...ranked.map((x) => x.last.v)) || 1;
+    return (
+      <div className="chart-wrap">
+        <p className="fold-p">
+          No model's value has changed since tracking began on {firstDay}, so here is each model's current value,
+          {higher ? " highest" : " lowest"} first. Lines appear here once a value moves.
+        </p>
+        <ol className="bars" aria-label={`${bm ? bm.name : metric}, current values`}>
+          {ranked.map((x) => {
+            const on = hl.has(x.key);
+            return (
+              <li key={x.key} className={on ? "is-hl" : hl.size ? "is-dim" : ""}
+                title={`${PROV_LABEL[x.last.row.provenance]}: ${x.last.row.source_name}, ${day(x.last.row.observed_at)}`}>
+                <span className="bar-name"><OrgMark org={x.model.org} color="var(--ink)" />{x.model.display_name}</span>
+                <span className="bar-track"><span className="bar-fill" style={{ width: `${Math.max(1.5, (x.last.v / top) * 100)}%` }} /></span>
+                <span className="bar-v">{fmtV(x.last.v)}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    );
+  }
+
   let t0 = Math.min(...ts);
   let t1 = Math.max(...ts);
-  if (t0 === t1) { t0 -= 3 * 864e5; t1 += 3 * 864e5; }
-  const vs = series.flatMap((s) => s.pts.map((p) => p.v));
-  const bm = data.benchmarks.find((b) => b.benchmark_id === metric);
-  const unitFmt = bm && UNIT_FMT[bm.unit];
-  const isScore = metric !== "speed" && metric !== "price" && !unitFmt;       // index scores get a tight axis; units start at zero
-  const vlo = isScore ? Math.floor((Math.min(...vs) - 4) / 5) * 5 : 0;
-  const vhi = isScore ? Math.ceil((Math.max(...vs) + 3) / 5) * 5 : Math.max(...vs) * 1.15;
-  const fx = (t) => M.l + ((t - t0) / (t1 - t0)) * (W - M.l - M.r - 90);
+  if (t0 === t1) { t0 -= DAY_MS; t1 += DAY_MS; }
+  const vs = series.flatMap((x) => x.pts.map((q) => q.v));
+  const vmin = Math.min(...vs);
+  const vmax = Math.max(...vs);
+  const yTicks = niceTicks(isScore ? vmin - 2 : 0, vmax * (isScore ? 1 : 1.05) + (isScore ? 2 : 0), 5);
+  const vlo = yTicks[0];
+  const vhi = yTicks[yTicks.length - 1];
+  const LABEL_W = W < 520 ? 96 : 150;
+  const fx = (t) => M.l + ((t - t0) / (t1 - t0)) * (W - M.l - M.r - LABEL_W);
   const fy = (v) => H - M.b - ((v - vlo) / (vhi - vlo)) * (H - M.t - M.b);
-  const yTicks = Array.from({ length: 5 }, (_, i) => vlo + ((vhi - vlo) / 4) * i);
-  const xTicks = Array.from({ length: 4 }, (_, i) => t0 + ((t1 - t0) / 3) * i);
-  const fmtV = metric === "price" ? fmtPrice : unitFmt || (isScore ? fmtScore : fmtSpeed);
-  const single = new Set(ts).size < 2;
+  const nDays = Math.round((t1 - t0) / DAY_MS);
+  const stepDays = Math.max(1, Math.ceil(nDays / (W < 520 ? 3 : 6)));
+  const xTicks = [];
+  for (let t = t0; t <= t1 + 1; t += stepDays * DAY_MS) xTicks.push(t);
+  const fmtDate = (t) => new Date(t).toISOString().slice(5, 10);
+
+  // Only the biggest movers get a colour and a label (plus anything pinned); the rest stay faint, so a measure that
+  // jitters a little every day (output speed, latency) doesn't turn into two dozen tangled labels.
+  const move = (x) => Math.abs(x.last.v - x.pts[0].v) / (Math.abs(x.pts[0].v) || 1);
+  const top = new Set([...moved].sort((x, y) => move(y) - move(x)).slice(0, W < 520 ? 5 : 8).map((x) => x.key));
+  const lit = series.filter((x) => top.has(x.key) || hl.has(x.key));
+  const labels = spreadLabels(lit.map((x) => ({ key: x.key, name: x.model.display_name, y: fy(x.last.v) + 4 })), 14, M.t + 8, H - M.b);
+  const labelY = new Map(labels.map((l) => [l.key, l.y]));
+  const faint = series.length - lit.length;
 
   return (
     <div className="chart-wrap" ref={sizeRef}>
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`${metric} over time`}>
+      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`${bm ? bm.name : metric} over time`}>
         {yTicks.map((v) => (
           <g key={v}>
             <line className="grid" x1={M.l} x2={W - M.r} y1={fy(v)} y2={fy(v)} />
-            <text x={M.l - 8} y={fy(v) + 4} textAnchor="end">{isScore ? v.toFixed(0) : metric === "price" ? v.toFixed(0) : Math.round(v)}</text>
+            <text x={M.l - 8} y={fy(v) + 4} textAnchor="end">{isScore ? v : fmtV(v)}</text>
           </g>
         ))}
         {xTicks.map((t) => (
-          <text key={t} x={fx(t)} y={H - M.b + 16} textAnchor="middle">{new Date(t).toISOString().slice(0, 10)}</text>
+          <text key={t} x={fx(t)} y={H - M.b + 16} textAnchor="middle">{fmtDate(t)}</text>
         ))}
         <line className="axis" x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} />
         <line className="axis" x1={M.l} x2={M.l} y1={M.t} y2={H - M.b} />
-        {series.map((s) => {
-          const color = colorOf(s.model.org);
-          const on = hl.has(s.model.model_id);
-          const dim = hl.size > 0 && !on;
-          const last = s.pts[s.pts.length - 1];
+        {[...series].sort((x, y) => labelY.has(x.key) - labelY.has(y.key)).map((x) => {
+          const isLit = labelY.has(x.key);
+          const on = hl.has(x.key);
+          const color = isLit ? colorOf(x.model.org) : "var(--muted)";
+          const pts = x.pts.map((q) => `${fx(q.t)},${fy(q.v)}`).join(" ");
           return (
-            <g key={s.key} className={dim ? "dim" : ""}>
-              {s.pts.length > 1 && <polyline fill="none" stroke={color} strokeWidth={on ? 3 : 1.8} points={s.pts.map((p) => `${fx(p.t)},${fy(p.v)}`).join(" ")} />}
-              {s.pts.map((p) => (
-                <g key={p.row.obs_id} transform={`translate(${fx(p.t)} ${fy(p.v)})`}>
-                  <title>{`${s.model.display_name} (${s.sub}) ${fmtV(p.v)} on ${day(p.row.observed_at)}, ${PROV_LABEL[p.row.provenance]}: ${p.row.source_name}`}</title>
-                  <rect x={-9} y={-9} width={18} height={18} fill="transparent" />
-                  <Shape shape={SHAPE[p.row.provenance] || "square"} size={4.5} color={color} />
-                </g>
-              ))}
-              <text className="plabel" x={fx(last.t) + 10} y={fy(last.v) + 4}>{s.model.display_name}</text>
+            <g key={x.key} className={`${isLit ? "" : "faint"}${hl.size && !on ? " dim" : ""}`}>
+              <title>{`${x.model.display_name}: ${x.pts.map((q) => `${day(q.row.observed_at)} ${fmtV(q.v)}`).join(", ")}`}</title>
+              {x.pts.length > 1
+                ? <polyline fill="none" stroke={color} strokeWidth={on ? 3 : isLit ? 2 : 1} points={pts} />
+                : <rect x={fx(x.last.t) - 3} y={fy(x.last.v) - 3} width={6} height={6} fill={color} />}
+              {isLit && (
+                <>
+                  <rect x={fx(x.last.t) - 3} y={fy(x.last.v) - 3} width={6} height={6} fill={color} />
+                  <line className="leader" x1={fx(x.last.t) + 5} y1={fy(x.last.v)} x2={fx(x.last.t) + 12} y2={labelY.get(x.key) - 4} />
+                  <text className="plabel" x={fx(x.last.t) + 14} y={labelY.get(x.key)}>{x.model.display_name} {fmtV(x.last.v)}</text>
+                </>
+              )}
             </g>
           );
         })}
       </svg>
-      {single && <p className="mt-note">One observation date so far. Lines appear as rescans add rows.</p>}
-      <Legend />
+      <p className="fold-p">
+        {moved.length} of {series.length} models changed since {firstDay} (each at its best value per day). Labelled: the {top.size} biggest moves
+        {faint > 0 && `; the other ${faint} are faint. Pin a model in the chart or table to label it.`}
+      </p>
     </div>
   );
 }
@@ -559,7 +638,7 @@ function Dashboard({ data, intro }) {
             <div className="chips">
               {orgs.map((org) => (
                 <button key={org} type="button" className="chip" aria-pressed={!hiddenOrgs.has(org)} onClick={() => toggleOrg(org)}>
-                  <OrgMark org={org} color={colorOf(org)} />{org}
+                  <OrgMark org={org} color="var(--ink)" />{org}
                 </button>
               ))}
             </div>
@@ -631,7 +710,7 @@ function Dashboard({ data, intro }) {
               <tbody>
                 {sorted.map((r) => (
                   <tr key={r.model_id} className={hl.has(r.model_id) ? "is-hl" : hl.size ? "is-dim" : ""} onClick={() => togglePin(r.model_id)}>
-                    <td><span className="mname"><OrgMark org={r.org} color={colorOf(r.org)} />{r.display_name}<span className="muted">{r.org}</span></span></td>
+                    <td><span className="mname"><OrgMark org={r.org} color="var(--ink)" />{r.display_name}<span className="muted">{r.org}</span></span></td>
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (
