@@ -61,15 +61,16 @@ const inGroup = (b, g) => (g === "overview" ? OVERVIEW.has(b.benchmark_id)
   : g === "efficiency" ? EFFICIENCY.has(b.category) : !OVERVIEW.has(b.benchmark_id) && !EFFICIENCY.has(b.category));
 const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
 
-// Superscore = (output tok/s / 100) x (blended price per 1M tokens x Intelligence Index) / (time per task x cost per task).
-// Units: tok/s, USD per 1M tokens, minutes, USD. Needs all five numbers.
-const SUPER_BLURB = "Superscore: (output tok/s / 100) x (blended price per 1M tokens x AA Intelligence Index) / (AA time per task in minutes x AA cost per task). Higher is better.";
+// Superscore = output tok/s x (blended price per 1M tokens x Intelligence Index) / (time per task x cost per task).
+// Units: tok/s, USD per 1M tokens, seconds (same clock as tok/s; the data stores minutes), USD. Needs all five numbers.
+const SUPER_BLURB = "Superscore: output tok/s x (blended price per 1M tokens x AA Intelligence Index) / (AA time per task in seconds x AA cost per task). Higher is better.";
 function superscore(r) {
   const idx = r.scores.aa_intelligence_index, cost = r.scores.aa_cost_per_task, time = r.scores.aa_time_per_task;
   if (!idx || !cost || !time || !r.price || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
-  return ((r.speed.value / 100) * r.price.value * idx.value) / (time.value * cost.value);
+  return (r.speed.value * r.price.value * idx.value) / (time.value * 60 * cost.value);
 }
-const fmtSuper = (v) => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
+// Three significant figures, so small scores stay readable instead of rounding to 0.00.
+const fmtSuper = (v) => (v >= 100 ? v.toFixed(0) : String(+v.toPrecision(3)));
 // Short names for the "best in" tags on winning models.
 const SHORT = { aa_intelligence_index: "Intelligence", aa_coding_index: "Coding", aa_agentic_index: "Agentic",
   aa_cost_per_task: "Cost per task", aa_time_per_task: "Time per task", fast: "Speed", cheap: "Price" };
@@ -756,7 +757,7 @@ function Dashboard({ data, intro }) {
                     style={champs.has(r.model_id) ? { "--c": colorOf(r.org) } : undefined} onClick={() => togglePin(r.model_id)}>
                     <td><span className="mname"><OrgMark org={r.org} color={champs.has(r.model_id) ? colorOf(r.org) : "var(--ink)"} />{r.display_name}<span className="muted">{r.org}</span><BestTags list={champs.get(r.model_id)} /></span></td>
                     {showSuper && (r.superscore != null ? (
-                      <td className="super" title={`${SUPER_BLURB}\n(${fmtSpeed(r.speed.value)} tok/s / 100) x ${fmtPrice(r.price.value)} x ${fmtScore(r.scores.aa_intelligence_index.value)} / (${UNIT_FMT.minutes(r.scores.aa_time_per_task.value)} x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)})`}>{fmtSuper(r.superscore)}</td>
+                      <td className="super" title={`${SUPER_BLURB}\n${fmtSpeed(r.speed.value)} tok/s x ${fmtPrice(r.price.value)} x ${fmtScore(r.scores.aa_intelligence_index.value)} / (${Math.round(r.scores.aa_time_per_task.value * 60)} s x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)})`}>{fmtSuper(r.superscore)}</td>
                     ) : <td className="na super" title="Needs output speed, a price, the Intelligence Index, time per task and cost per task.">not observed</td>)}
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
