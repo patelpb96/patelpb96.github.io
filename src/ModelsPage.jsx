@@ -60,6 +60,17 @@ const COLS = [["overview", "Overview"], ["evals", "Evaluations"], ["efficiency",
 const inGroup = (b, g) => (g === "overview" ? OVERVIEW.has(b.benchmark_id)
   : g === "efficiency" ? EFFICIENCY.has(b.category) : !OVERVIEW.has(b.benchmark_id) && !EFFICIENCY.has(b.category));
 const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
+
+// Superscore = Intelligence Index x cost per task / (time per task x blended price per 1M tokens).
+// Cost per task divided by price per 1M tokens is roughly the millions of tokens a task uses, so this is
+// intelligence x tokens worked through per minute. Units: USD, minutes, USD per 1M tokens. Needs all four numbers.
+const SUPER_BLURB = "Superscore: AA Intelligence Index x AA cost per task / (AA time per task in minutes x blended price per 1M tokens). Higher is better.";
+function superscore(r) {
+  const idx = r.scores.aa_intelligence_index, cost = r.scores.aa_cost_per_task, time = r.scores.aa_time_per_task;
+  if (!idx || !cost || !time || !r.price || !(time.value > 0) || !(r.price.value > 0)) return null;
+  return (idx.value * cost.value) / (time.value * r.price.value);
+}
+const fmtSuper = (v) => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
 // Short names for the "best in" tags on winning models.
 const SHORT = { aa_intelligence_index: "Intelligence", aa_coding_index: "Coding", aa_agentic_index: "Agentic",
   aa_cost_per_task: "Cost per task", aa_time_per_task: "Time per task", fast: "Speed", cheap: "Price" };
@@ -537,6 +548,7 @@ function Dashboard({ data, intro }) {
   const [cols, setCols] = useState("overview");
   const shown = useMemo(() => benches.filter((b) => inGroup(b, cols)), [benches, cols]);
   const showMoney = cols !== "evals";
+  const showSuper = cols === "overview";
 
   const orgs = useMemo(() => [...new Set(data.models.map((m) => m.org))].sort(), [data]);
   const colorOf = (org) => `var(--s${(orgs.indexOf(org) % 16) + 1})`;
@@ -564,7 +576,8 @@ function Dashboard({ data, intro }) {
         const r = sc.get(`${m.model_id}|${b.benchmark_id}`);
         scores[b.benchmark_id] = r && r.status === "observed" ? r : null;
       }
-      return { ...m, scores, price: price.get(m.model_id) || null, speed: speed.get(m.model_id) || null };
+      const row = { ...m, scores, price: price.get(m.model_id) || null, speed: speed.get(m.model_id) || null };
+      return { ...row, superscore: superscore(row) };
     }).filter((m) => m.price || m.speed || Object.values(m.scores).some(Boolean));
   }, [data, asOf, benches]);
 
@@ -574,6 +587,7 @@ function Dashboard({ data, intro }) {
   const sorted = useMemo(() => {
     const val = (r) => {
       if (sort.key === "name") return r.display_name.toLowerCase();
+      if (sort.key === "super") return r.superscore;
       if (sort.key === "price") return r.price ? r.price.value : null;
       if (sort.key === "speed") return r.speed ? r.speed.value : null;
       const s = r.scores[sort.key.slice(2)];
@@ -721,12 +735,13 @@ function Dashboard({ data, intro }) {
                   <button key={id} type="button" aria-pressed={cols === id} onClick={() => setCols(id)}>{label}</button>
                 ))}
               </div>
-              <span className="muted">{shown.length + (showMoney ? 2 : 0)} columns · click a header to sort</span>
+              <span className="muted">{shown.length + (showMoney ? 2 : 0) + (showSuper ? 1 : 0)} columns · click a header to sort</span>
             </div>
             <table>
               <thead>
                 <tr>
                   <th aria-sort={ariaSort("name")}><button type="button" onClick={() => setSortKey("name")}>Model</button></th>
+                  {showSuper && <th className="super" aria-sort={ariaSort("super")} title={SUPER_BLURB}><button type="button" onClick={() => setSortKey("super")}>Superscore</button></th>}
                   {shown.map((b) => (
                     <th key={b.benchmark_id} aria-sort={ariaSort(`b:${b.benchmark_id}`)} title={b.blurb}>
                       <button type="button" onClick={() => setSortKey(`b:${b.benchmark_id}`)}>{b.name}</button>
@@ -741,6 +756,9 @@ function Dashboard({ data, intro }) {
                   <tr key={r.model_id} className={`${hl.has(r.model_id) ? "is-hl" : hl.size ? "is-dim" : ""}${champs.has(r.model_id) ? " is-champ" : ""}`}
                     style={champs.has(r.model_id) ? { "--c": colorOf(r.org) } : undefined} onClick={() => togglePin(r.model_id)}>
                     <td><span className="mname"><OrgMark org={r.org} color={champs.has(r.model_id) ? colorOf(r.org) : "var(--ink)"} />{r.display_name}<span className="muted">{r.org}</span><BestTags list={champs.get(r.model_id)} /></span></td>
+                    {showSuper && (r.superscore != null ? (
+                      <td className="super" title={`${SUPER_BLURB}\n${fmtScore(r.scores.aa_intelligence_index.value)} x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)} / (${UNIT_FMT.minutes(r.scores.aa_time_per_task.value)} x ${fmtPrice(r.price.value)})`}>{fmtSuper(r.superscore)}</td>
+                    ) : <td className="na super" title="Needs the Intelligence Index, cost per task, time per task and a price.">not observed</td>)}
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (

@@ -149,3 +149,7 @@ tbody tr.is-champ.is-hl { background: var(--chip); }
 .bars li.is-champ { box-shadow: inset 3px 0 0 var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); padding-left: 6px; }
 .bars li.is-champ .bar-fill { background: var(--c); opacity: 0.9; }
 .bars li.is-champ .bar-name { font-weight: 600; }
+
+/* superscore column: the leaderboard's headline number, set apart from the raw measures */
+th.super, td.super { font-weight: 600; border-right: 1px solid var(--line); }
+th.super button { color: var(--ink); }
