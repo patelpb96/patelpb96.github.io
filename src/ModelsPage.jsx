@@ -61,14 +61,13 @@ const inGroup = (b, g) => (g === "overview" ? OVERVIEW.has(b.benchmark_id)
   : g === "efficiency" ? EFFICIENCY.has(b.category) : !OVERVIEW.has(b.benchmark_id) && !EFFICIENCY.has(b.category));
 const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
 
-// Superscore = Intelligence Index x cost per task / (time per task x blended price per 1M tokens).
-// Cost per task divided by price per 1M tokens is roughly the millions of tokens a task uses, so this is
-// intelligence x tokens worked through per minute. Units: USD, minutes, USD per 1M tokens. Needs all four numbers.
-const SUPER_BLURB = "Superscore: AA Intelligence Index x AA cost per task / (AA time per task in minutes x blended price per 1M tokens). Higher is better.";
+// Superscore = (output tok/s / 100) x (blended price per 1M tokens x Intelligence Index) / (time per task x cost per task).
+// Units: tok/s, USD per 1M tokens, minutes, USD. Needs all five numbers.
+const SUPER_BLURB = "Superscore: (output tok/s / 100) x (blended price per 1M tokens x AA Intelligence Index) / (AA time per task in minutes x AA cost per task). Higher is better.";
 function superscore(r) {
   const idx = r.scores.aa_intelligence_index, cost = r.scores.aa_cost_per_task, time = r.scores.aa_time_per_task;
-  if (!idx || !cost || !time || !r.price || !(time.value > 0) || !(r.price.value > 0)) return null;
-  return (idx.value * cost.value) / (time.value * r.price.value);
+  if (!idx || !cost || !time || !r.price || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
+  return ((r.speed.value / 100) * r.price.value * idx.value) / (time.value * cost.value);
 }
 const fmtSuper = (v) => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
 // Short names for the "best in" tags on winning models.
@@ -757,8 +756,8 @@ function Dashboard({ data, intro }) {
                     style={champs.has(r.model_id) ? { "--c": colorOf(r.org) } : undefined} onClick={() => togglePin(r.model_id)}>
                     <td><span className="mname"><OrgMark org={r.org} color={champs.has(r.model_id) ? colorOf(r.org) : "var(--ink)"} />{r.display_name}<span className="muted">{r.org}</span><BestTags list={champs.get(r.model_id)} /></span></td>
                     {showSuper && (r.superscore != null ? (
-                      <td className="super" title={`${SUPER_BLURB}\n${fmtScore(r.scores.aa_intelligence_index.value)} x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)} / (${UNIT_FMT.minutes(r.scores.aa_time_per_task.value)} x ${fmtPrice(r.price.value)})`}>{fmtSuper(r.superscore)}</td>
-                    ) : <td className="na super" title="Needs the Intelligence Index, cost per task, time per task and a price.">not observed</td>)}
+                      <td className="super" title={`${SUPER_BLURB}\n(${fmtSpeed(r.speed.value)} tok/s / 100) x ${fmtPrice(r.price.value)} x ${fmtScore(r.scores.aa_intelligence_index.value)} / (${UNIT_FMT.minutes(r.scores.aa_time_per_task.value)} x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)})`}>{fmtSuper(r.superscore)}</td>
+                    ) : <td className="na super" title="Needs output speed, a price, the Intelligence Index, time per task and cost per task.">not observed</td>)}
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
                       return s ? (
