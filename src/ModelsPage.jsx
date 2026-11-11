@@ -72,6 +72,11 @@ function superscore(r) {
   if (!idx || !cost || !time || !nh || !r.price || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
   return (r.speed.value * r.price.value * idx.value * (nh.value / 100)) / (time.value * 60 * cost.value);
 }
+// The superscore as a pseudo-benchmark for the scatter's Score menu and its explanation.
+const SUPER_BENCH = {
+  benchmark_id: "superscore", name: "Superscore", higher_is_better: true, category: "composite",
+  blurb: "Output tok/s x price per 1M tokens x Intelligence Index x (non-hallucination rate / 100), divided by (time per task in seconds x cost per task): roughly how much reliable intelligence a model delivers per second for the tokens it actually spends. Price and speed are both inside it, so against either axis the points lean with that axis; read it as a ranking with the axis for context. Higher is better.",
+};
 // Three significant figures, so small scores stay readable instead of rounding to 0.00.
 const fmtSuper = (v) => (v >= 100 ? v.toFixed(0) : String(+v.toPrecision(3)));
 // Short names for the "best in" tags on winning models.
@@ -240,6 +245,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
   const FT = W < 560 ? 15 : 22;
   const FL = W < 560 ? 16 : 24;
   const M = { l: Math.round(FT * 2.4 + FL + 18), r: 28, t: 16, b: Math.round(FT + FL + 30) };
+  const fmtY = bench === "superscore" ? fmtSuper : fmtScore;
   const [hover, setHover] = useState(null);
   const [drag, setDrag] = useState(null);
 
@@ -358,7 +364,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
           return (
             <g key={id} className={`pt${dim ? " dim" : ""}`} transform={`translate(${fx(p.x)} ${fy(p.y)})`}
               tabIndex={0} role="button" aria-pressed={pinned.has(id)}
-              aria-label={`${p.r.display_name}, ${benchName} ${fmtScore(sc.value)}, ${xMetric === "price" ? fmtPrice(p.x) : `${fmtSpeed(p.x)} tokens per second`}`}
+              aria-label={`${p.r.display_name}, ${benchName} ${fmtY(sc.value)}, ${xMetric === "price" ? fmtPrice(p.x) : `${fmtSpeed(p.x)} tokens per second`}`}
               onPointerDown={(e) => e.stopPropagation()} onClick={() => togglePin(id)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePin(id); } }}
               onPointerEnter={() => setHover(id)} onPointerLeave={() => setHover(null)}
@@ -380,7 +386,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
           <b>{hp.r.display_name}</b><br />
           {hp.r.org}<br />
           {champs.has(hp.r.model_id) && <><BestTags list={champs.get(hp.r.model_id)} /><br /></>}
-          {benchName}: {fmtScore(hs.value)}{hs.effort ? ` (${hs.effort})` : ""}<br />
+          {benchName}: {fmtY(hs.value)}{hs.effort ? ` (${hs.effort})` : ""}<br />
           {xMetric === "price" ? `Price: ${fmtPrice(hp.x)} per 1M` : `Speed: ${fmtSpeed(hp.x)} tok/s`}<br />
           <span className="muted">{PROV_LABEL[hs.provenance]}: {hs.source_name}</span>
         </div>
@@ -570,7 +576,11 @@ function Dashboard({ data, intro }) {
     return data.benchmarks.filter((b) => seen.has(b.benchmark_id));
   }, [data]);
   // The scatter's efficient frontier assumes bigger is better on the vertical axis, so lower-is-better measures stay out of it.
-  const quality = useMemo(() => benches.filter((b) => b.higher_is_better && b.category !== "spec"), [benches]);
+  const quality = useMemo(() => {
+    const list = benches.filter((b) => b.higher_is_better && b.category !== "spec");
+    const at = list.findIndex((b) => b.benchmark_id === "aa_intelligence_index") + 1;   // right after the Intelligence Index
+    return [...list.slice(0, at), SUPER_BENCH, ...list.slice(at)];
+  }, [benches]);
   const [cols, setCols] = useState("overview");
   const shown = useMemo(() => benches.filter((b) => inGroup(b, cols)), [benches, cols]);
   const showMoney = cols !== "evals";
@@ -603,7 +613,10 @@ function Dashboard({ data, intro }) {
         scores[b.benchmark_id] = r && r.status === "observed" ? r : null;
       }
       const row = { ...m, scores, price: price.get(m.model_id) || null, speed: speed.get(m.model_id) || null };
-      return { ...row, superscore: superscore(row) };
+      const ss = superscore(row);
+      // Also filed as a score so the scatter can plot it against price or speed like any benchmark.
+      if (ss != null) scores.superscore = { value: ss, provenance: "third_party", source_name: "computed here from Artificial Analysis numbers", effort: "" };
+      return { ...row, superscore: ss };
     }).filter((m) => m.price || m.speed || Object.values(m.scores).some(Boolean));
   }, [data, asOf, benches]);
 
