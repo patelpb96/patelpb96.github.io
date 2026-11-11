@@ -65,20 +65,23 @@ const fmtFor = (b) => (b && UNIT_FMT[b.unit]) || fmtScore;
 //              / (time per task x cost per task).
 // The non-hallucination factor keeps only the share of answers that are not made up. Units: tok/s, USD per 1M tokens,
 // %, seconds (same clock as tok/s; the data stores minutes), USD. Needs all six numbers.
-const SUPER_BLURB = "Superscore: output tok/s x (blended price per 1M tokens x AA Intelligence Index) x (non-hallucination rate / 100) / (AA time per task in seconds x AA cost per task). Higher is better.";
+// The published superscore is the natural log of that product: the raw values span about two orders of magnitude,
+// so one model sat far above the rest. On a log scale +1 means e (about 2.7) times the raw score; it can be negative.
+const SUPER_BLURB = "Superscore: ln[ output tok/s x (blended price per 1M tokens x AA Intelligence Index) x (non-hallucination rate / 100) / (AA time per task in seconds x AA cost per task) ]. Higher is better; +1 is about 2.7x the raw score.";
 function superscore(r) {
   const idx = r.scores.aa_intelligence_index, cost = r.scores.aa_cost_per_task, time = r.scores.aa_time_per_task;
   const nh = r.scores.aa_non_hallucination;
   if (!idx || !cost || !time || !nh || !r.price || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
-  return (r.speed.value * r.price.value * idx.value * (nh.value / 100)) / (time.value * 60 * cost.value);
+  const raw = (r.speed.value * r.price.value * idx.value * (nh.value / 100)) / (time.value * 60 * cost.value);
+  return raw > 0 ? Math.log(raw) : null;
 }
 // The superscore as a pseudo-benchmark for the scatter's Score menu and its explanation.
 const SUPER_BENCH = {
   benchmark_id: "superscore", name: "Superscore", higher_is_better: true, category: "composite",
-  blurb: "Output tok/s x price per 1M tokens x Intelligence Index x (non-hallucination rate / 100), divided by (time per task in seconds x cost per task): roughly how much reliable intelligence a model delivers per second for the tokens it actually spends. Price and speed are both inside it, so against either axis the points lean with that axis; read it as a ranking with the axis for context. Higher is better.",
+  blurb: "The natural log of: output tok/s x price per 1M tokens x Intelligence Index x (non-hallucination rate / 100), divided by (time per task in seconds x cost per task). That product is roughly how much reliable intelligence a model delivers per second for the tokens it actually spends; the log keeps one runaway leader from flattening everyone else, so each +1 means about 2.7 times the raw score and 0 means a raw score of 1. Price and speed are both inside it, so against either axis the points lean with that axis; read it as a ranking with the axis for context. Higher is better.",
 };
 // Three significant figures, so small scores stay readable instead of rounding to 0.00.
-const fmtSuper = (v) => (v >= 100 ? v.toFixed(0) : String(+v.toPrecision(3)));
+const fmtSuper = (v) => v.toFixed(2);                              // a log value: two decimals at every size
 // Short names for the "best in" tags on winning models.
 const SHORT = { aa_intelligence_index: "Intelligence", aa_coding_index: "Coding", aa_agentic_index: "Agentic",
   aa_cost_per_task: "Cost per task", aa_time_per_task: "Time per task", fast: "Speed", cheap: "Price" };
@@ -262,7 +265,8 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
   const xlo = xMetric === "price" ? Math.min(...xs) * 0.8 : 0;
   const xhi = Math.max(...xs) * (xMetric === "price" ? 1.25 : 1.1);
   // A handful of round-number ticks whatever the range (a 0-100 index or a 500k-1M token window).
-  const pad = Math.max(2, (Math.max(...ys) - Math.min(...ys)) * 0.06);
+  const span = Math.max(...ys) - Math.min(...ys);
+  const pad = Math.max(span * 0.06, Math.min(2, span * 0.1));       // small ranges (a log score) get proportional padding
   // Padding never pushes the axis below 0 or past 100 when the data itself stays inside those bounds.
   const lo = Math.min(...ys) >= 0 ? Math.max(0, Math.min(...ys) - pad) : Math.min(...ys) - pad;
   const hi = Math.max(...ys) <= 100 ? Math.min(100, Math.max(...ys) + pad) : Math.max(...ys) + pad;
@@ -796,7 +800,7 @@ function Dashboard({ data, intro }) {
                     style={champs.has(r.model_id) ? { "--c": colorOf(r.org) } : undefined} onClick={() => togglePin(r.model_id)}>
                     <td><span className="mname"><OrgMark org={r.org} color={champs.has(r.model_id) ? colorOf(r.org) : "var(--ink)"} />{r.display_name}<span className="muted">{r.org}</span><BestTags list={champs.get(r.model_id)} /></span></td>
                     {showSuper && (r.superscore != null ? (
-                      <td className="super" title={`${SUPER_BLURB}\n${fmtSpeed(r.speed.value)} tok/s x ${fmtPrice(r.price.value)} x ${fmtScore(r.scores.aa_intelligence_index.value)} x ${(r.scores.aa_non_hallucination.value / 100).toFixed(2)} / (${Math.round(r.scores.aa_time_per_task.value * 60)} s x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)})`}>{fmtSuper(r.superscore)}</td>
+                      <td className="super" title={`${SUPER_BLURB}\nln[ ${fmtSpeed(r.speed.value)} tok/s x ${fmtPrice(r.price.value)} x ${fmtScore(r.scores.aa_intelligence_index.value)} x ${(r.scores.aa_non_hallucination.value / 100).toFixed(2)} / (${Math.round(r.scores.aa_time_per_task.value * 60)} s x ${UNIT_FMT.USD(r.scores.aa_cost_per_task.value)}) ] = ln ${+Math.exp(r.superscore).toPrecision(3)}`}>{fmtSuper(r.superscore)}</td>
                     ) : <td className="na super" title="Needs output speed, a price, the Intelligence Index, the non-hallucination rate, time per task and cost per task.">not observed</td>)}
                     {shown.map((b) => {
                       const s = r.scores[b.benchmark_id];
