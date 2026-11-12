@@ -130,7 +130,16 @@ def run(slot: str, now: datetime, data_dir: Path, params: dict, models: list[dic
             hit["fetch_status"] = "skipped: fetch cap"
             continue
         fetched += 1
-        page = pages.get(hit["url"])
+        # One bad page must never sink the run: by this point the searches are paid for, and a crash here used to
+        # lose every hit and the reference snapshot (http:// links from Chinese news sites did this 5 times).
+        try:
+            page = pages.get(hit["url"])
+        except fetch.FetchRefused as e:
+            hit["fetch_status"] = f"refused: {str(e)[:120]}"
+            continue
+        except Exception as e:                                  # odd encodings, dropped connections, bad redirects
+            hit["fetch_status"] = f"error: {type(e).__name__}"
+            continue
         if page is None:
             hit["fetch_status"] = "unavailable"
             continue

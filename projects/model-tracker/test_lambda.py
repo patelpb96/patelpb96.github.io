@@ -131,6 +131,24 @@ class LambdaTests(unittest.TestCase):
         self.assertEqual((out["status"], out["aa"]["status"]), ("ok", "error"))
         self.assertIn("state/hits.csv", self.s3.keys())
 
+    def test_a_refused_or_broken_page_never_sinks_the_run(self):
+        # 2026-11-10..12: an http:// link from a news site raised FetchRefused mid-run, after the searches were paid
+        # for, and the whole run was lost (no hits saved, no reference snapshot). Now it only skips that page.
+        class Refusing:
+            def get(self, url):
+                raise fetch.FetchRefused(f"only https URLs to public named hosts are fetched: {url[:20]!r}")
+
+        class Broken:
+            def get(self, url):
+                raise RuntimeError("connection dropped")
+
+        for pages, want in ((Refusing(), "refused:"), (Broken(), "error: RuntimeError")):
+            self.setUp()
+            out = lh.run_once(NOW, self.s3, self.ssm, ENV, exa=exa_client.FixtureExa(FX["exa"]), pages=pages, aa_html=self.aa_html)
+            self.assertEqual((out["status"], out["aa"]["status"]), ("ok", "ok"))
+            hits = self.s3.objects[("state-b", "state/hits.csv")].decode("utf-8")
+            self.assertIn(want, hits)
+
     def test_result_has_no_page_text_or_keys(self):
         out, _ = self.go()
         blob = json.dumps(out, default=str)
