@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#1a0f0a">
+  <meta name="description" content="A paddle-and-ball game drawn entirely in SVG, on a deterministic 60 Hz simulation with instant replay.">
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="10" y="30" width="12" height="44" fill="%23ff9a4d"/><rect x="78" y="22" width="12" height="44" fill="%23ffd9b3"/><rect x="44" y="42" width="14" height="14" fill="%23fff2e6"/></svg>'>
+  <title>Rally · Preet Patel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap">
+  <style>
+    :root {
+      --bg: #1a0f0a;
+      --line: rgba(255, 180, 120, 0.18);
+      --text: #fff2e6;
+      --muted: #e6c7a8;
+      --dim: #b08b6b;
+      --accent: #ffb36b;
+      --accent-soft: #ffd9b3;
+      --orange: #ff9a4d;
+      --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; border-radius: 0; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255,160,90,0.10), transparent 28rem),
+        linear-gradient(180deg, #160a06 0%, #1a0f0a 45%, #0f0705 100%);
+      font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    }
+    .wrap { width: min(100% - 32px, 960px); margin: 0 auto; padding: 22px 0 44px; }
+    .back { color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
+    .back:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
+    h1 { margin: 14px 0 6px; font-size: clamp(2rem, 5vw, 2.9rem); letter-spacing: -0.02em; }
+    .lead { margin: 0 0 18px; max-width: 62ch; color: var(--muted); line-height: 1.6; }
+
+    /* The court keeps its 8:5 shape and shrinks so the controls stay on screen. */
+    .game { max-width: max(320px, calc((100vh - 330px) * 1.6)); margin: 0 auto; }
+    .stage { border: 1px solid var(--line); background: #120805; box-shadow: 0 26px 70px rgba(0,0,0,0.6); }
+    #court { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .score { font-family: "Playfair Display", Georgia, serif; font-weight: 700; font-size: 64px; fill: #fff2e6; }
+    .tiny { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; fill: #b08b6b; }
+    .ov-title { font-family: "Playfair Display", Georgia, serif; font-weight: 700; font-size: 30px; fill: #fff2e6; }
+    .ov-sub { font-family: var(--mono); font-size: 12px; fill: #e6c7a8; }
+
+    .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 0 10px; }
+    .bar div { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      font: inherit; font-weight: 700; font-size: 0.86rem; padding: 9px 14px; cursor: pointer;
+      color: var(--text); background: transparent; border: 1px solid var(--line);
+    }
+    button:hover:not(:disabled) { border-color: var(--accent); }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary { color: #1a0f0a; background: linear-gradient(180deg, #ffe2c2, var(--orange)); border-color: var(--accent); }
+    button[hidden] { display: none; }
+
+    .meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; font-family: var(--mono); font-size: 0.78rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+    .meta b { color: var(--accent-soft); font-weight: 600; }
+    kbd { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); border: 1px solid var(--line); padding: 1px 5px; }
+
+    .how { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .how h2 { margin: 0 0 6px; color: var(--accent); font-size: 0.74rem; letter-spacing: 0.2em; text-transform: uppercase; }
+    .how p { margin: 0; color: var(--muted); font-size: 0.93rem; line-height: 1.65; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <a class="back" href="/#/projects"><span aria-hidden="true">←</span> All projects</a>
+    <h1>Rally</h1>
+    <p class="lead">A paddle-and-ball game with nothing painted: every piece is an SVG element, moved by a simulation that never looks at the clock. Move your paddle as you hit the ball to put spin on it.</p>
+
+    <div class="game">
+      <div class="stage">
+        <svg id="court" viewBox="0 0 800 500" role="img" aria-label="Rally court: two paddles and a ball">
+          <g id="world">
+            <rect x="10" y="10" width="780" height="480" fill="none" stroke="rgba(255,180,120,0.22)" stroke-width="2"/>
+            <line x1="400" y1="18" x2="400" y2="482" stroke="rgba(255,180,120,0.28)" stroke-width="2" stroke-dasharray="10 12"/>
+            <text id="s1" class="score" text-anchor="middle">0</text>
+            <text id="s2" class="score" text-anchor="middle">0</text>
+            <text id="l1" class="tiny" x="26" y="34"></text>
+            <text id="l2" class="tiny" x="774" y="34" text-anchor="end"></text>
+            <text id="tag" class="tiny" x="400" y="34" text-anchor="middle" fill="#ffb36b"></text>
+            <text id="rally" class="tiny" x="400" y="474" text-anchor="middle"></text>
+            <!-- vector-effect keeps the outline 2px wide while the transform scales the square up -->
+            <rect id="ripple" x="-8" y="-8" width="16" height="16" fill="none" stroke="#ffd9b3" stroke-width="2" vector-effect="non-scaling-stroke" display="none"/>
+            <g id="ghosts"></g>
+            <g id="pad1">
+              <rect id="halo1" x="-5" y="-5" width="22" height="94" fill="#ff9a4d" opacity="0.14"/>
+              <rect width="12" height="84" fill="#ff9a4d"/>
+            </g>
+            <g id="pad2">
+              <rect id="halo2" x="-5" y="-5" width="22" height="94" fill="#ffd9b3" opacity="0.14"/>
+              <rect width="12" height="84" fill="#ffd9b3"/>
+            </g>
+            <path id="hint" d="M0 -7 L9 0 L0 7" fill="none" stroke="#ffd9b3" stroke-width="2"/>
+            <g id="ball"><rect x="-8" y="-8" width="16" height="16" fill="#fff2e6"/></g>
+          </g>
+          <g id="overlay">
+            <rect x="190" y="186" width="420" height="128" fill="#120805" fill-opacity="0.92" stroke="rgba(255,180,120,0.35)" stroke-width="1.5"/>
+            <text id="ovTitle" class="ov-title" x="400" y="244" text-anchor="middle"></text>
+            <text id="ovSub" class="ov-sub" x="400" y="278" text-anchor="middle"></text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="bar">
+        <div><button id="mode" type="button"></button></div>
+        <div>
+          <button id="replay" type="button" hidden>Watch replay</button>
+          <button id="go" type="button" class="primary">Start</button>
+          <button id="step" type="button" disabled title="While paused, advance exactly one tick">Step +1</button>
+          <button id="reset" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="meta">
+        <span>tick <b id="mTick">0</b> · state <b id="mHash">0x00000000</b></span>
+        <span><kbd>W</kbd> <kbd>S</kbd> or pointer · <kbd>Space</kbd> start/pause · <kbd>.</kbd> step · <kbd>R</kbd> reset</span>
+      </div>
+      <p id="live" class="sr" aria-live="polite"></p>
+    </div>
+
+    <section class="how">
+      <div><h2>State</h2><p>The whole game is 22 numbers. A pure step function advances them one sixtieth of a second at a time; it never reads the clock, the page or a random number.</p></div>
+      <div><h2>Picture</h2><p>Each frame rewrites the attributes of about twenty SVG elements from those numbers. The trail, the ripple and the screen shake are all derived, so the picture stays sharp at any size.</p></div>
+      <div><h2>Replay</h2><p>Since the step is deterministic, a game is fully described by its inputs. The replay feeds your key presses back in from tick zero and has to land on the same state hash.</p></div>
+    </section>
+  </main>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // =====================================================================
+    // 1. SIMULATION. Pure and tick-based: units are px and px/tick, there is
+    //    no dt, no clock, no DOM and no randomness. The only Math calls are
+    //    sqrt/abs/min/max, which IEEE 754 pins down exactly, so the same
+    //    inputs give the same bits in every browser (sin/cos would not).
+    // =====================================================================
+    const W = 800, H = 500, M = 10;                 // court and wall inset
+    const PW = 12, PH = 84, P1X = 30, P2X = W - 30 - PW;
+    const B = 8;                                    // ball half-size
+    const PADDLE_V = 7, AI_V = 5.4, AI_DEAD = 6;
+    const BASE = 6.4, GAIN = 0.5, VMAX = 13.5;      // ball speed: base, per hit, cap
+    const TAN_MAX = 1.25;                           // steepest return, as a slope (~51 degrees)
+    const SPIN_HIT = 0.035, SPIN_DECAY = 0.985, VY_MAX = 10;
+    const SERVE_WAIT = 48, WIN = 7;
+    const SERVE_SLOPE = [0.22, -0.34, 0.16, -0.28]; // serve angles, cycled by points played
+
+    const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+    function initial(mode) {
+      return {
+        tick: 0, mode,                              // mode 0 = vs computer, 1 = two players
+        bx: W / 2, by: H / 2, bvx: 0, bvy: 0, spin: 0, angle: 0,
+        p1: H / 2, p2: H / 2,                       // paddle centres
+        s1: 0, s2: 0, serveDir: 1, wait: SERVE_WAIT, rally: 0,
+        hitTick: -999, hitX: 0, hitY: 0, hitSide: 0,
+        ptTick: -999, ptSide: 0, winner: 0,
+      };
+    }
+
+    // Input is 4 bits per tick: 1 = P1 up, 2 = P1 down, 4 = P2 up, 8 = P2 down.
+    function step(prev, input) {
+      if (prev.winner) return prev;
+      const s = { ...prev };
+      s.tick += 1;
+
+      const d1 = (input & 2 ? 1 : 0) - (input & 1 ? 1 : 0);
+      let d2, v2;
+      if (s.mode === 0) {
+        const gap = (s.bvx > 0 ? s.by : H / 2) - s.p2; // chase the ball, else drift home
+        d2 = gap > AI_DEAD ? 1 : gap < -AI_DEAD ? -1 : 0;
+        v2 = AI_V;
+      } else {
+        d2 = (input & 8 ? 1 : 0) - (input & 4 ? 1 : 0);
+        v2 = PADDLE_V;
+      }
+      const lo = M + PH / 2, hi = H - M - PH / 2;
+      s.p1 = clamp(s.p1 + d1 * PADDLE_V, lo, hi);
+      s.p2 = clamp(s.p2 + d2 * v2, lo, hi);
+
+      if (s.wait > 0) {                             // ball rests at centre before each serve
+        s.wait -= 1;
+        if (s.wait === 0) {
+          const t = SERVE_SLOPE[(s.s1 + s.s2) % SERVE_SLOPE.length];
+          const vx = BASE / Math.sqrt(1 + t * t);
+          s.bvx = s.serveDir * vx;
+          s.bvy = t * vx;
+        }
+        return s;
+      }
+
+      // Spin bends the flight: it is a small vertical acceleration that fades.
+      s.bvy = clamp(s.bvy + s.spin, -VY_MAX, VY_MAX);
+      s.spin *= SPIN_DECAY;
+      s.bx += s.bvx;
+      s.by += s.bvy;
+      s.angle = (s.angle + (s.bvx > 0 ? 3 : -3) + s.spin * 260) % 360;
+
+      const top = M + B, bottom = H - M - B;
+      if (s.by < top) { s.by = top + (top - s.by); s.bvy = Math.abs(s.bvy); s.spin *= -0.5; }
+      else if (s.by > bottom) { s.by = bottom - (s.by - bottom); s.bvy = -Math.abs(s.bvy); s.spin *= -0.5; }
+
+      const reach = PH / 2 + B;
+      if (s.bvx < 0 && s.bx - B <= P1X + PW && s.bx + B >= P1X && Math.abs(s.by - s.p1) <= reach) {
+        hit(s, 1, s.p1, d1);
+      } else if (s.bvx > 0 && s.bx + B >= P2X && s.bx - B <= P2X + PW && Math.abs(s.by - s.p2) <= reach) {
+        hit(s, 2, s.p2, d2);
+      }
+
+      if (s.bx < -2 * B) point(s, 2);
+      else if (s.bx > W + 2 * B) point(s, 1);
+      return s;
+    }
+
+    // Where the ball meets the paddle sets the return slope; how the paddle was
+    // moving sets the spin. Direction comes from a slope and one sqrt, not trig.
+    function hit(s, side, paddleY, paddleDir) {
+      s.rally += 1;
+      const t = clamp((s.by - paddleY) / (PH / 2 + B), -1, 1) * TAN_MAX;
+      const vx = Math.min(VMAX, BASE + GAIN * s.rally) / Math.sqrt(1 + t * t);
+      s.bvx = side === 1 ? vx : -vx;
+      s.bvy = t * vx;
+      s.bx = side === 1 ? P1X + PW + B : P2X - B;
+      s.spin = paddleDir * SPIN_HIT;
+      s.hitTick = s.tick; s.hitX = s.bx; s.hitY = s.by; s.hitSide = side;
+    }
+
+    function point(s, side) {
+      if (side === 1) s.s1 += 1; else s.s2 += 1;
+      s.ptTick = s.tick; s.ptSide = side; s.rally = 0;
+      s.bx = W / 2; s.by = H / 2; s.bvx = 0; s.bvy = 0; s.spin = 0; s.angle = 0;
+      s.serveDir = side === 1 ? 1 : -1;             // next serve goes to whoever conceded
+      if ((side === 1 ? s.s1 : s.s2) >= WIN) s.winner = side; else s.wait = SERVE_WAIT;
+    }
+
+    // FNV-1a over the raw float64 bytes of every field, in a fixed order.
+    const FIELDS = Object.keys(initial(0));
+    const bytes = new DataView(new ArrayBuffer(FIELDS.length * 8));
+    function hash(s) {
+      for (let i = 0; i < FIELDS.length; i++) bytes.setFloat64(i * 8, s[FIELDS[i]]);
+      let h = 0x811c9dc5;
+      for (let i = 0; i < bytes.byteLength; i++) { h ^= bytes.getUint8(i); h = Math.imul(h, 0x01000193); }
+      return '0x' + (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    }
+
+    window.RallySim = { initial, step, hash };       // poke at it from the console
+
+    // =====================================================================
+    // 2. VIEW. Reads state, writes SVG attributes, decides nothing.
+    // =====================================================================
+    const $ = (id) => document.getElementById(id);
+    const el = {
+      court: $('court'), world: $('world'), s1: $('s1'), s2: $('s2'), l1: $('l1'), l2: $('l2'),
+      tag: $('tag'), rally: $('rally'), ripple: $('ripple'), ghosts: $('ghosts'),
+      pad1: $('pad1'), pad2: $('pad2'), halo1: $('halo1'), halo2: $('halo2'),
+      hint: $('hint'), ball: $('ball'), overlay: $('overlay'), ovTitle: $('ovTitle'), ovSub: $('ovSub'),
+      mode: $('mode'), go: $('go'), step: $('step'), reset: $('reset'), replay: $('replay'),
+      mTick: $('mTick'), mHash: $('mHash'), live: $('live'),
+    };
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // A fixed pool of afterimages: created once, then only moved. Nothing is
+    // added to or removed from the DOM while the game runs.
+    const GHOSTS = 8;
+    const ghosts = [];
+    for (let i = 0; i < GHOSTS; i++) {
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', -B); r.setAttribute('y', -B);
+      r.setAttribute('width', 2 * B); r.setAttribute('height', 2 * B);
+      r.setAttribute('fill', '#ffb36b');
+      r.setAttribute('opacity', (0.34 * (1 - i / GHOSTS)).toFixed(3));
+      r.setAttribute('display', 'none');
+      el.ghosts.appendChild(r);
+      ghosts.push(r);
+    }
+    const trail = [];                                // view-only memory of recent ball poses
+    function remember(s) {
+      if (s.wait > 0 || s.winner) { trail.length = 0; return; }
+      trail.push(s.bx, s.by, s.angle);
+      if (trail.length > (GHOSTS + 1) * 3) trail.splice(0, 3);
+    }
+
+    const n2 = (v) => v.toFixed(2);
+    const fade = (now, then, span) => Math.max(0, 1 - (now - then) / span);
+
+    function draw(s) {
+      // Paddles recoil and their halo flares for a few ticks after a hit.
+      const f1 = s.hitSide === 1 ? fade(s.tick, s.hitTick, 10) : 0;
+      const f2 = s.hitSide === 2 ? fade(s.tick, s.hitTick, 10) : 0;
+      el.pad1.setAttribute('transform', `translate(${n2(P1X - 3 * f1)} ${n2(s.p1 - PH / 2)})`);
+      el.pad2.setAttribute('transform', `translate(${n2(P2X + 3 * f2)} ${n2(s.p2 - PH / 2)})`);
+      el.halo1.setAttribute('opacity', (0.14 + 0.5 * f1).toFixed(3));
+      el.halo2.setAttribute('opacity', (0.14 + 0.5 * f2).toFixed(3));
+
+      // Ball: a square that turns with its spin, and swells in before a serve.
+      const grow = s.wait > 0 ? 0.55 + 0.45 * (1 - s.wait / SERVE_WAIT) : 1;
+      el.ball.setAttribute('transform', `translate(${n2(s.bx)} ${n2(s.by)}) rotate(${n2(s.angle)}) scale(${n2(grow)})`);
+      el.ball.setAttribute('display', s.winner ? 'none' : 'inline');
+      const serving = s.wait > 0 && !s.winner;
+      el.hint.setAttribute('display', serving ? 'inline' : 'none');
+      if (serving) el.hint.setAttribute('transform', `translate(${W / 2 + s.serveDir * 24} ${H / 2}) scale(${s.serveDir} 1)`);
+
+      for (let i = 0; i < GHOSTS; i++) {
+        const k = trail.length - 3 * (i + 2);        // skip the newest pose: the ball is there
+        if (k < 0) { ghosts[i].setAttribute('display', 'none'); continue; }
+        ghosts[i].setAttribute('display', 'inline');
+        ghosts[i].setAttribute('transform',
+          `translate(${n2(trail[k])} ${n2(trail[k + 1])}) rotate(${n2(trail[k + 2])}) scale(${n2(1 - i * 0.09)})`);
+      }
+
+      // Ripple: a diamond that grows out of the last contact point.
+      const age = s.tick - s.hitTick;
+      if (age >= 0 && age < 18) {
+        const f = age / 18;
+        el.ripple.setAttribute('display', 'inline');
+        el.ripple.setAttribute('transform', `translate(${n2(s.hitX)} ${n2(s.hitY)}) rotate(45) scale(${n2(1 + 4.5 * f)})`);
+        el.ripple.setAttribute('opacity', (0.8 * (1 - f)).toFixed(3));
+      } else {
+        el.ripple.setAttribute('display', 'none');
+      }
+
+      // Scores pop, and the court shakes, for a moment after a point.
+      const pop = calm ? 0 : fade(s.tick, s.ptTick, 22);
+      const k1 = s.ptSide === 1 ? pop : 0, k2 = s.ptSide === 2 ? pop : 0;
+      el.s1.textContent = s.s1; el.s2.textContent = s.s2;
+      el.s1.setAttribute('transform', `translate(330 92) scale(${n2(1 + 0.3 * k1)})`);
+      el.s2.setAttribute('transform', `translate(470 92) scale(${n2(1 + 0.3 * k2)})`);
+      el.s1.setAttribute('fill-opacity', (0.24 + 0.6 * k1).toFixed(3));
+      el.s2.setAttribute('fill-opacity', (0.24 + 0.6 * k2).toFixed(3));
+      const shake = calm ? 0 : fade(s.tick, s.ptTick, 14) * 5;
+      el.world.setAttribute('transform', shake
+        ? `translate(${n2(shake * Math.sin(s.tick * 2.1))} ${n2(shake * Math.cos(s.tick * 1.7))})` : '');
+
+      el.rally.textContent = s.rally > 1 ? `RALLY ${s.rally}` : '';
+      el.l1.textContent = s.mode === 0 ? 'YOU' : 'LEFT · W / S';
+      el.l2.textContent = s.mode === 0 ? 'COMPUTER' : 'RIGHT · ↑ / ↓';
+    }
+
+    // =====================================================================
+    // 3. SHELL. Owns the clock, the inputs and everything outside the sim:
+    //    pause, the input log and the replay.
+    // =====================================================================
+    let sim = initial(0);
+    let shell = 'ready';     // ready | playing | paused | over | replay | replayDone
+    let log = [];            // one input byte per simulated tick
+    let final = null;        // { hash } of the finished live game
+    let replay = null;       // { i, match }
+    let announced = '';
+
+    const keys = { w: false, s: false, up: false, down: false };
+    const aim = { p1: null, p2: null };              // pointer targets, in court y
+    const owners = new Map();                        // pointerId -> 'p1' | 'p2'
+
+    function axis(up, down, target, y) {
+      if (up || down) return (up ? 1 : 0) | (down ? 2 : 0);
+      if (target !== null) { const d = target - y; if (d > 4) return 2; if (d < -4) return 1; }
+      return 0;
+    }
+    function sampleInput() {
+      const solo = sim.mode === 0;                   // solo: arrows steer the left paddle too
+      const a = axis(keys.w || (solo && keys.up), keys.s || (solo && keys.down), aim.p1, sim.p1);
+      const b = solo ? 0 : axis(keys.up, keys.down, aim.p2, sim.p2);
+      return a | (b << 2);
+    }
+
+    function advance() {
+      if (shell === 'playing') {
+        const input = sampleInput();
+        log.push(input);
+        sim = step(sim, input);
+        if (sim.winner) { shell = 'over'; final = { hash: hash(sim) }; }
+      } else if (shell === 'replay') {
+        sim = step(sim, log[replay.i++]);
+        if (replay.i >= log.length) { replay.match = hash(sim) === final.hash; shell = 'replayDone'; }
+      }
+      remember(sim);
+    }
+
+    function winnerName() {
+      if (sim.mode === 0) return sim.winner === 1 ? 'You win' : 'Computer wins';
+      return sim.winner === 1 ? 'Left wins' : 'Right wins';
+    }
+    function banner() {
+      if (shell === 'ready') return ['Rally', 'Space or Start · first to 7'];
+      if (shell === 'paused') return ['Paused', `tick ${sim.tick} · press . to step one tick`];
+      if (shell === 'over') return [winnerName(), `${sim.s1} – ${sim.s2} · Space to play again, or watch the replay`];
+      if (shell === 'replayDone') {
+        return replay.match
+          ? ['Replay matched', `${log.length} inputs in, ${final.hash} out, again`]
+          : ['Replay diverged', `${hash(sim)} is not ${final.hash}`];
+      }
+      return null;
+    }
+
+    function render() {
+      draw(sim);
+      const text = banner();
+      el.overlay.setAttribute('display', text ? 'inline' : 'none');
+      if (text) { el.ovTitle.textContent = text[0]; el.ovSub.textContent = text[1]; }
+      el.tag.textContent = shell === 'replay' ? 'REPLAY · 3× SPEED' : '';
+
+      el.mTick.textContent = sim.tick;
+      el.mHash.textContent = hash(sim);
+      el.mode.textContent = sim.mode === 0 ? 'One player · vs computer' : 'Two players · W/S vs ↑/↓';
+      el.go.textContent = { ready: 'Start', playing: 'Pause', paused: 'Resume', over: 'Play again', replay: 'Skip', replayDone: 'Play again' }[shell];
+      el.step.disabled = shell !== 'paused';
+      el.replay.hidden = !(shell === 'over' || shell === 'replayDone');
+
+      const say = sim.winner ? `${winnerName()}, ${sim.s1} to ${sim.s2}` : `${sim.s1} to ${sim.s2}`;
+      if (say !== announced) { announced = say; el.live.textContent = say; }
+    }
+
+    function newGame(mode) {
+      sim = initial(mode); log = []; final = null; replay = null; trail.length = 0; shell = 'ready';
+    }
+    function go() {
+      if (shell === 'ready' || shell === 'paused') shell = 'playing';
+      else if (shell === 'playing') shell = 'paused';
+      else if (shell === 'replay') { while (shell === 'replay') advance(); }
+      else { newGame(sim.mode); shell = 'playing'; }
+      acc = 0; render();
+    }
+    function stepOnce() {
+      if (shell !== 'paused') return;
+      shell = 'playing'; advance();
+      if (shell === 'playing') shell = 'paused';
+      render();
+    }
+    function reset() { newGame(sim.mode); render(); }
+    function toggleMode() { newGame(sim.mode === 0 ? 1 : 0); render(); }
+    function startReplay() {
+      if (!final) return;
+      sim = initial(sim.mode); trail.length = 0; replay = { i: 0, match: false }; shell = 'replay';
+      acc = 0; render();
+    }
+    function pause() { if (shell === 'playing') { shell = 'paused'; render(); } }
+
+    // --- keyboard ---------------------------------------------------------
+    const HELD = { KeyW: 'w', KeyS: 's', ArrowUp: 'up', ArrowDown: 'down' };
+    window.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const held = HELD[e.code];
+      if (held) {
+        keys[held] = true;
+        // The keyboard takes the paddle back from the pointer.
+        if (sim.mode === 0 || held === 'w' || held === 's') aim.p1 = null; else aim.p2 = null;
+        if (held === 'up' || held === 'down') e.preventDefault();
+        return;
+      }
+      if (e.repeat) return;
+      if (e.code === 'Space') {
+        if (e.target instanceof HTMLButtonElement) return;  // let a focused button do its own thing
+        e.preventDefault(); go();
+      } else if (e.key === 'r' || e.key === 'R') reset();   // letters and "." match by character,
+      else if (e.key === '.') stepOnce();                   // W/S above match by key position
+    });
+    window.addEventListener('keyup', (e) => { const held = HELD[e.code]; if (held) keys[held] = false; });
+    function dropInputs() { keys.w = keys.s = keys.up = keys.down = false; aim.p1 = aim.p2 = null; owners.clear(); }
+    window.addEventListener('blur', () => { dropInputs(); pause(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { dropInputs(); pause(); } });
+
+    // --- pointer: the paddle chases the pointer at its normal top speed, so
+    //     mouse and touch still reduce to the same up/down bits as the keys. --
+    function point2court(e) {
+      const r = el.court.getBoundingClientRect();
+      return [(e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H];
+    }
+    function track(e) {
+      const [x, y] = point2court(e);
+      const side = sim.mode === 0 || x < W / 2 ? 'p1' : 'p2';
+      owners.set(e.pointerId, side);
+      aim[side] = y;
+    }
+    function untrack(e) {
+      const side = owners.get(e.pointerId);
+      if (side) { aim[side] = null; owners.delete(e.pointerId); }
+    }
+    el.court.addEventListener('pointermove', track);
+    el.court.addEventListener('pointerdown', (e) => { track(e); if (shell === 'ready' || shell === 'paused') go(); });
+    el.court.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') untrack(e); });
+    el.court.addEventListener('pointerleave', untrack);
+    el.court.addEventListener('pointercancel', untrack);
+
+    // --- buttons: a mouse click hands focus back to the page so Space keeps
+    //     meaning start/pause; keyboard activation (detail 0) keeps focus. ---
+    for (const [node, fn] of [[el.mode, toggleMode], [el.go, go], [el.step, stepOnce], [el.reset, reset], [el.replay, startReplay]]) {
+      node.addEventListener('click', (e) => { fn(); if (e.detail > 0) node.blur(); });
+    }
+
+    // --- fixed-timestep loop: real time fills an accumulator, the sim drains
+    //     it in whole ticks. Frames within 2 ms of a tick count as exactly one,
+    //     so a 60 Hz display gets one tick per frame instead of 0-1-2 jitter. --
+    const TICK_MS = 1000 / 60, REPLAY_SPEED = 3;
+    let last = null, acc = 0;
+    function frame(now) {
+      let dt = last === null ? 0 : Math.min(now - last, 100);
+      last = now;
+      if (shell === 'playing' || shell === 'replay') {
+        if (Math.abs(dt - TICK_MS) < 2) dt = TICK_MS;
+        acc += dt;
+        let budget = 6;
+        while (acc >= TICK_MS && budget-- > 0) {
+          acc -= TICK_MS;
+          const reps = shell === 'replay' ? REPLAY_SPEED : 1;
+          for (let k = 0; k < reps && (shell === 'playing' || shell === 'replay'); k++) advance();
+        }
+        if (acc >= TICK_MS) acc = 0;                 // fell behind: drop the backlog, don't spiral
+        render();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    render();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>

@@ -85,6 +85,16 @@ const projects = [
     art: "mindmap",
   },
   {
+    key: "rally",
+    title: "Rally",
+    href: "/projects/rally/",
+    external: true,
+    cta: "Play",
+    blurb: "A paddle-and-ball game with nothing painted: every piece is an SVG element, driven by a deterministic 60 Hz simulation. Finish a game and it replays itself from your recorded inputs.",
+    tags: ["Game", "SVG", "No build step"],
+    art: "paddles",
+  },
+  {
     key: "graphics",
     title: "Graphics",
     href: "#/projects/graphics",
@@ -1117,6 +1127,21 @@ function ProjectArt({ kind }) {
           <rect key={"n" + k} x={x - 18} y={y - 8} width="36" height="16" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2" />
         ))}
         <rect x="94" y="48" width="52" height="24" fill="#ff9a4d" stroke="#ffd4a3" strokeWidth="2" />
+      </svg>
+    );
+  }
+  if (kind === "paddles") {
+    // a rally in progress: two paddles, a dashed net and a square ball trailing afterimages
+    return (
+      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
+        <rect x="14" y="10" width="212" height="100" fill="none" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" />
+        <line x1="120" y1="16" x2="120" y2="104" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" strokeDasharray="5 6" />
+        <rect x="26" y="54" width="6" height="34" fill="#ff9a4d" />
+        <rect x="208" y="24" width="6" height="34" fill="#ffd4a3" />
+        {[3, 2, 1, 0].map((k) => (
+          <rect key={k} x="-5" y="-5" width="10" height="10" fill={k ? "#ffb36b" : "#fff2e6"} opacity={k ? 0.5 - k * 0.12 : 1}
+            transform={`translate(${160 - k * 17} ${46 + k * 8}) rotate(${24 - k * 16}) scale(${1 - k * 0.12})`} />
+        ))}
       </svg>
     );
   }
