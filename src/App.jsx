@@ -373,17 +373,18 @@ function NavLink({ section }) {
   return <a href={`#${section.id}`} className="nav-link">{section.label}</a>;
 }
 
-// Front-page intro: plays on at most INTRO_MAX_PLAYS page loads per INTRO_WINDOW_MS, never in Lite
-// mode or with reduced motion. Its CSS (introCss) is only put in the page when it plays.
+// Front-page intro: plays on at most INTRO_MAX_PLAYS page loads per INTRO_WINDOW_MS, never with
+// reduced motion. Lite mode gets a pared-down version (introLiteCss). The CSS is only put in the
+// page when it plays.
 const INTRO_KEY = "site-intro-plays";
 const INTRO_MAX_PLAYS = 3;
 const INTRO_WINDOW_MS = 24 * 60 * 60 * 1000;
 let introThisLoad = null; // decided once per page load, on the first visit to the home page
 let introSpent = false; // set once it has played, so going back to Home in the same load doesn't replay it
-function claimIntro(lite) {
+function claimIntro() {
   if (introThisLoad === null) {
     introThisLoad = false;
-    if (!lite && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       try {
         const now = Date.now();
         const saved = JSON.parse(localStorage.getItem(INTRO_KEY) || "[]");
@@ -458,6 +459,20 @@ const introCss = `
     animation: introStreak 1100ms cubic-bezier(.5,0,.3,1) 1050ms both;
   }
   @keyframes introStreak { to { transform: translateX(330%) skewX(-12deg); } }
+`;
+
+// Lite intro: same order and stagger, about half as long, opacity and a small rise only. No spin,
+// colour shift, clip-path or streak, and no transform on the hero's children (Lite flattens them).
+const introLiteCss = `
+  .split .ch { display: inline-block; }
+  .split.wait .ch { opacity: 0; }
+  .split.run .ch { animation: introRiseLite 420ms ease-out backwards; animation-delay: calc(var(--d0, 0ms) + var(--i) * 40ms); }
+  .hero .split { --d0: 100ms; }
+  @keyframes introRiseLite { from { opacity: 0; transform: translateY(0.35em); } to { opacity: 1; transform: none; } }
+  .hero.intro .hero-face, .hero.intro .eyebrow { animation: introFadeLite 400ms ease-out backwards; }
+  .hero.intro .hero-subtitle { animation: introFadeLite 400ms ease-out 520ms backwards; }
+  .hero.intro .hero-actions > * { animation: introFadeLite 400ms ease-out 660ms backwards; }
+  @keyframes introFadeLite { from { opacity: 0; } to { opacity: 1; } }
 `;
 
 function Section({ id, title, children, intro = false }) {
@@ -1110,7 +1125,7 @@ function HomePage({ lite }) {
     });
   };
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
-  const [intro] = useState(() => claimIntro(lite));
+  const [intro] = useState(claimIntro);
   useEffect(() => { introSpent = true; }, []);
   const handleStarParallax = (event) => {
     if (event.pointerType !== "mouse") return;
@@ -1121,7 +1136,7 @@ function HomePage({ lite }) {
 
   return (
     <>
-      {intro && <style>{introCss}</style>}
+      {intro && <style>{lite ? introLiteCss : introCss}</style>}
       <section className={`hero${intro ? " intro" : ""}`}>
         <motion.div
           className="hero-card content-card"
