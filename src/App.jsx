@@ -484,11 +484,21 @@ function Section({ id, title, children, intro = false }) {
   );
 }
 
-function ButtonLink({ href, children }) {
+// variant="ruled": hairlines top and bottom with a bracketed serif foot at each corner; the sides draw
+// in on hover/focus (CSS .rule-link). The four feet are one shape mirrored by .rule-foot.{tr,bl,br}.
+const RULE_FEET = ["tl", "tr", "bl", "br"];
+
+function ButtonLink({ href, children, variant }) {
   const isHashLink = href.startsWith("#");
+  const ruled = variant === "ruled";
   return (
-    <a href={href} target={isHashLink ? undefined : "_blank"} rel={isHashLink ? undefined : "noreferrer"} className="button-link">
+    <a href={href} target={isHashLink ? undefined : "_blank"} rel={isHashLink ? undefined : "noreferrer"} className={ruled ? "rule-link" : "button-link"}>
       {children}
+      {ruled && RULE_FEET.map((corner) => (
+        <svg key={corner} className={`rule-foot ${corner}`} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M0 0H6.5V1Q1.7 1.2 1 6H0Z" fill="currentColor" />
+        </svg>
+      ))}
     </a>
   );
 }
@@ -928,6 +938,40 @@ function Css() {
         transition: 180ms ease;
       }
       .button-link:hover { transform: translateY(-2px); filter: brightness(1.06); }
+      /* Hero buttons: ruled lines with bracketed serif ends. Six 1px gradient layers: full top and bottom
+         rules, then four side segments (0 high at rest) that grow from each corner to meet mid-height. */
+      .rule-link {
+        --rl-c: linear-gradient(var(--accent) 0 0);
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 400;
+        letter-spacing: 0.04em;
+        color: var(--text);
+        text-decoration: none;
+        text-shadow: 0 1px 10px rgba(30,14,8,0.9);
+        border-radius: 0;
+        padding: 12px 26px;
+        background:
+          var(--rl-c) top / 100% 1px, var(--rl-c) bottom / 100% 1px,
+          var(--rl-c) top left / 1px 0, var(--rl-c) bottom left / 1px 0,
+          var(--rl-c) top right / 1px 0, var(--rl-c) bottom right / 1px 0;
+        background-repeat: no-repeat;
+        transition: background-size 320ms ease, background-color 320ms ease;
+      }
+      .rule-link:hover, .rule-link:focus-visible, .rule-link:active {
+        background-size: 100% 1px, 100% 1px, 1px 50.5%, 1px 50.5%, 1px 50.5%, 1px 50.5%;
+        background-color: rgba(255,179,107,0.09);
+      }
+      .rule-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+      .rule-foot { position: absolute; width: 16px; height: 16px; pointer-events: none; color: var(--accent); }
+      .rule-foot.tl { top: 0; left: 0; }
+      .rule-foot.tr { top: 0; right: 0; transform: scaleX(-1); }
+      .rule-foot.bl { bottom: 0; left: 0; transform: scaleY(-1); }
+      .rule-foot.br { bottom: 0; right: 0; transform: scale(-1); }
+      @media (prefers-reduced-motion: reduce) { .rule-link { transition: none; } }
 
       .resume-card { display: grid; gap: 18px; }
       .doc-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -1060,6 +1104,11 @@ function Css() {
           font-size: 1rem;
         }
 
+        .rule-link {
+          padding: 14px 26px;
+          font-size: 1rem;
+        }
+
         .nav-link {
           padding: 12px 16px;
         }
@@ -1158,9 +1207,9 @@ function HomePage({ lite }) {
             <p className="hero-subtitle">Astrophysics | Data | AI</p>
 
             <div className="hero-actions">
-              <ButtonLink href="#contact">Contact</ButtonLink>
-              <ButtonLink href="#research">Research</ButtonLink>
-              <ButtonLink href="#resume">Resume/CV</ButtonLink>
+              <ButtonLink href="#contact" variant="ruled">Contact</ButtonLink>
+              <ButtonLink href="#research" variant="ruled">Research</ButtonLink>
+              <ButtonLink href="#resume" variant="ruled">Resume/CV</ButtonLink>
             </div>
           </div>
 
