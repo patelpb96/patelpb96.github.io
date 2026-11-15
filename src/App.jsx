@@ -34,6 +34,14 @@ const cvDocs = [
   { key: "resume", label: "Resume", pdf: `${base}/assets/Resume_public.pdf`, page: `${base}/images/resume_page.webp`, h: 1743, blurb: "One page: recent roles, skills and education." },
   { key: "cv", label: "CV", pdf: `${base}/assets/CV_public.pdf`, page: `${base}/images/cv_page.webp`, h: 1744, blurb: "Three pages: full research history, projects and publications." },
 ];
+// Intro section timeline: [when, what], oldest first.
+const introTimeline = [
+  ["2019", "I graduate from the University of Michigan, Ann Arbor, with a dual BSc in Physics and Astronomy & Astrophysics with a minor in stats."],
+  ["2020–2023", "I am a computational astrophysics researcher as a grad student at UC Davis, publishing my own first author research in MNRAS with my hands in multiple projects."],
+  ["2023", "I graduate from UC Davis and start working in AI Evaluations."],
+  ["2024", "I begin work at the USPTO as a patent examiner in physics."],
+  ["To present", "Multiple projects for Mercor helping train AI models with evals and writing."],
+];
 const projects = [
   {
     key: "atp",
@@ -365,10 +373,97 @@ function NavLink({ section }) {
   return <a href={`#${section.id}`} className="nav-link">{section.label}</a>;
 }
 
-function Section({ id, title, children }) {
+// Front-page intro: plays on at most INTRO_MAX_PLAYS page loads per INTRO_WINDOW_MS, never in Lite
+// mode or with reduced motion. Its CSS (introCss) is only put in the page when it plays.
+const INTRO_KEY = "site-intro-plays";
+const INTRO_MAX_PLAYS = 3;
+const INTRO_WINDOW_MS = 24 * 60 * 60 * 1000;
+let introThisLoad = null; // decided once per page load, on the first visit to the home page
+let introSpent = false; // set once it has played, so going back to Home in the same load doesn't replay it
+function claimIntro(lite) {
+  if (introThisLoad === null) {
+    introThisLoad = false;
+    if (!lite && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      try {
+        const now = Date.now();
+        const saved = JSON.parse(localStorage.getItem(INTRO_KEY) || "[]");
+        const plays = (Array.isArray(saved) ? saved : []).filter((t) => typeof t === "number" && now - t < INTRO_WINDOW_MS);
+        if (plays.length < INTRO_MAX_PLAYS) { plays.push(now); introThisLoad = true; }
+        localStorage.setItem(INTRO_KEY, JSON.stringify(plays));
+      } catch { introThisLoad = true; /* storage blocked: can't count, so just play */ }
+    }
+  }
+  return introThisLoad && !introSpent;
+}
+
+// Each letter starts on a golden-angle spiral (137.5° apart, the sunflower-seed pattern) and falls
+// into place: the offsets come from the letter's index alone, so every visit plays the same way.
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+function IntroTitle({ as: Tag, className, text, play, spread, onView = false }) {
+  // off: plain text · wait: hidden until scrolled into view · run: animating
+  // (no IntersectionObserver: play at once rather than leave a heading hidden)
+  const [phase, setPhase] = useState(play ? (onView && typeof IntersectionObserver !== "undefined" ? "wait" : "run") : "off");
+  const ref = useRef(null);
+  useEffect(() => {
+    if (phase !== "wait" || !ref.current) return undefined;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setPhase("run"); io.disconnect(); } }, { threshold: 0.6 });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [phase]);
+  if (phase === "off") return <Tag className={className}>{text}</Tag>;
+  const chars = [...text];
+  return (
+    // once the last letter lands, go back to plain text so the font's kerning returns
+    <Tag ref={ref} className={`${className} split ${phase}`} aria-label={text}
+      onAnimationEnd={(e) => { if (e.target.dataset.last) setPhase("off"); }}>
+      {chars.map((c, i) => {
+        const a = i * GOLDEN_ANGLE + 0.6;
+        const r = spread * (0.8 + 0.3 * Math.sqrt(i + 1));
+        return (
+          <span key={i} className="ch" aria-hidden="true" data-last={i === chars.length - 1 ? "1" : undefined}
+            style={{ "--i": i, "--dx": `${(Math.cos(a) * r).toFixed(3)}em`, "--dy": `${(Math.sin(a) * r).toFixed(3)}em`, "--rot": `${Math.round(((-a * 180) / Math.PI) % 360)}deg` }}>
+            {c === " " ? " " : c}
+          </span>
+        );
+      })}
+    </Tag>
+  );
+}
+
+const introCss = `
+  .split .ch { display: inline-block; }
+  .split.wait .ch { opacity: 0; }
+  .split.run .ch { animation: introCapture 850ms cubic-bezier(.18,.9,.25,1.12) backwards; animation-delay: calc(var(--d0, 0ms) + var(--i) * 55ms); }
+  .hero .split { --d0: 220ms; }
+  @keyframes introCapture {
+    from { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(.3); color: #9cc3ff; }
+    55% { opacity: 1; color: #d8e6ff; }
+    to { opacity: 1; transform: none; color: #fff2e6; }
+  }
+  .hero.intro .hero-face { animation: introLens 900ms cubic-bezier(.2,.8,.2,1) backwards; }
+  @keyframes introLens { from { opacity: 0; transform: translateZ(34px) scale(.55) rotate(-14deg); } to { opacity: 1; transform: translateZ(34px); } }
+  .hero.intro .eyebrow { animation: introSlit 700ms ease-out 120ms backwards; }
+  .hero.intro .hero-subtitle { animation: introSlit 700ms ease-out 1000ms backwards; }
+  @keyframes introSlit { from { clip-path: inset(0 50% 0 50%); opacity: .2; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+  .hero.intro .hero-actions > * { animation: introRise 520ms ease-out backwards; }
+  .hero.intro .hero-actions > :nth-child(1) { animation-delay: 1200ms; }
+  .hero.intro .hero-actions > :nth-child(2) { animation-delay: 1290ms; }
+  .hero.intro .hero-actions > :nth-child(3) { animation-delay: 1380ms; }
+  @keyframes introRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  /* one light streak across the card as the name settles */
+  .hero.intro .hero-card::after {
+    content: ""; position: absolute; z-index: 8; top: -20%; left: 0; width: 38%; height: 140%; pointer-events: none;
+    background: linear-gradient(100deg, transparent 40%, rgba(255,226,194,0.32) 50%, transparent 60%);
+    transform: translateX(-130%) skewX(-12deg);
+    animation: introStreak 1100ms cubic-bezier(.5,0,.3,1) 1050ms both;
+  }
+  @keyframes introStreak { to { transform: translateX(330%) skewX(-12deg); } }
+`;
+
+function Section({ id, title, children, intro = false }) {
   return (
     <section id={id} className="site-section">
-      <h2 className="section-title">{title}</h2>
+      <IntroTitle as="h2" className="section-title" text={title} play={intro} spread={0.9} onView />
       {children}
     </section>
   );
@@ -792,6 +887,12 @@ function Css() {
       .panel-body { padding: clamp(22px, 4vw, 34px); }
       .prose { color: var(--muted); font-size: 1.04rem; line-height: 1.85; }
       .prose p { margin: 0 0 18px; }
+      .timeline { margin: 26px 0 0; padding: 0; border-left: 1px solid var(--line); }
+      .timeline-row { display: grid; grid-template-columns: 7.5em 1fr; gap: 18px; position: relative; padding: 10px 0 10px 20px; }
+      .timeline-row::before { content: ""; position: absolute; left: -4px; top: 21px; width: 7px; height: 7px; background: var(--accent); }
+      .timeline dt { color: var(--accent); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.04em; line-height: 1.85; white-space: nowrap; }
+      .timeline dd { margin: 0; }
+      @media (max-width: 520px) { .timeline-row { grid-template-columns: 1fr; gap: 2px; } }
       .prose a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(255,170,100,0.42); }
       .prose a:hover { border-bottom-color: var(--cyan); }
       .prose a.button-link, .prose a.button-link:hover { color: #000000; border-bottom: 0; } /* buttons inside prose keep button styling */
@@ -1009,6 +1110,8 @@ function HomePage({ lite }) {
     });
   };
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const [intro] = useState(() => claimIntro(lite));
+  useEffect(() => { introSpent = true; }, []);
   const handleStarParallax = (event) => {
     if (event.pointerType !== "mouse") return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -1018,7 +1121,8 @@ function HomePage({ lite }) {
 
   return (
     <>
-      <section className="hero">
+      {intro && <style>{introCss}</style>}
+      <section className={`hero${intro ? " intro" : ""}`}>
         <motion.div
           className="hero-card content-card"
           ref={cardRef}
@@ -1035,7 +1139,7 @@ function HomePage({ lite }) {
           <div className="content-foreground">
             <img src={assets.pfpFace} alt="Preet Patel" className="hero-face" width="480" height="480" />
             <p className="eyebrow">M.Sc. in Physics & Astronomy</p>
-            <h1 className="hero-title">Preet Patel</h1>
+            <IntroTitle as="h1" className="hero-title" text="Preet Patel" play={intro} spread={1.6} />
             <p className="hero-subtitle">Astrophysics | Data | AI</p>
 
             <div className="hero-actions">
@@ -1051,17 +1155,21 @@ function HomePage({ lite }) {
       </section>
 
       <div className="content">
-        <Section id="intro" title="Intro">
+        <Section id="intro" title="Intro" intro={intro}>
           <div className="panel">
             <div className="panel-body prose">
-              <p>Hello! I am a scientist with a strong background in math, statistics, programming, and technical communication. I honed these skills as an astrophysicist and during my Master's degree in Physics at UC Davis, alongside my dual-Bachelor's in Physics and in Astronomy from the University of Michigan, Ann Arbor (go blue!).</p>
-              <p>While Astrophysics has long been a passion of mine, I have always been intrigued by using data-driven methods to glean insight into the many processes in our world.</p>
-              <p>In physics, we use models derived from the laws that govern reality to converge on a solution and extract insights from large collections of data. This makes data science and quantitative analytics a natural fit for my background, and I now seek to expand this knowledge-generating process into industry.</p>
+              <p>Welcome to my site! I am a physicist by training with experience in computational astrophysics research (FIRE&#8209;2/3 simulations at UC Davis), AI Evaluation (Google's RMI team, Mercor, Turac, micro1), and Patent Examination in Optics and Photonics.</p>
+              <p>I am deeply interested in using rigorous analytical approaches to solving problems, using the toolkits of programming, data science, statistics, and ontology.</p>
+              <dl className="timeline">
+                {introTimeline.map(([when, what]) => (
+                  <div key={when} className="timeline-row"><dt>{when}</dt><dd>{what}</dd></div>
+                ))}
+              </dl>
             </div>
           </div>
         </Section>
 
-        <Section id="research" title="Research">
+        <Section id="research" title="Research" intro={intro}>
           <div className="research-stack">
           <div className="panel">
             <DtdCarousel />
@@ -1087,11 +1195,11 @@ function HomePage({ lite }) {
           </div>
         </Section>
 
-        <Section id="resume" title="Resume/CV">
+        <Section id="resume" title="Resume/CV" intro={intro}>
           <ResumeCv />
         </Section>
 
-        <Section id="contact" title="Contact">
+        <Section id="contact" title="Contact" intro={intro}>
           <div className="panel panel-body">
             <div className="contact-grid">
               {contactCards.map((card) => <ContactCard key={card.label} card={card} />)}
