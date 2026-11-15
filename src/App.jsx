@@ -598,6 +598,33 @@ function Css() {
       .back-link { display: inline-flex; gap: 8px; margin: 34px 0 0; color: var(--muted); text-decoration: none; font-size: 0.92rem; border-bottom: 1px solid transparent; }
       .back-link:hover { color: var(--accent-soft); border-bottom-color: var(--line); }
       .nav-link.active { color: #fff2e6; box-shadow: inset 0 -2px 0 var(--accent); }
+      .projects-menu { position: relative; display: flex; }
+      .projects-trigger { display: inline-flex; align-items: center; gap: 8px; }
+      .projects-trigger .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; transition: transform 180ms ease; }
+      .projects-trigger.open .caret { transform: rotate(180deg); }
+      .projects-trigger.open { color: #fff2e6; background: rgba(255,154,77,0.12); }
+      .projects-panel {
+        position: absolute; top: calc(100% + 10px); right: 0; z-index: 30;
+        width: 300px; padding: 10px; border-radius: 0;
+        background: #1c0e08; border: 1px solid var(--line); box-shadow: 0 18px 40px rgba(0,0,0,0.5);
+      }
+      .projects-search {
+        width: 100%; box-sizing: border-box; font: inherit; font-size: 0.9rem; color: var(--text);
+        background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 0; padding: 8px 10px;
+      }
+      .projects-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+      /* three rows tall: the first three A–Z show on open, the rest scroll */
+      .projects-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: calc(3 * 58px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,180,120,0.35) transparent; }
+      .projects-item { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 58px; box-sizing: border-box; padding: 0 10px; text-decoration: none; border-left: 2px solid transparent; }
+      .projects-item-title { color: var(--text); font-size: 0.92rem; }
+      .projects-item-tags { color: var(--dim); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .projects-item.hi { background: rgba(255,154,77,0.14); }
+      .projects-item.hi .projects-item-title { color: #fff2e6; }
+      .projects-item.current { border-left-color: var(--accent); }
+      .projects-empty { margin: 10px 4px 4px; color: var(--muted); font-size: 0.86rem; }
+      .projects-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 0.78rem; color: var(--dim); }
+      .projects-foot a { color: var(--accent-soft); text-decoration: none; }
+      .projects-foot a:hover { color: #fff2e6; }
       .menu-btn { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 44px; height: 44px; padding: 0 11px; background: transparent; border: 1px solid var(--line); cursor: pointer; }
       .menu-btn span { display: block; height: 2px; background: var(--text); transition: transform 180ms ease, opacity 180ms ease; }
       .menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
@@ -885,6 +912,9 @@ function Css() {
         }
         .nav.open .nav-link { padding: 13px 4px; font-size: 1.02rem; border-bottom: 1px solid rgba(255,180,120,0.10); }
         .nav.open .nav-link:last-child { border-bottom: 0; }
+        .nav.open .projects-menu { flex-direction: column; }
+        .nav.open .projects-trigger { justify-content: space-between; text-align: left; }
+        .nav.open .projects-panel { position: static; width: auto; margin: 4px 0 10px; box-shadow: none; }
         .hero { min-height: auto; padding-top: 54px; }
         .hero-card { min-height: 360px; }
         .hero::before { inset: 0 -16px; }
@@ -1331,6 +1361,83 @@ function useLiteMode() {
   return [lite, toggle];
 }
 
+// Projects dropdown: a search box over the projects list, sorted A–Z. The list box is sized to show
+// three rows, so the first three alphabetically are what you see on open; scroll or type for the rest.
+const projectsAZ = [...projects].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+const projectHaystack = (p) => [p.title, p.key === "atp" ? "Tennis" : "", ...p.tags].join(" ").toLowerCase();
+
+function ProjectsMenu({ route }) {
+  // like the phone menu, it remembers the page it was opened on, so changing page closes it
+  const [openRoute, setOpenRoute] = useState(null);
+  const open = openRoute === route;
+  const [query, setQuery] = useState("");
+  const [hi, setHi] = useState(0);
+  const wrapRef = useRef(null);
+  const inputRef = useRef(null);
+  const listRef = useRef(null);
+
+  const q = query.trim().toLowerCase();
+  const matches = q ? projectsAZ.filter((p) => q.split(/\s+/).every((w) => projectHaystack(p).includes(w))) : projectsAZ;
+  const isCurrent = (p) => route === `projects/${p.key}` || route.startsWith(`projects/${p.key}/`);
+
+  const close = () => { setOpenRoute(null); setQuery(""); setHi(0); };
+  const toggle = () => { if (open) close(); else { setOpenRoute(route); setHi(0); } };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    inputRef.current?.focus({ preventScroll: true });
+    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) close(); };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [open]);
+
+  useEffect(() => { // keep the highlighted row in view while arrowing through the list
+    listRef.current?.children[hi]?.scrollIntoView({ block: "nearest" });
+  }, [hi, open]);
+
+  const onKeyDown = (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); close(); wrapRef.current?.querySelector(".projects-trigger")?.focus(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, matches.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+    else if (e.key === "Enter" && matches[hi]) { e.preventDefault(); window.location.assign(matches[hi].href); close(); }
+  };
+
+  return (
+    <div className="projects-menu" ref={wrapRef} onKeyDown={onKeyDown}>
+      <button type="button" className={`nav-link projects-trigger${route.startsWith("projects") ? " active" : ""}${open ? " open" : ""}`}
+        aria-expanded={open} aria-haspopup="true" aria-controls="projects-panel" onClick={toggle}>
+        Projects<span className="caret" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="projects-panel" id="projects-panel">
+          <input ref={inputRef} type="search" className="projects-search" placeholder="Search projects…" value={query}
+            aria-label="Search projects" aria-controls="projects-list" aria-activedescendant={matches[hi] ? `pm-${matches[hi].key}` : undefined}
+            onChange={(e) => { setQuery(e.target.value); setHi(0); }} />
+          {matches.length ? (
+            <ul className="projects-list" id="projects-list" role="listbox" aria-label="Projects" ref={listRef}>
+              {matches.map((p, i) => (
+                <li key={p.key} id={`pm-${p.key}`} role="option" aria-selected={i === hi}>
+                  <a href={p.href} className={`projects-item${i === hi ? " hi" : ""}${isCurrent(p) ? " current" : ""}`}
+                    onMouseEnter={() => setHi(i)} onClick={close}>
+                    <span className="projects-item-title">{p.title}</span>
+                    <span className="projects-item-tags">{p.tags.join(" · ")}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="projects-empty">No projects match “{query.trim()}”.</p>
+          )}
+          <div className="projects-foot">
+            <span>{matches.length} of {projects.length}</span>
+            <a href="#/projects" onClick={close}>All projects →</a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Topbar({ route, lite, onToggleLite }) {
   // phone-width menu: remembers the page it was opened on, so changing page closes it
   const [menuRoute, setMenuRoute] = useState(null);
@@ -1372,19 +1479,11 @@ function Topbar({ route, lite, onToggleLite }) {
           onClick={(e) => { if (e.target.closest("a")) setMenuOpen(false); }}
         >
           {route.startsWith("projects") ? (
-            <>
-              <a href="#/" className="nav-link">Home</a>
-              <a href="#/projects" className={`nav-link${route === "projects" ? " active" : ""}`}>Projects</a>
-              {projects.map((p) => (
-                <a key={p.key} href={p.href} className={`nav-link${(route === `projects/${p.key}` || route.startsWith(`projects/${p.key}/`)) ? " active" : ""}`}>{p.key === "atp" ? "Tennis" : p.title}</a>
-              ))}
-            </>
+            <a href="#/" className="nav-link">Home</a>
           ) : (
-            <>
-              {sections.map((section) => <NavLink key={section.id} section={section} />)}
-              <a href="#/projects" className="nav-link">Projects</a>
-            </>
+            sections.map((section) => <NavLink key={section.id} section={section} />)
           )}
+          <ProjectsMenu route={route} />
           <button type="button" className={`nav-link lite-toggle${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
             title="Lite mode: a still background with no animation, blur or tilt. Easier on older laptops and phones.">
             <span className="lite-box" aria-hidden="true" />Lite
