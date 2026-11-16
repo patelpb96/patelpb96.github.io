@@ -9,7 +9,9 @@ const base = typeof window !== "undefined" ? window.location.origin : "https://p
 const assets = {
   bg: `${base}/bg.jpg`,
   bgGif: `${base}/assets/bg.gif`,
-  pfp: `${base}/pfp.webp`, // 1200px wide, ~230 kB (was a 1.6 MB 1365x2048 JPEG)
+  // Top-bar picture, shown at 54px: a 162px-wide copy (~9 kB) of public/pfp.webp (1200px, ~230 kB), same
+  // aspect ratio so .brand-mark's object-position crop is unchanged. Regenerate it if pfp.webp changes.
+  pfpSmall: `${base}/pfp_small.webp`,
   pfpFace: `${base}/pfp_face.webp`, // 480px square face crop from the full-resolution original, for the hero
   galaxies: `${base}/images/8gals_GIF.gif`,
   graphics: [
@@ -254,8 +256,18 @@ function DtdCarousel() {
   const n = dtdRuns.length, run = dtdRuns[i];
   const go = (d) => setI((k) => (k + d + n) % n);
   const poster = `/images/dtd/${run.key}.webp`;
+  // The poster is a CSS background, so loading="lazy" can't defer it: hold it back until the carousel is
+  // within 600px of the screen. (No IntersectionObserver: show it at once.)
+  const rootRef = useRef(null);
+  const [near, setNear] = useState(typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    if (near || !rootRef.current) return undefined;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setNear(true); io.disconnect(); } }, { rootMargin: "600px" });
+    io.observe(rootRef.current);
+    return () => io.disconnect();
+  }, [near]);
   return (
-    <div className="dtd-carousel" role="region" aria-roledescription="carousel" aria-label="APOGEE fits, one per delay-time distribution" tabIndex={0}
+    <div className="dtd-carousel" ref={rootRef} role="region" aria-roledescription="carousel" aria-label="APOGEE fits, one per delay-time distribution" tabIndex={0}
       onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); }}
       onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); }}>
@@ -263,7 +275,7 @@ function DtdCarousel() {
         {playing
           ? <video key={run.key} className="dtd-video" src={`/videos/dtd/${run.key}.mp4`} poster={poster} controls autoPlay muted loop playsInline title={`${run.name}: MCMC walkers converging on the APOGEE target`} />
           : (
-            <button className="dtd-load" type="button" onClick={() => setPlaying(true)} aria-label={`Load the movie for ${run.name}`} style={{ backgroundImage: `url(${poster})` }}>
+            <button className="dtd-load" type="button" onClick={() => setPlaying(true)} aria-label={`Load the movie for ${run.name}`} style={near ? { backgroundImage: `url(${poster})` } : undefined}>
               <span>▶ Click to load movie</span>
               <small>MP4 · {run.mb} MB · 11 s</small>
             </button>
@@ -319,7 +331,7 @@ function assertSiteData() {
   console.assert(projects.length > 0 && projects.every((p) => p.title && p.href) && new Set(projects.map((p) => p.key)).size === projects.length, "projects portal should list linked projects with unique keys");
   console.assert(/^https?:\/\//.test(base), "base URL should be absolute");
   console.assert(assets.bg.endsWith("/bg.jpg"), "background image should use the hosted bg image");
-  console.assert(assets.pfp === `${base}/pfp.webp`, "hero image should use pfp.webp");
+  console.assert(assets.pfpSmall === `${base}/pfp_small.webp`, "top-bar picture should use the small pfp copy");
   console.assert(assets.graphics.length >= 5, "graphics section should include newer and older animations");
   console.assert(contactCards.some((card) => card.href?.startsWith("mailto:")), "contact cards should include a mailto link");
   console.assert(contactCards.some((card) => card.encoded && decodeText(card.encoded).includes("199")), "the phone card should carry its (encoded) factorization");
@@ -1628,7 +1640,7 @@ function Topbar({ route, lite, onToggleLite }) {
     <header className="topbar">
       <div className="topbar-inner">
         <a href="#/" className="brand">
-          <img src={assets.pfp} alt="Preet Patel profile" className="brand-mark" />
+          <img src={assets.pfpSmall} alt="Preet Patel profile" className="brand-mark" width="162" height="243" decoding="async" />
           <div>
             <div className="brand-title">Preet Patel</div>
             <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
