@@ -5,9 +5,45 @@
     <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✦</text></svg>'>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>patelpb96.github.io</title>
+    <!-- Loading screen: Orion, drawn and twinkling until the app script arrives. It lives inside #root,
+         so React replaces it on first render. Hidden for the first 350 ms so fast loads never flash it.
+         Lite mode and reduced motion get the still constellation. -->
+    <style>
+      html { background: #160a06; }
+      body { margin: 0; }
+      .boot { min-height: 100vh; display: grid; place-items: center; opacity: 0; animation: bootIn 0.5s ease 0.35s forwards; }
+      .boot svg { width: min(46vw, 190px); height: auto; overflow: visible; }
+      .boot line { stroke: rgba(255, 179, 107, 0.5); stroke-width: 0.6; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: bootLine 0.7s ease forwards; animation-delay: calc(0.6s + var(--i) * 0.22s); }
+      .boot circle { fill: #fff2e6; transform-box: fill-box; transform-origin: center; animation: bootTwinkle var(--d) ease-in-out infinite; animation-delay: calc(var(--i) * -0.37s); }
+      @keyframes bootIn { to { opacity: 1; } }
+      @keyframes bootLine { to { stroke-dashoffset: 0; } }
+      @keyframes bootTwinkle { 0%, 100% { opacity: 0.45; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
+      .boot-still .boot, .boot-still .boot line, .boot-still .boot circle { animation: none; opacity: 1; stroke-dashoffset: 0; }
+      @media (prefers-reduced-motion: reduce) { .boot, .boot line, .boot circle { animation: none; opacity: 1; stroke-dashoffset: 0; } }
+    </style>
+    <script>try { if (localStorage.getItem("site-lite") === "1") document.documentElement.className = "boot-still"; } catch (e) { /* storage blocked: animate */ }</script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" role="status" aria-label="Loading">
+        <svg viewBox="0 0 100 120" aria-hidden="true">
+          <line pathLength="1" style="--i:0" x1="44" y1="66" x2="60" y2="58" />
+          <line pathLength="1" style="--i:1" x1="28" y1="22" x2="44" y2="66" />
+          <line pathLength="1" style="--i:2" x1="70" y1="26" x2="60" y2="58" />
+          <line pathLength="1" style="--i:3" x1="28" y1="22" x2="70" y2="26" />
+          <line pathLength="1" style="--i:4" x1="44" y1="66" x2="36" y2="102" />
+          <line pathLength="1" style="--i:5" x1="60" y1="58" x2="74" y2="98" />
+          <line pathLength="1" style="--i:6" x1="36" y1="102" x2="74" y2="98" />
+          <circle style="--i:0;--d:2.6s;fill:#ffb36b" cx="28" cy="22" r="2.6" />
+          <circle style="--i:1;--d:2.1s" cx="70" cy="26" r="1.9" />
+          <circle style="--i:2;--d:1.9s" cx="44" cy="66" r="1.7" />
+          <circle style="--i:3;--d:2.4s" cx="52" cy="62" r="1.7" />
+          <circle style="--i:4;--d:2.0s" cx="60" cy="58" r="1.7" />
+          <circle style="--i:5;--d:2.9s" cx="36" cy="102" r="1.8" />
+          <circle style="--i:6;--d:2.3s;fill:#cfe0ff" cx="74" cy="98" r="2.6" />
+        </svg>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
