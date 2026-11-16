@@ -93,10 +93,13 @@ def _balanced(text: str, start: int) -> str | None:
 
 
 def records(html: str) -> list[dict]:
-    """Every leaderboard row record: a JSON object starting with "slug" that has scores and an Intelligence Index."""
+    """Every leaderboard row record: a JSON object with a name, scores and an Intelligence Index.
+
+    Records used to start with "slug"; since 2026-11-14 they start with "id" and carry the slug under "release". Both
+    shapes are accepted, and a record is recognised by what it contains, not by its first key."""
     p = flight_payload(html)
     out, seen = [], set()
-    for m in re.finditer(r'\{"slug":"', p):
+    for m in re.finditer(r'\{"(?:slug|id)":"', p):
         raw = _balanced(p, m.start())
         if not raw:
             continue
@@ -104,8 +107,9 @@ def records(html: str) -> list[dict]:
             o = json.loads(raw)
         except ValueError:
             continue
-        if isinstance(o.get("scores"), dict) and "intelligenceIndex" in o and o["slug"] not in seen:
-            seen.add(o["slug"])
+        key = o.get("id") or o.get("slug")
+        if isinstance(o.get("scores"), dict) and "intelligenceIndex" in o and o.get("name") and key and key not in seen:
+            seen.add(key)
             out.append(o)
     if len(out) < 20:
         raise SourceError(f"only {len(out)} model records found (layout changed?)")

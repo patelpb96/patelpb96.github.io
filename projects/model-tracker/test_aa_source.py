@@ -45,6 +45,17 @@ class AASourceTests(unittest.TestCase):
         self.assertEqual(len(got), len(RECS))
         self.assertEqual(got[-6]["slug"], "grok-4-7")
 
+    def test_records_in_the_2026_11_14_shape_still_parse(self):
+        # AA moved "slug" under "release" and put an "id" first; the parser used to anchor on '{"slug":"' and found 0.
+        def reshape(r):
+            r = dict(r)
+            slug = r.pop("slug")
+            return {"id": f"uuid-{slug}", "release": {"slug": slug, "name": r["name"]}, **r}
+        got = aa.records(page([reshape(r) for r in RECS]))
+        self.assertEqual(len(got), len(RECS))                       # the nested "release" object is not counted twice
+        chosen = {b["model_id"]: b for b in aa.select(got, 25, set())}
+        self.assertEqual(chosen["spacexai/grok-4-7"]["effort"], "Xhigh")
+
     def test_layout_change_is_loud(self):
         with self.assertRaises(aa.SourceError):
             aa.records("<html>no flight data</html>")
