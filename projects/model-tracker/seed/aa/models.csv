@@ -21,6 +21,8 @@ mistral/mistral-large-4,Mistral,Mistral,Mistral Large 4,Mistral Large 4,open_wei
 moonshot/kimi-k3-1-pro,Moonshot AI,Moonshot AI,Kimi K3.1 Pro,Kimi K3.1 Pro,open_weights,true,,scraped
 openai/gpt-6-1-sol,OpenAI,OpenAI,GPT-6.1 Sol,GPT-6.1 Sol,proprietary,false,,scraped
 openai/gpt-6-1-terra,OpenAI,OpenAI,GPT-6.1 Terra,GPT-6.1 Terra,proprietary,false,,scraped
+openai/gpt-6-2-astra,OpenAI,OpenAI,GPT-6.2 Astra,GPT-6.2 Astra,proprietary,false,,scraped
+openai/gpt-6-2-sol,OpenAI,OpenAI,GPT-6.2 Sol,GPT-6.2 Sol,proprietary,false,,scraped
 openai/gpt-6-astra,OpenAI,OpenAI,GPT-6 Astra,GPT-6 Astra,proprietary,false,,scraped
 openai/gpt-6-luna,OpenAI,OpenAI,GPT-6 Luna,GPT-6 Luna,proprietary,false,,scraped
 spacexai/grok-4-7,SpaceXAI,SpaceXAI,Grok 4.7,Grok 4.7,proprietary,false,,scraped
