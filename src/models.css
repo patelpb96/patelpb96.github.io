@@ -171,3 +171,6 @@ th.super button { color: var(--ink); }
 .run-btns .chip:disabled { opacity: 0.6; cursor: progress; }
 .run-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
 .run-log li.err { color: var(--hit); }
+
+/* A price that is a placeholder average (source lists $0): marked with a dotted underline so it is never read as measured. */
+td.est { text-decoration: underline dotted; text-underline-offset: 3px; }

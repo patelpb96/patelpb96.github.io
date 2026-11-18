@@ -30,8 +30,8 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(json.dumps(a), json.dumps(b))
         self.assertGreaterEqual(len(a["models"]), 13)                       # the 13 hand models, plus seed/aa
         self.assertEqual(len({m["model_id"] for m in a["models"]}), len(a["models"]))
-        # The page colours companies from a 16-colour palette per theme; a 17th company would reuse a colour.
-        self.assertLessEqual(len({m["org"] for m in a["models"]}), 16)
+        # The page colours companies from a 17-colour palette per theme; an 18th company would reuse a colour.
+        self.assertLessEqual(len({m["org"] for m in a["models"]}), 17)
 
     def test_unknown_model_is_rejected(self):
         self.edit("score_obs.csv", "s001,google/gemini-4-carbon", "s001,google/nope")

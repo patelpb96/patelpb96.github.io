@@ -71,7 +71,7 @@ const SUPER_BLURB = "Superscore: ln[ output tok/s x (blended price per 1M tokens
 function superscore(r) {
   const idx = r.scores.aa_intelligence_index, cost = r.scores.aa_cost_per_task, time = r.scores.aa_time_per_task;
   const nh = r.scores.aa_non_hallucination;
-  if (!idx || !cost || !time || !nh || !r.price || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
+  if (!idx || !cost || !time || !nh || !r.price || r.price.row.placeholder || !r.speed || !(time.value > 0) || !(cost.value > 0)) return null;
   const raw = (r.speed.value * r.price.value * idx.value * (nh.value / 100)) / (time.value * 60 * cost.value);
   return raw > 0 ? Math.log(raw) : null;
 }
@@ -114,6 +114,20 @@ function bestPerModel(latest, valueOf, preferLow) {
   }
   return out;
 }
+
+// A listed price of exactly $0 is a source gap (a preview or not-yet-priced model), not a real price, and a log axis
+// cannot draw it. Until a real price arrives, show the average of the priced models instead, flagged `placeholder`
+// so every view can mark it. The stored data is untouched; this runs on load only. Real prices replace it by
+// themselves: the moment a refresh brings one above $0 the row stops being a placeholder.
+function withPlaceholderPrices(data) {
+  const priced = bestPerModel(latestBy(data.prices, (r) => `${r.model_id}|${r.provider}`, "9999-12-31"), (r) => r.blended_3to1_per_1m, true);
+  const real = [...priced.values()].map((p) => p.row).filter((r) => r.blended_3to1_per_1m > 0);
+  if (!real.length || !data.prices.some((r) => !(r.blended_3to1_per_1m > 0))) return data;
+  const mean = (key) => real.reduce((s, r) => s + r[key], 0) / real.length;
+  const avg = { input_per_1m: mean("input_per_1m"), output_per_1m: mean("output_per_1m"), blended_3to1_per_1m: mean("blended_3to1_per_1m") };
+  return { ...data, prices: data.prices.map((r) => (r.blended_3to1_per_1m > 0 ? r : { ...r, ...avg, placeholder: true, placeholder_of: real.length })) };
+}
+const PLACEHOLDER_TIP = (row) => `Placeholder: Artificial Analysis lists $0 (not yet priced), so this is the average of the ${row.placeholder_of} priced models until a real price is published.`;
 
 function Shape({ shape, size = 6, color }) {
   const s = size;
@@ -285,8 +299,11 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
 
   // A point is on the frontier when no other point is at least as cheap (or fast) and at least as good.
   const betterX = (a, b) => (xMetric === "price" ? a.x <= b.x : a.x >= b.x);
-  const front = pts
-    .filter((p) => !pts.some((q) => q !== p && betterX(q, p) && q.y >= p.y && (q.x !== p.x || q.y !== p.y)))
+  // A placeholder price is an average, not a measurement, so it can neither be on the frontier nor push others off it.
+  const isPlaceholder = (p) => xMetric === "price" && p.r.price.row.placeholder;
+  const real = pts.filter((p) => !isPlaceholder(p));
+  const front = real
+    .filter((p) => !real.some((q) => q !== p && betterX(q, p) && q.y >= p.y && (q.x !== p.x || q.y !== p.y)))
     .sort((a, b) => a.x - b.x);
 
   const toSvg = (e) => {
@@ -368,7 +385,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
           return (
             <g key={id} className={`pt${dim ? " dim" : ""}`} transform={`translate(${fx(p.x)} ${fy(p.y)})`}
               tabIndex={0} role="button" aria-pressed={pinned.has(id)}
-              aria-label={`${p.r.display_name}, ${benchName} ${fmtY(sc.value)}, ${xMetric === "price" ? fmtPrice(p.x) : `${fmtSpeed(p.x)} tokens per second`}`}
+              aria-label={`${p.r.display_name}, ${benchName} ${fmtY(sc.value)}, ${xMetric === "price" ? `${isPlaceholder(p) ? "placeholder average price " : ""}${fmtPrice(p.x)}` : `${fmtSpeed(p.x)} tokens per second`}`}
               onPointerDown={(e) => e.stopPropagation()} onClick={() => togglePin(id)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePin(id); } }}
               onPointerEnter={() => setHover(id)} onPointerLeave={() => setHover(null)}
@@ -391,7 +408,8 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
           {hp.r.org}<br />
           {champs.has(hp.r.model_id) && <><BestTags list={champs.get(hp.r.model_id)} /><br /></>}
           {benchName}: {fmtY(hs.value)}{hs.effort ? ` (${hs.effort})` : ""}<br />
-          {xMetric === "price" ? `Price: ${fmtPrice(hp.x)} per 1M` : `Speed: ${fmtSpeed(hp.x)} tok/s`}<br />
+          {xMetric === "price" ? `Price: ${isPlaceholder(hp) ? "≈" : ""}${fmtPrice(hp.x)} per 1M` : `Speed: ${fmtSpeed(hp.x)} tok/s`}<br />
+          {isPlaceholder(hp) && <><span className="muted">Placeholder: average of {hp.r.price.row.placeholder_of} priced models; the source lists $0.</span><br /></>}
           <span className="muted">{PROV_LABEL[hs.provenance]}: {hs.source_name}</span>
         </div>
       )}
@@ -591,7 +609,7 @@ function Dashboard({ data, intro }) {
   const showSuper = cols === "overview";
 
   const orgs = useMemo(() => [...new Set(data.models.map((m) => m.org))].sort(), [data]);
-  const colorOf = (org) => `var(--s${(orgs.indexOf(org) % 16) + 1})`;
+  const colorOf = (org) => `var(--s${(orgs.indexOf(org) % 17) + 1})`;
   const modelsById = useMemo(() => new Map(data.models.map((m) => [m.model_id, m])), [data]);
 
   const [hiddenOrgs, setHiddenOrgs] = useState(() => new Set());
@@ -655,7 +673,7 @@ function Dashboard({ data, intro }) {
       return { id: b.benchmark_id, label: `Best: ${b.name}`, top: top && { r: top.r, text: fmtFor(b)(top.s.value) }, blurb: b.blurb };
     });
     const fast = rows.filter((r) => r.speed).sort((a, b) => b.speed.value - a.speed.value)[0];
-    const cheap = rows.filter((r) => r.price).sort((a, b) => a.price.value - b.price.value)[0];
+    const cheap = rows.filter((r) => r.price && !r.price.row.placeholder).sort((a, b) => a.price.value - b.price.value)[0];
     out.push({ id: "fast", label: "Fastest output", top: fast && { r: fast, text: `${fmtSpeed(fast.speed.value)} tok/s` }, blurb: "Median output tokens per second." });
     out.push({ id: "cheap", label: "Lowest price", top: cheap && { r: cheap, text: `${fmtPrice(cheap.price.value)} / 1M` }, blurb: "3:1 input:output blend, USD per 1M tokens." });
     return out;
@@ -811,7 +829,9 @@ function Dashboard({ data, intro }) {
                       ) : <td key={b.benchmark_id} className="na">not observed</td>;
                     })}
                     {showMoney && (r.price ? (
-                      <td title={`${PROV_LABEL[r.price.row.provenance]}: ${r.price.row.source_name}`}>{fmtPrice(r.price.value)}</td>
+                      r.price.row.placeholder
+                        ? <td className="est" title={PLACEHOLDER_TIP(r.price.row)}>≈{fmtPrice(r.price.value)}</td>
+                        : <td title={`${PROV_LABEL[r.price.row.provenance]}: ${r.price.row.source_name}`}>{fmtPrice(r.price.value)}</td>
                     ) : <td className="na">not observed</td>)}
                     {showMoney && (r.speed ? (
                       <td title={`${PROV_LABEL[r.speed.row.provenance]}: ${r.speed.row.source_name}`}>{fmtSpeed(r.speed.value)}</td>
@@ -918,7 +938,7 @@ export default function ModelsPage() {
     let live = true;
     fetch(reloads ? `${DATA_URL}?t=${Date.now()}` : DATA_URL)       // after a local refresh, skip the browser cache
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((d) => { if (live) { setData(d); setError(null); } })
+      .then((d) => { if (live) { setData(withPlaceholderPrices(d)); setError(null); } })
       .catch((e) => { if (live) setError(e.message || String(e)); });
     return () => { live = false; };
   }, [reloads]);
