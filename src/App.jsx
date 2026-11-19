@@ -33,8 +33,8 @@ const sections = [
 
 // The Resume/CV section shows one document at a time; the resume is the default.
 const cvDocs = [
-  { key: "resume", label: "Resume", pdf: `${base}/assets/Resume_public.pdf`, page: `${base}/images/resume_page.webp`, h: 1743, blurb: "One page: recent roles, skills and education." },
-  { key: "cv", label: "CV", pdf: `${base}/assets/CV_public.pdf`, page: `${base}/images/cv_page.webp`, h: 1744, blurb: "Three pages: full research history, projects and publications." },
+  { key: "resume", label: "Resume", pdf: `${base}/assets/Resume_public.pdf`, page: `${base}/images/resume_page.webp`, h: 1743 },
+  { key: "cv", label: "CV", pdf: `${base}/assets/CV_public.pdf`, page: `${base}/images/cv_page.webp`, h: 1744 },
 ];
 // Intro section timeline: [when, what], oldest first.
 const introTimeline = [
@@ -303,15 +303,15 @@ function ResumeCv() {
       <div className="doc-tabs" role="tablist" aria-label="Resume or CV">
         {cvDocs.map((d, i) => (
           <button key={d.key} id={`doc-tab-${d.key}`} type="button" role="tab" aria-selected={i === k} aria-controls="doc-panel"
-            className={`doc-tab${i === k ? " on" : ""}`} onClick={() => setK(i)}>
-            <b>{d.label}</b>
-            <small>{d.blurb}</small>
+            className={`rule-link doc-tab${i === k ? " on" : ""}`} onClick={() => setK(i)}>
+            {d.label}
+            <RuleFeet />
           </button>
         ))}
       </div>
       <div className="resume-actions prose">
         <p>Showing my {doc.key === "cv" ? "CV" : "resume"}. Both are also available as PDFs.</p>
-        <ButtonLink href={doc.pdf}>Open {doc.label} PDF</ButtonLink>
+        <ButtonLink href={doc.pdf} variant="ruled">Open {doc.label} PDF</ButtonLink>
       </div>
       <div className="resume-frame-shell" id="doc-panel" role="tabpanel" aria-labelledby={`doc-tab-${doc.key}`}>
         <iframe key={doc.key} className="resume-frame" src={`${doc.pdf}#view=FitH`} title={`Preet Patel ${doc.label}`} />
@@ -498,7 +498,13 @@ function Section({ id, title, children, intro = false }) {
 
 // variant="ruled": hairlines top and bottom with a bracketed serif foot at each corner; the sides draw
 // in on hover/focus (CSS .rule-link). The four feet are one shape mirrored by .rule-foot.{tr,bl,br}.
+// Resume/CV reuses the look: its two tabs are buttons with the same class and feet.
 const RULE_FEET = ["tl", "tr", "bl", "br"];
+const RuleFeet = () => RULE_FEET.map((corner) => (
+  <svg key={corner} className={`rule-foot ${corner}`} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <path d="M0 0H6.5V1Q1.7 1.2 1 6H0Z" fill="currentColor" />
+  </svg>
+));
 
 function ButtonLink({ href, children, variant }) {
   const isHashLink = href.startsWith("#");
@@ -506,11 +512,7 @@ function ButtonLink({ href, children, variant }) {
   return (
     <a href={href} target={isHashLink ? undefined : "_blank"} rel={isHashLink ? undefined : "noreferrer"} className={ruled ? "rule-link" : "button-link"}>
       {children}
-      {ruled && RULE_FEET.map((corner) => (
-        <svg key={corner} className={`rule-foot ${corner}`} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <path d="M0 0H6.5V1Q1.7 1.2 1 6H0Z" fill="currentColor" />
-        </svg>
-      ))}
+      {ruled && <RuleFeet />}
     </a>
   );
 }
@@ -987,15 +989,9 @@ function Css() {
 
       .resume-card { display: grid; gap: 18px; }
       .doc-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-      .doc-tab { display: grid; gap: 4px; padding: 14px 16px; text-align: left; font: inherit; color: var(--text); cursor: pointer;
-        border: 1px solid rgba(255,170,100,0.42); background: rgba(255,210,160,0.04); transition: 180ms ease; }
-      .doc-tab b { font-size: 1.08rem; letter-spacing: 0.02em; }
-      .doc-tab small { color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
-      .doc-tab:hover { border-color: var(--accent); background: rgba(255,170,100,0.12); transform: translateY(-2px); }
-      .doc-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-      .doc-tab.on { color: #000000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); border-color: transparent;
-        box-shadow: 0 10px 28px rgba(255,140,70,0.32); cursor: default; transform: none; }
-      .doc-tab.on small { color: rgba(0,0,0,0.72); }
+      /* the two tabs wear the hero's ruled-button look (.rule-link); the chosen one keeps its sides drawn in */
+      .doc-tab { display: block; width: 100%; border: 0; background-color: transparent; text-align: center; font-size: 1rem; padding: 14px 26px; cursor: pointer; }
+      .doc-tab.on { background-size: 100% 1px, 100% 1px, 1px 50.5%, 1px 50.5%, 1px 50.5%, 1px 50.5%; background-color: rgba(255,179,107,0.16); cursor: default; }
       .resume-frame-shell {
         border: 1px solid rgba(255,170,100,0.24);
         background: rgba(30,14,8,0.72);
@@ -1160,7 +1156,7 @@ function Css() {
       .site-root.lite .hero-face { box-shadow: 0 0 0 4px rgba(30,14,8,0.55); }
       .site-root.lite .site-section, .site-root.lite .project-card { animation: none; }
       .site-root.lite .panel { background: #1d0f08; box-shadow: none; }
-      .site-root.lite .button-link, .site-root.lite .doc-tab.on, .site-root.lite .project-open, .site-root.lite .resume-frame-shell { box-shadow: none; }
+      .site-root.lite .button-link, .site-root.lite .project-open, .site-root.lite .resume-frame-shell { box-shadow: none; }
       .site-root.lite .project-card:hover, .site-root.lite .project-card:focus-visible { box-shadow: none; }
       .site-root.lite .gateway-dot.on { animation: none; box-shadow: none; }
     `}</style>
