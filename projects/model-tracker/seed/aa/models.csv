@@ -12,6 +12,7 @@ google/gemini-3-8-flash,Google,Google,Gemini 3.8 Flash,Gemini 3.8 Flash,propriet
 google/gemini-4-argon,Google,Google,Gemini 4 Argon,Gemini 4 Argon,proprietary,false,,scraped
 google/gemini-4-carbon,Google,Google,Gemini 4 Carbon,Gemini 4 Carbon,proprietary,false,,scraped
 google/gemini-4-hydrogen,Google,Google,Gemini 4 Hydrogen,Gemini 4 Hydrogen,proprietary,false,,scraped
+google/gemini-4-neon,Google,Google,Gemini 4 Neon,Gemini 4 Neon,proprietary,false,,scraped
 inclusionai/ling-3-1-flash-1019,InclusionAI,InclusionAI,Ling 3.1 Flash 1019,Ling 3.1 Flash 1019,open_weights,true,,scraped
 joy-future-academy/joyai-vl-preview,Joy Future Academy,Joy Future Academy,JoyAI-VL-Preview,JoyAI-VL-Preview,proprietary,false,,scraped
 meta/muse-ember,Meta,Meta,Muse Ember,Muse Ember,proprietary,false,,scraped
