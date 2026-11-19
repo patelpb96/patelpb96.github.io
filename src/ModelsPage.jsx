@@ -84,7 +84,7 @@ const SUPER_BENCH = {
 const fmtSuper = (v) => v.toFixed(2);                              // a log value: two decimals at every size
 // Short names for the "best in" tags on winning models.
 const SHORT = { aa_intelligence_index: "Intelligence", aa_coding_index: "Coding", aa_agentic_index: "Agentic",
-  aa_cost_per_task: "Cost per task", aa_time_per_task: "Time per task", fast: "Speed", cheap: "Price" };
+  aa_cost_per_task: "Cost per task", aa_time_per_task: "Time per task", superscore: "Superscore", fast: "Speed", cheap: "Price" };
 
 function BestTags({ list }) {
   if (!list || !list.length) return null;
@@ -672,6 +672,9 @@ function Dashboard({ data, intro }) {
       }
       return { id: b.benchmark_id, label: `Best: ${b.name}`, top: top && { r: top.r, text: fmtFor(b)(top.s.value) }, blurb: b.blurb };
     });
+    // Models without a computed superscore (it needs real speed, price and the task numbers) simply cannot win it.
+    const sup = rows.filter((r) => r.superscore != null).sort((a, b) => b.superscore - a.superscore)[0];
+    out.push({ id: "superscore", label: "Best: Superscore", top: sup && { r: sup, text: `${fmtSuper(sup.superscore)} superscore` }, blurb: SUPER_BLURB });
     const fast = rows.filter((r) => r.speed).sort((a, b) => b.speed.value - a.speed.value)[0];
     const cheap = rows.filter((r) => r.price && !r.price.row.placeholder).sort((a, b) => a.price.value - b.price.value)[0];
     out.push({ id: "fast", label: "Fastest output", top: fast && { r: fast, text: `${fmtSpeed(fast.speed.value)} tok/s` }, blurb: "Median output tokens per second." });
