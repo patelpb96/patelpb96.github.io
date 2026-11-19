@@ -585,9 +585,17 @@ function Css() {
         overflow-x: hidden;
       }
 
+      /* The star layer stays put while the page scrolls. Its height is the largest the screen gets
+         (100lvh), not "inset: 0": on phones the address bar slides away as you scroll, and a layer
+         pinned to the visible area would be resized each time, sliding and stretching the centred
+         stars and redrawing every one of them (with their glow) mid-scroll. */
       .bg-scroll-layer {
         position: fixed;
-        inset: 0;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        height: 100lvh;
         pointer-events: none;
         z-index: 0;
         opacity: 0.78;
