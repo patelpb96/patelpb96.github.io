@@ -54,7 +54,7 @@ const UNIT_FMT = {
   "k tokens": (v) => (v >= 1000 ? `${+(v / 1000).toFixed(2)}M` : `${Math.round(v)}k`), Elo: (v) => `${Math.round(v)}`,
 };
 // Leaderboard column groups. Overview keeps the table readable; the rest are one click away.
-const OVERVIEW = new Set(["aa_intelligence_index", "aa_coding_index", "aa_agentic_index", "aa_cost_per_task", "aa_time_per_task"]);
+const OVERVIEW = new Set(["aa_intelligence_index", "aa_cost_per_task", "aa_time_per_task"]);
 const EFFICIENCY = new Set(["cost", "speed", "latency", "spec"]);
 const COLS = [["overview", "Overview"], ["evals", "Evaluations"], ["efficiency", "Cost & speed"]];
 const inGroup = (b, g) => (g === "overview" ? OVERVIEW.has(b.benchmark_id)
@@ -83,7 +83,7 @@ const SUPER_BENCH = {
 // Three significant figures, so small scores stay readable instead of rounding to 0.00.
 const fmtSuper = (v) => v.toFixed(2);                              // a log value: two decimals at every size
 // Short names for the "best in" tags on winning models.
-const SHORT = { aa_intelligence_index: "Intelligence", aa_coding_index: "Coding", aa_agentic_index: "Agentic",
+const SHORT = { aa_intelligence_index: "Intelligence",
   aa_cost_per_task: "Cost per task", aa_time_per_task: "Time per task", superscore: "Superscore", fast: "Speed", cheap: "Price" };
 
 function BestTags({ list }) {

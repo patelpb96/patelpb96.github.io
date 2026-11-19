@@ -24,7 +24,7 @@ class ReviewTests(unittest.TestCase):
             "domain": "news.example.com", "published_at": "2026-11-08T03:00:00.000Z", "verdict": "release", "reasons": "", "injection_flag": False,
             "injection_reasons": "", "fetch_status": "ok", "first_seen_at": "2026-11-08T04:00:00Z"}])
         self.models = [m["model_id"] for m in bs.build(self.seed)[0]["models"]]
-        self.add_candidate(self.models[0], "aa_coding_index", "71.5")
+        self.add_candidate(self.models[0], "swe_bench_verified", "71.5")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -83,7 +83,7 @@ class ReviewTests(unittest.TestCase):
 
     def test_candidate_without_a_model_needs_one(self):
         (self.data / "candidates.csv").unlink()
-        self.add_candidate("", "aa_coding_index", "50")
+        self.add_candidate("", "swe_bench_verified", "50")
         cid = self.only()
         with self.assertRaises(review.ReviewError):
             review.accept(cid, self.data, self.seed, NOW, provenance="third_party", out=self.out)
