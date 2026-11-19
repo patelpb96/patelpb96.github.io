@@ -1188,6 +1188,7 @@ function HomePage({ lite }) {
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
   const [intro] = useState(claimIntro);
   useEffect(() => { introSpent = true; }, []);
+  useHashLanding();
   const handleStarParallax = (event) => {
     if (event.pointerType !== "mouse") return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -1517,9 +1518,54 @@ function useHashRoute() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   useEffect(() => {
+    if (route === "home" && hashSection()) return; // opened at "#section": useHashLanding places it
     window.scrollTo(0, 0); // a fresh page starts at the top
   }, [route]);
   return route;
+}
+
+// Opening the site at "#section" (a shared link, a reload, or coming back from a project page):
+// the browser looks for the anchor before React has drawn it, and the page above it is still
+// settling (the top bar grows as the font arrives, sections rise in, images load), so its own jump
+// lands in the wrong place or not at all. So Home places the section itself and keeps it there
+// until the layout stops moving or the visitor scrolls, clicks or types.
+const hashSection = () => {
+  const id = typeof window === "undefined" ? "" : decodeURIComponent(window.location.hash.slice(1));
+  const el = id && !id.includes("/") ? document.getElementById(id) : null;
+  return el?.classList.contains("site-section") ? el : null;
+};
+function useHashLanding() {
+  useEffect(() => {
+    const el = hashSection();
+    if (!el) return undefined;
+    const gap = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    const start = performance.now();
+    let frame = 0;
+    let settledAt = 0;
+    const inputs = ["wheel", "touchstart", "pointerdown", "keydown"];
+    const stop = () => {
+      cancelAnimationFrame(frame);
+      inputs.forEach((type) => window.removeEventListener(type, stop));
+    };
+    const pin = (now) => {
+      // layout position, not the drawn one: the section is mid rise-in and should rise into place
+      let top = -gap;
+      for (let node = el; node; node = node.offsetParent) top += node.offsetTop;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const want = Math.max(0, Math.min(max, top));
+      if (Math.abs(want - window.scrollY) > 1) {
+        window.scrollTo({ top: want, behavior: "instant" });
+        settledAt = 0;
+      } else if (!settledAt) settledAt = now;
+      // done once it has held still for a second after the page finished loading; 10 s at most
+      const loaded = document.readyState === "complete";
+      if ((loaded && settledAt && now - settledAt > 1000) || now - start > 10000) { stop(); return; }
+      frame = requestAnimationFrame(pin);
+    };
+    inputs.forEach((type) => window.addEventListener(type, stop, { passive: true }));
+    frame = requestAnimationFrame(pin);
+    return stop;
+  }, []);
 }
 
 // Lite mode: ?lite / ?full in the address set it (and remember it); otherwise the saved choice, and
