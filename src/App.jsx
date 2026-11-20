@@ -196,6 +196,9 @@ function makeStarField(count, seed, options) {
 
 // Background stars as small repeating tiles (the old wallpaper trick): each layer draws ~1/10 of the stars it
 // used to and repeats them. Layers use different tile sizes so the repeats never line up into a visible pattern.
+// Each tile is one small SVG picture (a dot per star), not one CSS gradient per star: the browser
+// draws the picture once and stamps it, where 83 stacked gradients were each recomputed across the
+// whole screen on every repaint (and a phone repaints the fixed layer as its toolbars slide away).
 function makeStarTile(count, seed, tilePx, options) {
   const { minSize, maxSize, alpha } = options;
   const stars = Array.from({ length: count }, (_, index) => {
@@ -204,9 +207,11 @@ function makeStarTile(count, seed, tilePx, options) {
     const y = 2 + seededRandom(seed + i * 5.3) * 96;
     const size = minSize + seededRandom(seed + i * 7.9) * (maxSize - minSize);
     const opacity = alpha * (0.45 + seededRandom(seed + i * 13.1) * 0.55);
-    return `radial-gradient(circle at ${x}% ${y}%, rgba(255, 255, 255, ${opacity}) 0 ${size}px, transparent ${size + 0.8}px)`;
+    // the gradient was solid to "size" px and faded out over the next 0.8px: a dot of size + 0.4 matches it
+    return `%3Ccircle cx='${((x / 100) * tilePx).toFixed(2)}' cy='${((y / 100) * tilePx).toFixed(2)}' r='${(size + 0.4).toFixed(2)}' fill-opacity='${opacity.toFixed(3)}'/%3E`;
   });
-  return { image: stars.join(", "), size: Array(count).fill(`${tilePx}px ${tilePx}px`).join(", ") };
+  const svg = `%3Csvg xmlns='http://www.w3.org/2000/svg' width='${tilePx}' height='${tilePx}' fill='%23fff'%3E${stars.join("")}%3C/svg%3E`;
+  return { image: `url("data:image/svg+xml,${svg}")`, size: `${tilePx}px ${tilePx}px` };
 }
 const joinTiles = (...tiles) => ({ image: tiles.map((t) => t.image).join(", "), size: tiles.map((t) => t.size).join(", ") });
 
@@ -339,7 +344,7 @@ function assertSiteData() {
   console.assert(!contactCards.some((card) => card.label === "Twitter"), "Twitter should not be included");
   console.assert(cvDocs[0].key === "resume" && cvDocs.every((d) => d.pdf.endsWith("_public.pdf") && d.page.endsWith(".webp")), "Resume/CV should default to the resume and point at the hosted public PDFs");
   for (const [name, t] of Object.entries(starTiles)) {
-    console.assert(t.image.split("radial-gradient").length - 1 === t.size.split(",").length, `${name}: one tile size per star`);
+    console.assert(t.image.split("url(").length - 1 === t.size.split(",").length, `${name}: one tile size per star tile`);
   }
   console.assert(starFields.front.includes("radial-gradient"), "front star field should contain gradients");
   console.assert(starFields.ultraFront.includes("radial-gradient"), "ultra-front star field should contain gradients");
