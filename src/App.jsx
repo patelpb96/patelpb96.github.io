@@ -652,13 +652,14 @@ function Css() {
         margin: 0 auto;
         display: flex;
         align-items: center;
-        /* three things in the bar: name, Lite toggle, navigation (or the menu button on phones).
-           space-between puts the toggle the same distance from each neighbour; the gap is the least
-           that distance may be, as a share of the bar's width */
         justify-content: space-between;
-        gap: 4%;
+        gap: 18px;
         padding: 14px 0;
       }
+      /* The Lite toggle exists twice. Wide: the last item of the navigation, in the top-right corner (the -nav copy).
+         Narrow, where the navigation folds into the menu: its own item in the bar, between the name and the menu
+         button (the -bar copy). Exactly one is displayed at any width, so the toggle is never inside the phone menu. */
+      .topbar-inner > .lite-toggle-bar { display: none; }
       .brand { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--text); text-decoration: none; }
       .brand-mark {
         width: 54px;
@@ -1072,6 +1073,11 @@ function Css() {
         .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(28, 14, 8, 0.97); }
         .menu-btn { display: flex; }
         .nav { display: none; }
+        /* three things in the bar: name, Lite toggle, menu button. space-between puts the toggle the same
+           distance from each neighbour; the gap is the least that distance may be, as a share of the bar's width */
+        .topbar-inner { gap: 4%; }
+        .topbar-inner > .lite-toggle-bar { display: inline-flex; }
+        .nav .lite-toggle-nav { display: none; }
         .nav.open {
           display: flex;
           flex-direction: column;
@@ -1697,8 +1703,8 @@ function Topbar({ route, lite, onToggleLite }) {
             <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
           </div>
         </a>
-        {/* in the bar itself at every width, between the name and the navigation (never inside the phone menu) */}
-        <button type="button" className={`nav-link lite-toggle${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
+        {/* narrow screens: in the bar, between the name and the menu button (the wide copy is in the navigation below) */}
+        <button type="button" className={`nav-link lite-toggle lite-toggle-bar${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
           title="Lite mode: a still background with no animation, blur or tilt. Easier on older laptops and phones.">
           <span className="lite-box" aria-hidden="true" />Lite
         </button>
@@ -1724,6 +1730,11 @@ function Topbar({ route, lite, onToggleLite }) {
             sections.map((section) => <NavLink key={section.id} section={section} />)
           )}
           <ProjectsMenu route={route} />
+          {/* wide screens: last in the navigation, the top-right corner (hidden at the menu breakpoint) */}
+          <button type="button" className={`nav-link lite-toggle lite-toggle-nav${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
+            title="Lite mode: a still background with no animation, blur or tilt. Easier on older laptops and phones.">
+            <span className="lite-box" aria-hidden="true" />Lite
+          </button>
         </nav>
       </div>
     </header>
