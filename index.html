@@ -21,7 +21,27 @@
       .boot-still .boot, .boot-still .boot line, .boot-still .boot circle { animation: none; opacity: 1; stroke-dashoffset: 0; }
       @media (prefers-reduced-motion: reduce) { .boot, .boot line, .boot circle { animation: none; opacity: 1; stroke-dashoffset: 0; } }
     </style>
-    <script>try { if (localStorage.getItem("site-lite") === "1") document.documentElement.className = "boot-still"; } catch (e) { /* storage blocked: animate */ }</script>
+    <!-- Lite is the default. The full version is only picked automatically for a device that shows
+         every sign of being fast: a mouse (so not a phone or tablet), 8+ processor threads, and, where
+         the browser reports them, 8+ GB of memory and a fast connection with data saving off. Safari
+         and Firefox report only the first two. A saved choice (the Lite toggle) wins over this guess;
+         App.jsx reads window.__fastDevice. -->
+    <script>
+      (function () {
+        var fast = false, saved = null;
+        try {
+          var c = navigator.connection;
+          fast = matchMedia("(hover: hover) and (pointer: fine)").matches
+            && !matchMedia("(prefers-reduced-motion: reduce)").matches
+            && navigator.hardwareConcurrency >= 8
+            && (navigator.deviceMemory === undefined || navigator.deviceMemory >= 8)
+            && (!c || (!c.saveData && (c.effectiveType === undefined || c.effectiveType === "4g")));
+        } catch (e) { /* no way to tell: stay lite */ }
+        window.__fastDevice = fast;
+        try { saved = localStorage.getItem("site-lite"); } catch (e) { /* storage blocked */ }
+        if (saved === "1" || (saved !== "0" && !fast)) document.documentElement.className = "boot-still";
+      })();
+    </script>
   </head>
   <body>
     <div id="root">

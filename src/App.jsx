@@ -1572,8 +1572,9 @@ function useHashLanding() {
   }, []);
 }
 
-// Lite mode: ?lite / ?full in the address set it (and remember it); otherwise the saved choice, and
-// with none saved, on for visitors whose system asks for reduced motion.
+// Lite mode: ?lite / ?full in the address set it (and remember it); otherwise the saved choice. With
+// none saved, lite is the default, and only a device that looks fast gets the full version
+// (window.__fastDevice, worked out by the script in index.html before the app loads).
 const LITE_KEY = "site-lite";
 function initialLite() {
   if (typeof window === "undefined") return false;
@@ -1584,7 +1585,7 @@ function initialLite() {
     const saved = localStorage.getItem(LITE_KEY);
     if (saved !== null) return saved === "1";
   } catch { /* storage blocked: fall through */ }
-  return forced ?? window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  return forced ?? window.__fastDevice !== true;
 }
 function useLiteMode() {
   const [lite, setLite] = useState(initialLite);
