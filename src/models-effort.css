@@ -1,0 +1,34 @@
+/* Frontier effort comparison: only what models.css does not already give (square corners, themes, folds, tables, tips). */
+
+/* A model's name: base word with a subscript. The subscript is lifted by position, not vertical-align, so it never
+   changes the line height of a chip, a table row or a tooltip. */
+.lm { white-space: nowrap; font-weight: 600; }
+.lm sub { font-size: 0.72em; line-height: 0; vertical-align: baseline; position: relative; top: 0.28em; margin-left: 1px; font-weight: 600; }
+.explain sub { font-size: 0.72em; line-height: 0; vertical-align: baseline; position: relative; top: 0.28em; }
+
+/* chart: one ladder per model */
+.chart g.ef { cursor: pointer; transition: opacity 0.12s; }
+.chart g.ef:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chart .ladder { fill: none; stroke-linejoin: round; stroke-linecap: square; }
+.chart .ladder-hit { fill: none; stroke: transparent; stroke-width: 14; }
+.chart .ef-mk { stroke-width: 1.75; }
+.chart .ef-ring { fill: none; stroke: var(--muted); stroke-dasharray: 2 2; }
+.chart .ef-on { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.chart text.plabel .sub { font-weight: 600; }
+
+/* filters */
+.eff-groups { display: grid; gap: 8px; margin-top: 10px; }
+.eff-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.eff-lab { font-weight: 600; margin-right: 4px; }
+.chip svg { flex: none; }
+.legend-sizes { display: inline-flex; align-items: center; gap: 0; color: var(--ink); }
+
+/* table: a score over its cost in each cell */
+tbody tr.eff-row { box-shadow: inset 3px 0 0 var(--c); }
+tbody tr.eff-row.is-hl { background: var(--chip); }
+td .cell-v, td .cell-c { display: block; line-height: 1.25; }
+td .cell-c { font-size: 11px; }
+
+@media (max-width: 640px) {
+  .eff-lab { margin-right: 0; }
+}

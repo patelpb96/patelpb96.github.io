@@ -238,7 +238,12 @@ def main(argv=None) -> int:
     chosen = select(recs, caps["aa"]["min_index"], hand)
     day = args.day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     added = write(bs.DEFAULT_SEED, observations(chosen, day), bs.TABLES)
-    print(json.dumps({"records": len(recs), "tracked": len(chosen), "added": added,
+    # The same page also feeds the "Frontier effort comparison" page: every effort row of the frontier families.
+    import build_effort
+    from scraper import aa_effort
+    effort = aa_effort.refresh(recs, day, bs.DEFAULT_SEED)
+    build_effort.build(bs.DEFAULT_SEED)
+    print(json.dumps({"records": len(recs), "tracked": len(chosen), "added": added, "effort": effort,
                       "orgs": sorted({c["org"] for c in chosen})}, indent=1))
     return 0
 

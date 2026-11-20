@@ -952,7 +952,7 @@ export default function ModelsPage() {
         <header className="mt-head">
           <div>
             <h1 className="mt-title">Model tracker</h1>
-            <p className="mt-sub">Frontier AI models by benchmark score, price and speed. <a href="/">patelpb.com</a></p>
+            <p className="mt-sub">Frontier AI models by benchmark score, price and speed. <a href="/projects/models/effort/">Frontier effort comparison</a> · <a href="/">patelpb.com</a></p>
           </div>
           <div className="mt-tools">
             <div className="seg" role="group" aria-label="Theme">

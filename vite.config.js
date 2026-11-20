@@ -18,6 +18,7 @@ export default defineConfig({
         search: fileURLToPath(new URL('./search/index.html', import.meta.url)),
         searchAdvanced: fileURLToPath(new URL('./search/advanced/index.html', import.meta.url)),
         models: fileURLToPath(new URL('./projects/models/index.html', import.meta.url)),
+        modelsEffort: fileURLToPath(new URL('./projects/models/effort/index.html', import.meta.url)),
       },
     },
   },
