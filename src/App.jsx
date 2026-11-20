@@ -688,13 +688,13 @@ function Css() {
       .project-card:hover, .project-card:focus-visible { transform: translateY(-4px); border-color: rgba(255,180,120,0.55); box-shadow: 0 26px 70px var(--shadow), 0 0 32px rgba(255,170,100,0.16); outline: none; }
       .project-art-wrap { border-bottom: 1px solid var(--line); background: radial-gradient(120% 90% at 50% 0%, rgba(255,154,77,0.14), rgba(20,10,6,0.6)); padding: 16px 18px 10px; }
       .project-art { display: block; width: 100%; height: auto; }
-      .project-card-body { display: flex; flex-direction: column; gap: 12px; padding: 20px 22px 22px; flex: 1; }
+      .project-card-body { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 22px 22px 26px; text-align: center; }
       .project-title { margin: 0; color: #fff2e6; font-size: 1.45rem; letter-spacing: -0.02em; }
-      .project-blurb { margin: 0; color: var(--muted); font-size: 0.97rem; line-height: 1.7; flex: 1; }
-      .project-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-      .project-tags span { border: 1px solid var(--line); color: var(--dim); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; }
-      .project-open { align-self: flex-start; font-family: inherit; font-weight: 700; font-size: 0.86rem; color: #000; background: linear-gradient(180deg, #ffe2c2, var(--blue)); padding: 10px 16px; box-shadow: 0 0 22px rgba(255,154,77,0.28); }
-      .project-card:hover .project-open { filter: brightness(1.06); }
+      /* the card is one link, so its button is a span: hovering or focusing the card draws the ruled sides in, as hovering a home-page button does */
+      .project-card:hover .project-open, .project-card:focus-visible .project-open {
+        background-size: 100% 1px, 100% 1px, 1px 50.5%, 1px 50.5%, 1px 50.5%, 1px 50.5%;
+        background-color: rgba(255,179,107,0.09);
+      }
       .scratch-files { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 18px; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
       .scratch-file { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-family: ui-monospace, Consolas, monospace; font-size: 0.9rem; }
       .scratch-file:hover { border-color: rgba(255,180,120,0.55); color: #fff2e6; }
@@ -1298,116 +1298,265 @@ function HomePage({ lite }) {
   );
 }
 
+// Card art: one detailed line drawing per project, in the site's palette (burnt orange, amber, peach, cream, dark brown).
+// All share one 320 x 180 frame. Gradient ids are prefixed per drawing because every drawing sits in the same page.
+const ART = { o: "#ff9a4d", a: "#ffb36b", p: "#ffd4a3", c: "#fff2e6", d: "#5a2d14", m: "#b9764a", grid: "rgba(255,180,120,0.14)", ln: "rgba(255,180,120,0.38)" };
+
+// A four-point star.
+function Sparkle({ x, y, r, fill, op = 1 }) {
+  const k = r * 0.16;
+  return <path fill={fill} opacity={op} d={`M${x} ${y - r}Q${x + k} ${y - k} ${x + r} ${y}Q${x + k} ${y + k} ${x} ${y + r}Q${x - k} ${y + k} ${x - r} ${y}Q${x - k} ${y - k} ${x} ${y - r}Z`} />;
+}
+
+// A 3 x 5 pixel digit drawn as one path of squares.
+const PIXEL_DIGITS = { 2: ["111", "001", "111", "100", "111"], 3: ["111", "001", "111", "001", "111"] };
+function PixelDigit({ ch, x, y, s, fill, op = 1 }) {
+  const d = PIXEL_DIGITS[ch].flatMap((row, r) => [...row].map((on, c) => (on === "1" ? `M${x + c * s} ${y + r * s}h${s}v${s}h${-s}Z` : ""))).join("");
+  return <path d={d} fill={fill} opacity={op} />;
+}
+
 function ProjectArt({ kind }) {
-  // small line drawings in the site's palette, one per card
+  const { o, a, p, c, d, m, grid, ln } = ART;
+  const svg = (children, defs) => (
+    <svg viewBox="0 0 320 180" className="project-art" aria-hidden="true">
+      {defs && <defs>{defs}</defs>}
+      {children}
+    </svg>
+  );
+
   if (kind === "lines") {
-    return (
-      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-        {[24, 48, 72, 96].map((y) => <line key={y} x1="0" x2="240" y1={y} y2={y} stroke="rgba(255,180,120,0.12)" />)}
-        <polyline fill="none" stroke="rgba(255,242,230,0.22)" strokeWidth="1.5" points="0,92 30,80 60,86 90,60 120,70 150,52 180,64 210,40 240,48" />
-        <polyline fill="none" stroke="#ff9a4d" strokeWidth="2.5" strokeLinejoin="round" points="0,104 24,70 48,44 72,30 96,22 120,18 150,18 180,26 210,52 240,96" />
-        <polyline fill="none" stroke="#ffd4a3" strokeWidth="2.5" strokeLinejoin="round" points="0,110 40,100 70,62 100,30 130,20 160,22 190,18 220,24 240,30" />
-        <polyline fill="none" stroke="#ffb36b" strokeWidth="2" strokeDasharray="6 5" points="0,88 50,58 100,34 150,26 200,30 240,44" />
-      </svg>
+    // ATP: career-ranking curves over a chart with a brushed time window, and a tennis ball
+    const curves = [
+      ["30,140 56,104 84,66 112,42 140,30 170,28 200,36 230,62 262,98 300,132", o, 3],
+      ["30,150 66,132 100,92 134,54 164,36 196,30 226,34 262,48 300,58", p, 2.5],
+      ["30,128 60,118 92,122 122,98 152,88 184,92 214,70 246,62 278,56 306,44", c, 1.5],
+    ];
+    return svg(
+      <>
+        {[36, 66, 96, 126].map((y) => <line key={y} x1="30" x2="306" y1={y} y2={y} stroke={grid} />)}
+        {[70, 130, 190, 250].map((x) => <line key={x} x1={x} x2={x} y1="18" y2="150" stroke={grid} />)}
+        <line x1="30" y1="150" x2="306" y2="150" stroke={ln} strokeWidth="1.5" />
+        <line x1="30" y1="14" x2="30" y2="150" stroke={ln} strokeWidth="1.5" />
+        {[70, 130, 190, 250].map((x) => <line key={`t${x}`} x1={x} x2={x} y1="150" y2="155" stroke={ln} />)}
+        <rect x="118" y="18" width="84" height="132" fill="rgba(255,154,77,0.1)" stroke={ln} strokeDasharray="4 4" />
+        <rect x="114" y="78" width="8" height="14" fill={a} /><rect x="198" y="78" width="8" height="14" fill={a} />
+        {curves.map(([pts, stroke, w]) => <polyline key={stroke} fill="none" stroke={stroke} strokeWidth={w} strokeLinejoin="round" points={pts} />)}
+        <path d="M30 132 C 90 120, 120 60, 170 52 S 260 70, 306 70" fill="none" stroke={a} strokeWidth="2" strokeDasharray="6 5" />
+        <rect x="296" y="128" width="8" height="8" fill={o} stroke={p} /><rect x="296" y="54" width="8" height="8" fill={p} stroke={o} />
+        <ellipse cx="264" cy="152" rx="20" ry="4" fill="rgba(0,0,0,0.35)" />
+        <circle cx="264" cy="128" r="19" fill="url(#pa-ball)" stroke={p} strokeWidth="1.5" />
+        <path d="M250 117 Q262 128 250 139" fill="none" stroke={d} strokeWidth="2" />
+        <path d="M278 117 Q266 128 278 139" fill="none" stroke={d} strokeWidth="2" />
+      </>,
+      <radialGradient id="pa-ball" cx="35%" cy="30%" r="80%"><stop offset="0" stopColor="#ffe2c2" /><stop offset="0.55" stopColor={a} /><stop offset="1" stopColor={o} /></radialGradient>,
     );
   }
-  if (kind === "whiteboard") {
-    return (
-      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-        <line x1="96" y1="104" x2="84" y2="118" stroke="#5a2d14" strokeWidth="3" strokeLinecap="round" />
-        <line x1="144" y1="104" x2="156" y2="118" stroke="#5a2d14" strokeWidth="3" strokeLinecap="round" />
-        <rect x="44" y="8" width="152" height="94" rx="3" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="3" />
-        <path d="M60 74 C 78 40, 94 40, 108 60 S 140 84, 156 46 S 176 30, 182 36" fill="none" stroke="#ff9a4d" strokeWidth="3" strokeLinecap="round" />
-        <rect x="88" y="100" width="64" height="5" rx="1.5" fill="#ffb36b" />
-        <rect x="132" y="96" width="14" height="5" rx="1.5" fill="#ff9a4d" />
-      </svg>
-    );
-  }
-  if (kind === "newspaper") {
-    // a folded broadsheet: masthead, headline, photo block and columns of text
-    return (
-      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-        <rect x="66" y="12" width="118" height="100" fill="#5a2d14" transform="translate(6 4)" />
-        <rect x="66" y="12" width="118" height="100" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2.5" />
-        <rect x="76" y="20" width="98" height="9" fill="#ff9a4d" />
-        <line x1="76" y1="34" x2="174" y2="34" stroke="#5a2d14" strokeWidth="1.5" />
-        <rect x="76" y="39" width="62" height="6" fill="#5a2d14" />
-        <rect x="76" y="50" width="44" height="30" fill="#ffb36b" />
-        {[50, 56, 62, 68, 74, 80].map((y) => <line key={"r" + y} x1="126" x2="174" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
-        {[88, 94, 100].map((y) => <line key={"a" + y} x1="76" x2="121" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
-        {[88, 94, 100].map((y) => <line key={"b" + y} x1="129" x2="174" y1={y} y2={y} stroke="#b9764a" strokeWidth="2" />)}
-        <line x1="125" y1="86" x2="125" y2="104" stroke="#ffb36b" strokeWidth="1" />
-      </svg>
-    );
-  }
-  if (kind === "mindmap") {
-    // a root box branching out to child boxes
-    const kids = [[176, 22], [190, 60], [176, 98], [48, 34], [40, 86]];
-    return (
-      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-        {kids.map(([x, y], k) => (
-          <path key={"e" + k} d={`M120 60 C ${(120 + x) / 2} 60, ${(120 + x) / 2} ${y}, ${x} ${y}`} fill="none" stroke="#ffb36b" strokeWidth="2" />
-        ))}
-        {kids.map(([x, y], k) => (
-          <rect key={"n" + k} x={x - 18} y={y - 8} width="36" height="16" fill="#fff2e6" fillOpacity="0.92" stroke="#ffb36b" strokeWidth="2" />
-        ))}
-        <rect x="94" y="48" width="52" height="24" fill="#ff9a4d" stroke="#ffd4a3" strokeWidth="2" />
-      </svg>
-    );
-  }
-  if (kind === "paddles") {
-    // a rally in progress: two paddles, a dashed net and a square ball trailing afterimages
-    return (
-      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-        <rect x="14" y="10" width="212" height="100" fill="none" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" />
-        <line x1="120" y1="16" x2="120" y2="104" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" strokeDasharray="5 6" />
-        <rect x="26" y="54" width="6" height="34" fill="#ff9a4d" />
-        <rect x="208" y="24" width="6" height="34" fill="#ffd4a3" />
-        {[3, 2, 1, 0].map((k) => (
-          <rect key={k} x="-5" y="-5" width="10" height="10" fill={k ? "#ffb36b" : "#fff2e6"} opacity={k ? 0.5 - k * 0.12 : 1}
-            transform={`translate(${160 - k * 17} ${46 + k * 8}) rotate(${24 - k * 16}) scale(${1 - k * 0.12})`} />
-        ))}
-      </svg>
-    );
-  }
-  if (kind === "scatter") {
-    // price-vs-score scatter: square points, the leaders on a dashed efficient frontier
-    const pts = [[34, 92], [58, 78], [82, 84], [100, 58], [126, 66], [144, 40], [170, 52], [192, 30], [214, 36]];
-    const front = [[34, 92], [58, 78], [100, 58], [144, 40], [192, 30]];
-    return (
-      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-        <line x1="20" y1="106" x2="230" y2="106" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" />
-        <line x1="20" y1="14" x2="20" y2="106" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" />
-        {[40, 64, 88].map((y) => <line key={y} x1="20" x2="230" y1={y} y2={y} stroke="rgba(255,180,120,0.12)" />)}
-        <polyline fill="none" stroke="#ffd4a3" strokeWidth="2" strokeDasharray="6 4" points={front.map((q) => q.join(",")).join(" ")} />
-        {pts.map(([x, y], k) => {
-          const lead = front.some(([fx, fy]) => fx === x && fy === y);
-          return <rect key={k} x={x - 5} y={y - 5} width="10" height="10" fill={lead ? "#ff9a4d" : "#5a2d14"} stroke={lead ? "#ffd4a3" : "#ffb36b"} strokeWidth="1.5" />;
-        })}
-      </svg>
-    );
-  }
+
   if (kind === "coins") {
-    return (
-      <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-        <polyline fill="none" stroke="rgba(255,180,120,0.35)" strokeWidth="1.5" points="0,96 40,90 80,94 120,70 160,76 200,48 240,40" />
-        {[[70, 74], [100, 62], [130, 74]].map(([x, y], k) => (
-          <g key={k}>
-            <ellipse cx={x} cy={y + 8} rx="26" ry="9" fill="#5a2d14" />
-            <ellipse cx={x} cy={y} rx="26" ry="9" fill="#ffb36b" stroke="#ffd9b3" strokeWidth="1.5" />
+    // Alchemy: price-history candles behind stacks of gold, a flame over the tallest (high alchemy)
+    const candles = [118, 110, 114, 100, 104, 92, 96, 84, 88, 72, 78, 64, 70, 56];
+    const stacks = [[84, 5], [160, 8], [236, 4]];
+    return svg(
+      <>
+        {[50, 80, 110].map((y) => <line key={y} x1="14" x2="306" y1={y} y2={y} stroke={grid} />)}
+        {candles.map((y, i) => (
+          <g key={i} opacity="0.55">
+            <line x1={26 + i * 20} x2={26 + i * 20} y1={y - 14} y2={y + 16} stroke={a} />
+            <rect x={21 + i * 20} y={y - 6 + (i % 3) * 2} width="10" height={10 + (i % 4) * 3} fill={i % 3 ? o : d} stroke={a} strokeWidth="1" />
           </g>
         ))}
-        <circle cx="186" cy="40" r="3" fill="#ffd4a3" /><circle cx="204" cy="28" r="2" fill="#ffd4a3" />
-      </svg>
+        <line x1="14" y1="158" x2="306" y2="158" stroke={ln} strokeWidth="1.5" />
+        {stacks.map(([cx, n]) => (
+          <g key={cx}>
+            {Array.from({ length: n }, (_, i) => {
+              const y = 148 - i * 8;
+              return (
+                <g key={i}>
+                  <ellipse cx={cx} cy={y + 7} rx="30" ry="9" fill={d} />
+                  <rect x={cx - 30} y={y} width="60" height="7" fill="#d9803a" />
+                  <ellipse cx={cx} cy={y} rx="30" ry="9" fill={a} stroke="#ffe2c2" strokeWidth="1.2" />
+                  <ellipse cx={cx} cy={y} rx="18" ry="5" fill="none" stroke={o} strokeWidth="1" />
+                </g>
+              );
+            })}
+          </g>
+        ))}
+        <path d="M160 30 C 150 48, 136 58, 140 76 C 142 88, 151 92, 160 92 C 169 92, 178 88, 180 76 C 182 62, 170 56, 168 44 C 165 50, 163 42, 160 30Z" fill="url(#pa-flame)" />
+        <path d="M160 58 C 154 68, 150 74, 154 82 C 156 87, 160 88, 160 88 C 160 88, 164 87, 166 82 C 169 74, 163 68, 160 58Z" fill={c} opacity="0.9" />
+        <Sparkle x={236} y={78} r={9} fill={p} /><Sparkle x={96} y={96} r={6} fill={p} op={0.8} /><Sparkle x={284} y={46} r={5} fill={a} />
+      </>,
+      <linearGradient id="pa-flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={p} /><stop offset="0.5" stopColor={a} /><stop offset="1" stopColor={o} /></linearGradient>,
     );
   }
-  return (
-    <svg viewBox="0 0 240 120" className="project-art" aria-hidden="true">
-      {[[120, 60, 30], [64, 34, 12], [186, 86, 16], [178, 30, 7], [52, 92, 8]].map(([x, y, r], k) => (
-        <path key={k} fill={k ? "#ffd4a3" : "#ff9a4d"} opacity={k ? 0.75 : 1}
-          d={`M${x} ${y - r} Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y} Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r} Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y} Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z`} />
-      ))}
-    </svg>
+
+  if (kind === "newspaper") {
+    // Agent Report: a front page (masthead, headline, photo, columns) with a "quote checked" stamp
+    return svg(
+      <>
+        <rect x="84" y="20" width="160" height="152" fill={d} />
+        <rect x="76" y="12" width="160" height="152" fill={c} fillOpacity="0.93" stroke={a} strokeWidth="2.5" />
+        <rect x="84" y="20" width="144" height="16" fill={o} />
+        <rect x="108" y="26" width="96" height="4" fill={c} />
+        <line x1="84" y1="41" x2="228" y2="41" stroke={d} strokeWidth="2" /><line x1="84" y1="44" x2="228" y2="44" stroke={d} strokeWidth="0.8" />
+        <rect x="84" y="49" width="30" height="3" fill={m} /><rect x="196" y="49" width="32" height="3" fill={m} />
+        <rect x="84" y="57" width="128" height="9" fill={d} /><rect x="84" y="70" width="88" height="6" fill={d} />
+        <rect x="84" y="82" width="68" height="46" fill={a} />
+        <circle cx="102" cy="95" r="6" fill={c} />
+        <polygon points="84,128 108,100 120,112 132,98 152,128" fill={m} />
+        <rect x="84" y="131" width="68" height="3" fill={m} />
+        {[82, 88, 94, 100, 106, 112, 118, 124].map((y) => <line key={y} x1="158" x2="228" y1={y} y2={y} stroke={m} strokeWidth="2" />)}
+        {[142, 148, 154].map((y) => <line key={`a${y}`} x1="84" x2="153" y1={y} y2={y} stroke={m} strokeWidth="2" />)}
+        {[142, 148, 154].map((y) => <line key={`b${y}`} x1="160" x2="228" y1={y} y2={y} stroke={m} strokeWidth="2" />)}
+        <line x1="156" y1="138" x2="156" y2="158" stroke={a} />
+        <g transform="rotate(-7 224 140)">
+          <rect x="196" y="116" width="52" height="48" fill={d} stroke={p} strokeWidth="2" />
+          <rect x="201" y="121" width="42" height="38" fill="none" stroke={a} strokeWidth="1" />
+          <polyline points="207,141 217,151 238,128" fill="none" stroke={o} strokeWidth="6" strokeLinecap="square" />
+        </g>
+      </>,
+    );
+  }
+
+  if (kind === "scatter") {
+    // Model Comparison: score against price, a stepped efficient frontier, a different marker per company
+    const leaders = [[60, 128], [100, 104], [150, 70], [200, 46], [262, 28]];
+    const others = [[78, 138], [88, 118], [118, 122], [130, 112], [170, 98], [176, 84], [214, 76], [230, 60], [240, 40], [284, 52]];
+    const shapes = ["sq", "di", "tr", "sq", "di"];
+    const mark = (s, x, y, r, fill, stroke) => (s === "di" ? <polygon points={`${x},${y - r * 1.35} ${x + r * 1.35},${y} ${x},${y + r * 1.35} ${x - r * 1.35},${y}`} fill={fill} stroke={stroke} strokeWidth="1.5" />
+      : s === "tr" ? <polygon points={`${x},${y - r * 1.3} ${x + r * 1.25},${y + r} ${x - r * 1.25},${y + r}`} fill={fill} stroke={stroke} strokeWidth="1.5" />
+        : <rect x={x - r} y={y - r} width={2 * r} height={2 * r} fill={fill} stroke={stroke} strokeWidth="1.5" />);
+    return svg(
+      <>
+        {[36, 64, 92, 120].map((y) => <line key={y} x1="36" x2="306" y1={y} y2={y} stroke={grid} />)}
+        {[66, 106, 146, 186, 226, 266].map((x) => <line key={x} x1={x} x2={x} y1="16" y2="150" stroke={grid} />)}
+        <line x1="36" y1="150" x2="306" y2="150" stroke={ln} strokeWidth="1.5" /><line x1="36" y1="14" x2="36" y2="150" stroke={ln} strokeWidth="1.5" />
+        {[66, 106, 146, 186, 226, 266].map((x) => <line key={`t${x}`} x1={x} x2={x} y1="150" y2="155" stroke={ln} />)}
+        {[36, 64, 92, 120].map((y) => <line key={`y${y}`} x1="31" x2="36" y1={y} y2={y} stroke={ln} />)}
+        <path d="M60 128H100V104H150V70H200V46H262V28" fill="none" stroke={p} strokeWidth="2" strokeDasharray="6 4" />
+        {others.map(([x, y], k) => <g key={k}>{mark(["sq", "di", "tr"][k % 3], x, y, 4.5, d, a)}</g>)}
+        {leaders.map(([x, y], k) => <g key={`l${k}`}>{mark(shapes[k], x, y, 6, k % 2 ? p : o, c)}</g>)}
+        <rect x="248" y="14" width="28" height="28" fill="none" stroke={c} strokeDasharray="3 3" />
+        <g transform="translate(46 22)">
+          <rect x="0" y="-4" width="8" height="8" fill={o} /><line x1="12" x2="28" y1="0" y2="0" stroke={ln} strokeWidth="2" />
+          <polygon points="44,-6 50,0 44,6 38,0" fill={p} /><line x1="54" x2="70" y1="0" y2="0" stroke={ln} strokeWidth="2" />
+          <polygon points="86,-5 92,5 80,5" fill={a} /><line x1="96" x2="112" y1="0" y2="0" stroke={ln} strokeWidth="2" />
+        </g>
+      </>,
+    );
+  }
+
+  if (kind === "mindmap") {
+    // Mindmap Studio: a root with branches and leaves, one collapsed branch and one selected node
+    const right = [[36, [18, 50]], [90, [90]], [144, [128, 160]]];
+    const left = [[36, [20]], [90, [66, 112]], [144, [150]]];
+    const node = (x, y, w, h, key, hot, extra) => (
+      <g key={key}>
+        <rect x={x} y={y - h / 2} width={w} height={h} fill={hot ? o : c} fillOpacity={hot ? 1 : 0.93} stroke={hot ? p : a} strokeWidth="2" />
+        <rect x={x + 6} y={y - 2} width={w - 12 - (extra || 0)} height="3" fill={hot ? c : d} />
+        {h > 16 && <rect x={x + 6} y={y + 4} width={(w - 12) * 0.55} height="2" fill={hot ? p : m} />}
+      </g>
+    );
+    return svg(
+      <>
+        {right.map(([y, leaves]) => (
+          <g key={`r${y}`} fill="none" stroke={a} strokeWidth="2">
+            <path d={`M188 90 C 201 90, 201 ${y}, 214 ${y}`} />
+            {leaves.map((ly) => <path key={ly} d={`M268 ${y} C 276 ${y}, 276 ${ly}, 284 ${ly}`} strokeWidth="1.5" />)}
+          </g>
+        ))}
+        {left.map(([y, leaves]) => (
+          <g key={`l${y}`} fill="none" stroke={a} strokeWidth="2">
+            <path d={`M132 90 C 119 90, 119 ${y}, 106 ${y}`} />
+            {leaves.map((ly) => <path key={ly} d={`M56 ${y} C 48 ${y}, 48 ${ly}, 40 ${ly}`} strokeWidth="1.5" />)}
+          </g>
+        ))}
+        {right.map(([y, leaves]) => <g key={`rn${y}`}>{node(214, y, 54, 22, `n${y}`, y === 36)}{leaves.map((ly) => node(284, ly, 30, 12, `lf${ly}`, false))}</g>)}
+        {left.map(([y, leaves]) => <g key={`ln${y}`}>{node(52, y, 54, 22, `n${y}`, false)}{leaves.map((ly) => node(6, ly, 30, 12, `lf${ly}`, false))}</g>)}
+        {node(132, 90, 56, 30, "root", true, 10)}
+        <rect x="170" y="85" width="12" height="10" fill={c} /><rect x="172" y="88" width="8" height="1.5" fill={o} /><rect x="172" y="91" width="5" height="1.5" fill={o} />
+        <rect x="260" y="84" width="10" height="10" fill={d} stroke={p} /><path d="M262 89H268M265 86V92" stroke={p} strokeWidth="1.5" />
+        <rect x="262" y="30" width="10" height="10" fill={d} stroke={p} /><path d="M264 35H270" stroke={p} strokeWidth="1.5" />
+      </>,
+    );
+  }
+
+  if (kind === "paddles") {
+    // Rally: a court with a pixel scoreboard, two paddles, a ball trailing afterimages, and the recorded-input timeline for the replay
+    return svg(
+      <>
+        <rect x="10" y="12" width="300" height="156" fill="none" stroke={ln} strokeWidth="1.5" />
+        <path d="M10 28V12H26M294 12H310V28M10 152V168H26M294 168H310V152" fill="none" stroke={a} strokeWidth="2" />
+        <line x1="160" y1="18" x2="160" y2="140" stroke={ln} strokeWidth="1.5" strokeDasharray="5 6" />
+        <PixelDigit ch="3" x={104} y={24} s={5} fill={a} op={0.55} /><PixelDigit ch="2" x={196} y={24} s={5} fill={a} op={0.55} />
+        <rect x="30" y="72" width="8" height="44" fill={o} /><rect x="32" y="74" width="2" height="40" fill={p} opacity="0.7" />
+        <rect x="282" y="44" width="8" height="44" fill={p} /><rect x="284" y="46" width="2" height="40" fill={c} opacity="0.7" />
+        {[4, 3, 2, 1, 0].map((k) => (
+          <rect key={k} x="-6" y="-6" width="12" height="12" fill={k ? a : c} opacity={k ? 0.55 - k * 0.1 : 1}
+            transform={`translate(${218 - k * 24} ${64 + k * 9}) rotate(${22 - k * 14}) scale(${1 - k * 0.1})`} />
+        ))}
+        <path d="M44 96 l-9 -5 M44 100 l-12 0 M44 104 l-9 5" stroke={p} strokeWidth="2" fill="none" />
+        <line x1="24" y1="152" x2="296" y2="152" stroke={ln} />
+        {Array.from({ length: 34 }, (_, i) => <line key={i} x1={28 + i * 8} x2={28 + i * 8} y1="146" y2={i % 4 ? 152 : 158} stroke={i < 21 ? a : ln} />)}
+        <rect x="190" y="143" width="8" height="18" fill={o} stroke={p} />
+        <polygon points="44,148 56,154 44,160" fill={p} />
+      </>,
+    );
+  }
+
+  if (kind === "spark") {
+    // Graphics: nebula glow, a big sparkle, a ringed planet, a signature scribble and a filmstrip of an animation
+    return svg(
+      <>
+        <circle cx="106" cy="86" r="84" fill="url(#pa-neb1)" /><circle cx="238" cy="70" r="64" fill="url(#pa-neb2)" />
+        {[[34, 26, 4], [60, 50, 3], [150, 22, 4], [186, 44, 3], [296, 24, 5], [284, 120, 3], [22, 96, 3], [140, 126, 3]].map(([x, y, r], i) => <Sparkle key={i} x={x} y={y} r={r} fill={i % 2 ? p : c} op={0.85} />)}
+        <Sparkle x={96} y={66} r={38} fill={o} /><Sparkle x={96} y={66} r={20} fill={p} /><circle cx="96" cy="66" r="4" fill={c} />
+        <path d="M182 98 A50 12 0 0 1 282 98" fill="none" stroke={p} strokeWidth="3" transform="rotate(-18 232 98)" />
+        <circle cx="232" cy="98" r="27" fill="url(#pa-planet)" stroke={a} strokeWidth="1.5" />
+        <path d="M208 90 Q232 100 256 88 M206 104 Q232 114 258 102" fill="none" stroke={d} strokeWidth="1.5" opacity="0.55" />
+        <path d="M182 98 A50 12 0 0 0 282 98" fill="none" stroke={p} strokeWidth="3" transform="rotate(-18 232 98)" />
+        <path d="M24 146 C 38 122, 52 156, 64 138 S 86 124, 94 146 S 116 156, 128 134 L 144 154 C 154 124, 166 156, 184 142" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M30 162 C 80 154, 130 168, 188 158" fill="none" stroke={a} strokeWidth="2" strokeLinecap="round" />
+        <g transform="translate(198 134)">
+          <rect x="0" y="0" width="108" height="34" fill={d} stroke={a} strokeWidth="1.5" />
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => <g key={i}><rect x={5 + i * 15} y="3" width="6" height="3" fill={a} /><rect x={5 + i * 15} y="28" width="6" height="3" fill={a} /></g>)}
+          {[0, 1, 2].map((i) => (
+            <g key={`f${i}`}>
+              <rect x={6 + i * 34} y="9" width="30" height="16" fill="#1c0e08" stroke={ln} />
+              <Sparkle x={21 + i * 34} y={17} r={3 + i * 2.2} fill={i === 2 ? o : p} />
+            </g>
+          ))}
+        </g>
+      </>,
+      <>
+        <radialGradient id="pa-neb1"><stop offset="0" stopColor={o} stopOpacity="0.38" /><stop offset="1" stopColor={o} stopOpacity="0" /></radialGradient>
+        <radialGradient id="pa-neb2"><stop offset="0" stopColor={p} stopOpacity="0.26" /><stop offset="1" stopColor={p} stopOpacity="0" /></radialGradient>
+        <radialGradient id="pa-planet" cx="34%" cy="30%" r="85%"><stop offset="0" stopColor="#ffe2c2" /><stop offset="0.55" stopColor={a} /><stop offset="1" stopColor={d} /></radialGradient>
+      </>,
+    );
+  }
+
+  // whiteboard: Scratch, a board on an easel with a flowchart, a plot, sticky notes and code
+  return svg(
+    <>
+      <line x1="112" y1="130" x2="96" y2="172" stroke={d} strokeWidth="4" strokeLinecap="square" /><line x1="208" y1="130" x2="224" y2="172" stroke={d} strokeWidth="4" strokeLinecap="square" />
+      <line x1="160" y1="130" x2="160" y2="172" stroke={d} strokeWidth="4" strokeLinecap="square" />
+      <rect x="40" y="10" width="240" height="120" fill={c} fillOpacity="0.93" stroke={a} strokeWidth="3" />
+      <rect x="47" y="17" width="226" height="106" fill="none" stroke={ln} strokeWidth="1" />
+      <rect x="56" y="26" width="46" height="24" fill="none" stroke={o} strokeWidth="2.5" />
+      <path d="M102 38H124M118 33L124 38L118 43" fill="none" stroke={o} strokeWidth="2.5" />
+      <polygon points="150,26 176,38 150,50 124,38" fill="none" stroke={m} strokeWidth="2.5" />
+      <path d="M176 38H198M192 33L198 38L192 43" fill="none" stroke={o} strokeWidth="2.5" />
+      <rect x="198" y="26" width="46" height="24" fill="none" stroke={o} strokeWidth="2.5" />
+      <path d="M150 50V64" stroke={m} strokeWidth="2" strokeDasharray="3 3" />
+      <g transform="rotate(-5 76 90)"><rect x="58" y="70" width="38" height="34" fill={p} />{[78, 85, 92].map((y) => <line key={y} x1="64" x2="90" y1={y} y2={y} stroke={d} strokeWidth="2" />)}</g>
+      <g transform="rotate(4 118 92)"><rect x="104" y="72" width="34" height="32" fill={a} />{[80, 87, 94].map((y) => <line key={y} x1="110" x2="132" y1={y} y2={y} stroke={d} strokeWidth="2" />)}</g>
+      <path d="M166 100 C 176 76, 186 76, 194 92 S 208 108, 220 82 S 232 72, 240 80" fill="none" stroke={o} strokeWidth="3" strokeLinecap="round" />
+      <path d="M164 70V108H246" fill="none" stroke={m} strokeWidth="1.5" />
+      <path d="M252 64q-7 0 -7 7v6q0 4 -4 4q4 0 4 4v6q0 7 7 7M264 64q7 0 7 7v6q0 4 4 4q-4 0 -4 4v6q0 7 -7 7" fill="none" stroke={m} strokeWidth="2" transform="translate(-3 4) scale(0.8)" />
+      <rect x="92" y="130" width="136" height="7" fill={a} />
+      <rect x="170" y="123" width="30" height="7" fill={o} /><rect x="200" y="124" width="6" height="5" fill={d} />
+      <rect x="116" y="123" width="22" height="7" fill={d} stroke={m} />
+    </>,
   );
 }
 
@@ -1416,7 +1565,6 @@ function ProjectsPortal() {
     <div className="content">
       <div className="projects-intro">
         <h1 className="page-title">Projects</h1>
-        <p className="page-lead prose">Things I have built: data tools, dashboards and graphics. Pick one to open it.</p>
       </div>
       <div className="project-grid">
         {projects.map((p) => (
@@ -1424,9 +1572,8 @@ function ProjectsPortal() {
             <div className="project-art-wrap"><ProjectArt kind={p.art} /></div>
             <div className="project-card-body">
               <h2 className="project-title">{p.title}</h2>
-              <p className="project-blurb">{p.blurb}</p>
-              <div className="project-tags">{p.tags.map((t) => <span key={t}>{t}</span>)}</div>
-              <span className="project-open">{p.cta || (p.external ? "Open explorer" : "Open")} <span aria-hidden="true">→</span></span>
+              {/* the whole card is the link, so the button is a span; it wears the home page's ruled-button look */}
+              <span className="project-open rule-link">{p.cta || (p.external ? "Open explorer" : "Open")}<RuleFeet /></span>
             </div>
           </a>
         ))}
