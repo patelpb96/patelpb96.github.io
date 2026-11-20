@@ -50,7 +50,6 @@ const projects = [
     title: "ATP Top 20 Explorer",
     href: "/projects/atp/",
     external: true,
-    blurb: "Every player who held a top-20 ATP ranking since 1973, on one chart. Pick a time window, compare rivals, build groups like the Big Three, and overlay moving averages with momentum.",
     tags: ["Tennis", "Data viz", "Python · polars"],
     art: "lines",
   },
@@ -60,7 +59,6 @@ const projects = [
     href: "/projects/alchemy/",
     external: true,
     cta: "Open dashboard",
-    blurb: "A live RuneScape Grand Exchange dashboard: high-alchemy profit for 7,000+ items, with price history back to 2008.",
     tags: ["Dashboard", "Live data"],
     art: "coins",
   },
@@ -70,7 +68,6 @@ const projects = [
     href: "/projects/newsroom/",
     external: true,
     cta: "Open newsroom",
-    blurb: "A private, password-locked newsroom: a small team of Claude agents researches a request, checks every quote against its source, and lays out a cited front page.",
     tags: ["Agents", "Private"],
     art: "newspaper",
   },
@@ -80,7 +77,6 @@ const projects = [
     href: "/projects/models/",
     external: true,
     cta: "Compare models",
-    blurb: "Frontier AI models side by side: benchmark scores, price, speed, and cost and time per task, with a price-vs-score frontier and history over time. A scraper checks for new releases every six hours.",
     tags: ["AI models", "Benchmarks", "Live data"],
     art: "scatter",
   },
@@ -90,7 +86,6 @@ const projects = [
     href: "/projects/mindmap/",
     external: true,
     cta: "Open editor",
-    blurb: "A small mind map editor that runs entirely in your browser: branch, reorder and collapse ideas, assign agents to workflow steps, and import or export Markdown and JSON.",
     tags: ["Editor", "No build step"],
     art: "mindmap",
   },
@@ -100,7 +95,6 @@ const projects = [
     href: "/projects/rally/",
     external: true,
     cta: "Play",
-    blurb: "A paddle-and-ball game with nothing painted: every piece is an SVG element, driven by a deterministic 60 Hz simulation. Finish a game and it replays itself from your recorded inputs.",
     tags: ["Game", "SVG", "No build step"],
     art: "paddles",
   },
@@ -108,7 +102,6 @@ const projects = [
     key: "graphics",
     title: "Graphics",
     href: "#/projects/graphics",
-    blurb: "Transparent animated forum signatures and older space art, made web-safe with WebP.",
     tags: ["Animation", "Design"],
     art: "spark",
   },
@@ -116,7 +109,6 @@ const projects = [
     key: "scratch",
     title: "Scratch",
     href: "#/projects/scratch",
-    blurb: "A scratchspace: working files and drafts, rendered as pages.",
     tags: ["Notes", "Drafts"],
     art: "whiteboard",
   },
@@ -682,7 +674,6 @@ function Css() {
 
       .projects-intro { text-align: center; padding: 40px 0 6px; }
       .page-title { color: #fff2e6; font-size: clamp(2.6rem, 6vw, 4.4rem); line-height: 0.95; letter-spacing: -0.05em; margin: 0; text-shadow: 0 0 44px rgba(255,170,100,0.25); }
-      .page-lead { max-width: 640px; margin: 16px auto 0; text-align: center; }
       .project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; padding: 34px 0 10px; }
       .project-card { display: flex; flex-direction: column; color: inherit; text-decoration: none; transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; animation: riseIn 0.8s ease both; }
       .project-card:hover, .project-card:focus-visible { transform: translateY(-4px); border-color: rgba(255,180,120,0.55); box-shadow: 0 26px 70px var(--shadow), 0 0 32px rgba(255,170,100,0.16); outline: none; }
