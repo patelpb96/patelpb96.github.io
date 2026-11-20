@@ -47,8 +47,7 @@ function initialTheme() {
   return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "ink" : "paper";
 }
 
-// On a wide screen the filter and the summary cards start open; on a phone they start folded so the table is close.
-const ROOMY = typeof window !== "undefined" && window.innerWidth >= 720;
+// Every fold starts closed (Preet's preference); a fold the viewer opens stays open for them, via the saved pref in Fold.
 
 const day = (s) => s.slice(0, 10);
 const fmtScore = (v) => v.toFixed(1);
@@ -738,7 +737,7 @@ function Dashboard({ data, intro }) {
             <button type="button" className="chip" onClick={() => { setPinned(new Set()); setBrushed(new Set()); }}>Clear</button>
           </p>
         )}
-        <Fold id="explain" title="How to read this chart" meta={`${benchName} vs ${xMetric === "price" ? "price" : "output speed"}`} defaultOpen={ROOMY}>
+        <Fold id="explain" title="How to read this chart" meta={`${benchName} vs ${xMetric === "price" ? "price" : "output speed"}`}>
           <ScatterKey xMetric={xMetric} benchObj={quality.find((b) => b.benchmark_id === bench)} />
         </Fold>
       </section>
@@ -746,7 +745,7 @@ function Dashboard({ data, intro }) {
       {intro}
 
       <div className="folds">
-        <Fold id="companies" title="Companies" meta={`${orgs.length - hiddenOrgs.size} of ${orgs.length} shown · as of ${asOf}`} defaultOpen={ROOMY}>
+        <Fold id="companies" title="Companies" meta={`${orgs.length - hiddenOrgs.size} of ${orgs.length} shown · as of ${asOf}`}>
           <div className="mt-filters">
             <div className="chips">
               {orgs.map((org) => (
@@ -768,7 +767,7 @@ function Dashboard({ data, intro }) {
           </div>
         </Fold>
 
-        <Fold id="best" title="Best in each area" meta={`${cards.length} measures`} defaultOpen={ROOMY}>
+        <Fold id="best" title="Best in each area" meta={`${cards.length} measures`}>
           <div className="mt-cards">
             {cards.map((c) => (
               <div key={c.id} className="mt-card">
