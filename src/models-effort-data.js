@@ -129,25 +129,75 @@ export function logTicks(lo, hi, max = 9) {
   return pick([1]);
 }
 
-// Places each label beside its point (right side, or left near the right edge) and nudges it down until it clears the
-// labels already placed. `items`: {id, x, y, w}. Returns Map id -> {x, y, anchor, moved}.
-export function placeLabels(items, { gap, width, top, bottom, edge = 6 }) {
+// Places each label beside its point and keeps it off the other labels AND off every marker. Tries, in order, right, above-right
+// and below-right (left first when the label would run off the right edge), then the same on the other side; if every spot is
+// taken it nudges down from the first choice. `items`: {id, x, y, w}; `obstacles`: {id, x, y, r} marker boxes (a label ignores its
+// own marker). Returns Map id -> {x, y, anchor, moved}; `moved` is true when the label sits away from its point enough to want a leader.
+export function placeLabels(items, { gap, width, top, bottom, edge = 6, obstacles = [] }) {
   const placed = [];
   const out = new Map();
+  const clampY = (y) => Math.min(Math.max(y, top), bottom);
+  const hitsMarker = (id, x0, w, y) => obstacles.some((o) => o.id !== id && o.x > x0 - o.r && o.x < x0 + w + o.r && o.y > y - gap + 3 - o.r && o.y < y + 3 + o.r);
+  const clash = (id, x0, w, y) => placed.some((p) => Math.abs(p.y - y) < gap && p.x0 < x0 + w && x0 < p.x0 + p.w) || hitsMarker(id, x0, w, y);
   for (const it of [...items].sort((a, b) => a.y - b.y || a.x - b.x)) {
-    const flip = it.x + 10 + it.w > width - edge;
-    const x0 = flip ? it.x - 10 - it.w : it.x + 10;
-    let y = it.y;
-    for (let guard = 0; guard < 60; guard++) {
-      const hit = placed.find((p) => Math.abs(p.y - y) < gap && p.x0 < x0 + it.w && x0 < p.x0 + p.w);
-      if (!hit) break;
-      y = hit.y + gap;
+    const right = { x: it.x + 10, anchor: "start", x0: it.x + 10 };
+    const left = { x: it.x - 10, anchor: "end", x0: it.x - 10 - it.w };
+    const sides = it.x + 10 + it.w > width - edge ? [left, right] : [right, left];
+    let spot = null;
+    for (const s of sides) {
+      for (const dy of [0, -gap, gap]) {
+        const y = clampY(it.y + dy);
+        if (!clash(it.id, s.x0, it.w, y)) { spot = { s, y }; break; }
+      }
+      if (spot) break;
     }
-    y = Math.min(Math.max(y, top), bottom);
-    placed.push({ x0, w: it.w, y });
-    out.set(it.id, { x: flip ? it.x - 10 : it.x + 10, y, anchor: flip ? "end" : "start", moved: Math.abs(y - it.y) > 5 });
+    if (!spot) {
+      const s = sides[0];
+      let y = it.y;
+      for (let guard = 0; guard < 60; guard++) {
+        const hit = placed.find((p) => Math.abs(p.y - y) < gap && p.x0 < s.x0 + it.w && s.x0 < p.x0 + p.w);
+        if (!hit) break;
+        y = hit.y + gap;
+      }
+      spot = { s, y: clampY(y) };
+    }
+    placed.push({ x0: spot.s.x0, w: it.w, y: spot.y });
+    out.set(it.id, { x: spot.s.x, y: spot.y, anchor: spot.s.anchor, moved: Math.abs(spot.y - it.y) > 5 });
   }
   return out;
+}
+
+// Axis domain for a set of points: log-x bounds and the raw y bounds (the chart rounds y to tick values).
+export function domainOf(pts) {
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const ymin = Math.min(...ys), ymax = Math.max(...ys);
+  const pad = Math.max((ymax - ymin) * 0.06, 1);
+  return {
+    xlo: Math.min(...xs) * 0.8, xhi: Math.max(...xs) * 1.3,
+    lo: ymin >= 0 ? Math.max(0, ymin - pad) : ymin - pad,
+    hi: ymax <= 100 ? Math.min(100, ymax + pad) : ymax + pad,
+  };
+}
+
+// The efficient frontier as a staircase: at each cost, the best score you can have for that much or less.
+export function stairPath(front, fx, fy) {
+  return front.map((p, i) => (i === 0 ? `M${fx(p.x)} ${fy(p.y)}` : `H${fx(p.x)}V${fy(p.y)}`)).join("");
+}
+
+// One marker shape per company (hue alone would not separate red from green): square, diamond, triangle. All sharp-cornered.
+export const LAB_SHAPE = { OpenAI: "square", Anthropic: "diamond", Google: "triangle" };
+export function markPath(shape, h) {
+  if (shape === "diamond") { const k = h * 1.35; return `M0 ${-k}L${k} 0L0 ${k}L${-k} 0Z`; }
+  if (shape === "triangle") { const k = h * 1.3; return `M0 ${-k}L${k * 0.95} ${k * 0.75}L${-k * 0.95} ${k * 0.75}Z`; }
+  return `M${-h} ${-h}H${h}V${h}H${-h}Z`;
+}
+export const EFFORT_SHORT = { none: "off", minimal: "min", low: "low", medium: "med", high: "high", xhigh: "xhigh", max: "max", default: "default" };
+
+// Distance from point (px, py) to the segment (x1, y1)-(x2, y2).
+export function segDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const t = dx || dy ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy))) : 0;
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
 // Table helpers: the gain from a model's lowest setting to its highest, and what that cost.

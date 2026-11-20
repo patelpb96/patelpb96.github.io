@@ -1,7 +1,13 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import "./models-themes.css";
 import "./models.css";
 import { LOGOS } from "./models-logos.js";
+
+// The "Reasoning effort" tab is its own chunk, fetched when the tab is touched or opened, so the tracker itself stays as light as before.
+const loadEffort = () => import("./models-effort-page.jsx");
+const EffortView = lazy(loadEffort);
+const VIEW_PATH = { models: "/projects/models/", effort: "/projects/models/effort/" };
+const viewOfPath = () => (/\/effort\/?$/.test(window.location.pathname) ? "effort" : "models");
 
 const DATA_URL = "/projects/models/data/latest.json";
 const THEME_KEY = "models-theme";
@@ -171,7 +177,7 @@ function useChartSize() {
   const [width, setWidth] = useState(() => Math.min(720, (typeof window !== "undefined" ? window.innerWidth : 720) - 62));
   useEffect(() => {
     if (!node || typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver(([e]) => setWidth(Math.round(e.contentRect.width)));
+    const ro = new ResizeObserver(([e]) => { if (e.contentRect.width > 0) setWidth(Math.round(e.contentRect.width)); });   // 0 = the tab is hidden
     ro.observe(node);
     return () => ro.disconnect();
   }, [node]);
@@ -936,6 +942,19 @@ export default function ModelsPage() {
     document.documentElement.dataset.type = type;
     writePref(TYPE_KEY, type);
   }, [type]);
+  // Two views, two real URLs: /projects/models/ and /projects/models/effort/ (a deep link opens the effort tab).
+  const [view, setView] = useState(viewOfPath);
+  useEffect(() => {
+    const onPop = () => setView(viewOfPath());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => { document.title = view === "effort" ? "Frontier effort comparison · Preet Patel" : "Model tracker · Preet Patel"; }, [view]);
+  const go = (next) => {
+    if (next === view) return;
+    try { window.history.pushState(null, "", VIEW_PATH[next]); } catch { /* keep the in-page switch even if the URL cannot change */ }
+    setView(next);
+  };
   const [reloads, setReloads] = useState(0);
   useEffect(() => {
     let live = true;
@@ -952,7 +971,7 @@ export default function ModelsPage() {
         <header className="mt-head">
           <div>
             <h1 className="mt-title">Model tracker</h1>
-            <p className="mt-sub">Frontier AI models by benchmark score, price and speed. <a href="/projects/models/effort/">Frontier effort comparison</a> · <a href="/">patelpb.com</a></p>
+            <p className="mt-sub">Frontier AI models by benchmark score, price and speed. <a href="/">patelpb.com</a></p>
           </div>
           <div className="mt-tools">
             <div className="seg" role="group" aria-label="Theme">
@@ -975,10 +994,21 @@ export default function ModelsPage() {
     <main className="mt">
       {/* import.meta.env.DEV is false in `vite build`, so the panel and its code are dropped from the live site. */}
       {import.meta.env.DEV && <RunPanel onRefreshed={() => setReloads((n) => n + 1)} />}
-      {!data && intro}
-      {error && <p className="mt-note" role="alert">Could not load the data ({error}).</p>}
-      {!data && !error && <p className="empty">Loading…</p>}
-      {data && <Dashboard data={data} intro={intro} />}
+      <div className="tabs mt-views" role="tablist" aria-label="Page views">
+        <button type="button" role="tab" aria-selected={view === "models"} onClick={() => go("models")}>Models</button>
+        <button type="button" role="tab" aria-selected={view === "effort"} onClick={() => go("effort")} onPointerEnter={loadEffort} onFocus={loadEffort}>Reasoning effort</button>
+      </div>
+      {view === "effort" && (
+        <>
+          {intro}
+          <Suspense fallback={<p className="empty">Loading…</p>}><EffortView /></Suspense>
+        </>
+      )}
+      {view === "models" && !data && intro}
+      {view === "models" && error && <p className="mt-note" role="alert">Could not load the data ({error}).</p>}
+      {view === "models" && !data && !error && <p className="empty">Loading…</p>}
+      {/* Kept mounted while the effort tab is open, so pins, sort and filters survive a round trip. */}
+      {data && <div className="mt-view" hidden={view !== "models"}><Dashboard data={data} intro={intro} /></div>}
     </main>
   );
 }

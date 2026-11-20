@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   modelLabel, ELEMENT_SYMBOL, allEfforts, yMetrics, visiblePoints, frontier, newestPerClass, logTicks, niceTicks,
-  placeLabels, ladderGain, fmtValue, fmtX, LADDER,
+  placeLabels, ladderGain, fmtValue, fmtX, LADDER, domainOf, stairPath, markPath, LAB_SHAPE, segDist,
 } from "./models-effort-data.js";
 
 const model = (org, cls, version, points = []) => ({ model_id: `${org}/${cls}-${version}`, org, class: cls, version, display_name: `${cls} ${version}`, live: true, last_seen: "2026-11-20", points });
@@ -62,15 +62,36 @@ test("nice ticks cover the range", () => {
   assert.ok(t[0] <= 9.4 && t[t.length - 1] >= 64.6);
 });
 
-test("labels do not overlap and stay on the chart", () => {
+test("labels do not overlap each other or markers, and stay on the chart", () => {
   const items = [{ id: "a", x: 100, y: 100, w: 60 }, { id: "b", x: 110, y: 104, w: 60 }, { id: "c", x: 105, y: 108, w: 60 }, { id: "far", x: 500, y: 102, w: 60 }];
-  const out = placeLabels(items, { gap: 16, width: 520, top: 10, bottom: 400 });
-  const ys = ["a", "b", "c"].map((k) => out.get(k).y).sort((p, q) => p - q);
-  assert.ok(ys[1] - ys[0] >= 16 && ys[2] - ys[1] >= 16, ys.join(","));
+  const obstacles = items.map((i) => ({ id: i.id, x: i.x, y: i.y, r: 9 }));
+  const gap = 16;
+  const out = placeLabels(items, { gap, width: 520, top: 10, bottom: 400, obstacles });
+  const box = (it) => { const o = out.get(it.id); const x0 = o.anchor === "start" ? o.x : o.x - it.w; return { x0, x1: x0 + it.w, y: o.y }; };
+  for (const p of items) for (const q of items) {
+    if (p.id >= q.id) continue;
+    const a = box(p), b = box(q);
+    assert.ok(!(a.x0 < b.x1 && b.x0 < a.x1 && Math.abs(a.y - b.y) < gap), `${p.id} overlaps ${q.id}`);
+  }
+  for (const it of items) {                                                   // no label sits on another point's marker
+    const b = box(it);
+    for (const o of obstacles) if (o.id !== it.id) assert.ok(!(o.x > b.x0 - 9 && o.x < b.x1 + 9 && o.y > b.y - gap + 3 - 9 && o.y < b.y + 3 + 9), `${it.id} covers marker ${o.id}`);
+  }
   assert.equal(out.get("far").anchor, "end");                                 // 500 + 70 > 514: flips to the left of its point
   assert.equal(out.get("far").y, 102);                                        // different part of the chart: not pushed
-  assert.equal(out.get("a").moved, false);
-  assert.equal(out.get("c").moved, true);
+  const alone = placeLabels([{ id: "solo", x: 100, y: 100, w: 60 }], { gap, width: 520, top: 10, bottom: 400 });
+  assert.deepEqual(alone.get("solo"), { x: 110, y: 100, anchor: "start", moved: false });   // room to spare: right of its point
+});
+
+test("domain, staircase, shapes and segment distance", () => {
+  const d = domainOf([{ x: 1, y: 10 }, { x: 10, y: 60 }]);
+  assert.ok(d.xlo < 1 && d.xhi > 10 && d.lo >= 0 && d.hi > 60 && d.hi <= 100);
+  assert.equal(stairPath([{ x: 1, y: 10 }, { x: 2, y: 30 }, { x: 5, y: 40 }], (v) => v, (v) => v), "M1 10H2V30H5V40");
+  assert.match(markPath("diamond", 5), /^M0 -6\.75/);
+  assert.equal(markPath("square", 4), "M-4 -4H4V4H-4Z");
+  assert.equal(LAB_SHAPE.Google, "triangle");
+  assert.equal(segDist(5, 3, 0, 0, 10, 0), 3);                                // perpendicular to the segment
+  assert.equal(segDist(-4, 3, 0, 0, 10, 0), 5);                               // past the end: distance to the endpoint
 });
 
 test("ladder gain skips settings outside the ladder", () => {

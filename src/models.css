@@ -174,3 +174,8 @@ th.super button { color: var(--ink); }
 
 /* A price that is a placeholder average (source lists $0): marked with a dotted underline so it is never read as measured. */
 td.est { text-decoration: underline dotted; text-underline-offset: 3px; }
+
+/* view switch (Models | Reasoning effort): the inactive view stays mounted but hidden */
+.mt-view { display: grid; gap: 16px; min-width: 0; }
+.mt-view[hidden] { display: none; }
+.mt-views { margin-bottom: -4px; }

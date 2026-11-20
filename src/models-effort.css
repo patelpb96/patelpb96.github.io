@@ -1,34 +1,61 @@
-/* Frontier effort comparison: only what models.css does not already give (square corners, themes, folds, tables, tips). */
+/* Reasoning effort view. Loaded with the view's chunk; square corners, themes, folds, tables come from models.css. */
 
-/* A model's name: base word with a subscript. The subscript is lifted by position, not vertical-align, so it never
-   changes the line height of a chip, a table row or a tooltip. */
+.ef-title h2 { font-family: var(--display); font-size: 20px; margin: 0 0 2px; letter-spacing: -0.01em; }
+.ef-title { margin-bottom: 10px; }
+:root[data-theme="8bit"] .ef-title h2 { font-size: 12px; text-transform: uppercase; }
+
+/* A model's name: base word with a subscript, lifted by position so it never changes a line's height. */
 .lm { white-space: nowrap; font-weight: 600; }
-.lm sub { font-size: 0.72em; line-height: 0; vertical-align: baseline; position: relative; top: 0.28em; margin-left: 1px; font-weight: 600; }
-.explain sub { font-size: 0.72em; line-height: 0; vertical-align: baseline; position: relative; top: 0.28em; }
+.lm sub, .explain sub { font-size: 0.72em; line-height: 0; vertical-align: baseline; position: relative; top: 0.28em; margin-left: 1px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* chart: one ladder per model */
-.chart g.ef { cursor: pointer; transition: opacity 0.12s; }
-.chart g.ef:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.chart .ladder { fill: none; stroke-linejoin: round; stroke-linecap: square; }
-.chart .ladder-hit { fill: none; stroke: transparent; stroke-width: 14; }
-.chart .ef-mk { stroke-width: 1.75; }
-.chart .ef-ring { fill: none; stroke: var(--muted); stroke-dasharray: 2 2; }
-.chart .ef-on { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+/* chart. The wrapper takes every pointer event (one hit test); nothing inside the svg is a target. */
+.chart.ef-chart, .chart.ef-chart * { pointer-events: none; }
+.chart.ef-chart { pointer-events: auto; cursor: crosshair; touch-action: pan-y; }
+.chart.ef-chart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chart.ef-chart .grid { stroke-dasharray: none; opacity: 0.35; }
+.chart .ladder { fill: none; stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: square; }
+.chart .ef-mk { stroke-width: 1.5; }
+.chart .ef-join { stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.8; }
+.chart .ef-front { fill: none; stroke: var(--muted); stroke-width: 1; opacity: 0.85; }
+.chart .ef-ghost { fill: none; stroke: var(--line); stroke-width: 1; opacity: 0.6; }
+.chart .ef-pt { fill: var(--ink); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
 .chart text.plabel .sub { font-weight: 600; }
+/* delisted models: faded, with a dagger on the label, instead of a second outline style */
+.chart g.ef.gone, .chart g.ef-lab.gone { opacity: 0.5; }
+/* focus: a pinned line is thicker; while something is hovered everything else steps back. No transition: it must feel instant. */
+.chart g.ef.is-pin .ladder { stroke-width: 3; }
+.chart g.ef.is-pin .ef-mk { stroke-width: 2; }
+.chart.has-hot g.ef:not(.is-hot):not(.is-pin) { opacity: 0.22; }
+.chart.has-hot g.ef-lab { opacity: 0.55; }
+.chart .ef-raise { opacity: 1; }
+.chart .ef-raise .ladder { stroke-width: 3; }
+.chart .ef-raise .ef-mk { stroke-width: 2; }
 
-/* filters */
-.eff-groups { display: grid; gap: 8px; margin-top: 10px; }
+/* tooltip: one element, docked under the chart on touch (a finger would cover it) */
+.tip-dock { margin-top: 8px; border: 1px solid var(--ink); background: var(--bg); padding: 6px 9px; font-size: 13px; line-height: 1.35; }
+.chart-wrap > .tip { transform: translate(14px, -50%); }
+.chart-wrap > .tip.flip { transform: translate(calc(-100% - 14px), -50%); }
+
+/* controls and filters directly under the chart */
+.ef-chips { display: grid; gap: 6px; margin-top: 12px; }
 .eff-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.eff-lab { font-weight: 600; margin-right: 4px; }
+.eff-lab { font-weight: 600; margin-right: 2px; }
+.ef-effort { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.ef-hint { margin-top: 8px; }
 .chip svg { flex: none; }
-.legend-sizes { display: inline-flex; align-items: center; gap: 0; color: var(--ink); }
+.ef-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; }
+.ef-panel { min-width: 0; }
+.ef-panel-h { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; margin: 4px 0; }
 
 /* table: a score over its cost in each cell */
 tbody tr.eff-row { box-shadow: inset 3px 0 0 var(--c); }
 tbody tr.eff-row.is-hl { background: var(--chip); }
 td .cell-v, td .cell-c { display: block; line-height: 1.25; }
 td .cell-c { font-size: 11px; }
+td.dash { color: var(--muted); }
 
 @media (max-width: 640px) {
   .eff-lab { margin-right: 0; }
+  .ef-panels { grid-template-columns: 1fr; }
 }
