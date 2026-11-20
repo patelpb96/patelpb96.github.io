@@ -652,11 +652,14 @@ function Css() {
         margin: 0 auto;
         display: flex;
         align-items: center;
+        /* three things in the bar: name, Lite toggle, navigation (or the menu button on phones).
+           space-between puts the toggle the same distance from each neighbour; the gap is the least
+           that distance may be, as a share of the bar's width */
         justify-content: space-between;
-        gap: 18px;
+        gap: 4%;
         padding: 14px 0;
       }
-      .brand { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; }
+      .brand { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--text); text-decoration: none; }
       .brand-mark {
         width: 54px;
         height: 54px;
@@ -1139,7 +1142,8 @@ function Css() {
       /* Lite mode (.site-root.lite): same palette, type and still starfield, minus everything the GPU has
          to keep redrawing: twinkle animations, drop-shadow filters on full-screen layers, the blurred
          see-through top bar, the 3D tilt, entrance animations and large soft glows. */
-      .lite-toggle { display: inline-flex; align-items: center; gap: 8px; }
+      .lite-toggle { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+      .menu-btn { flex: none; }
       .lite-box { width: 11px; height: 11px; border: 1px solid currentColor; flex: none; }
       .lite-toggle.on { color: #fff2e6; }
       .lite-toggle.on .lite-box { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px #1c0e08; }
@@ -1693,6 +1697,11 @@ function Topbar({ route, lite, onToggleLite }) {
             <div className="brand-subtitle">Physics • Astronomy • Data Science</div>
           </div>
         </a>
+        {/* in the bar itself at every width, between the name and the navigation (never inside the phone menu) */}
+        <button type="button" className={`nav-link lite-toggle${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
+          title="Lite mode: a still background with no animation, blur or tilt. Easier on older laptops and phones.">
+          <span className="lite-box" aria-hidden="true" />Lite
+        </button>
         <button
           type="button"
           className={`menu-btn${menuOpen ? " open" : ""}`}
@@ -1715,10 +1724,6 @@ function Topbar({ route, lite, onToggleLite }) {
             sections.map((section) => <NavLink key={section.id} section={section} />)
           )}
           <ProjectsMenu route={route} />
-          <button type="button" className={`nav-link lite-toggle${lite ? " on" : ""}`} aria-pressed={lite} onClick={onToggleLite}
-            title="Lite mode: a still background with no animation, blur or tilt. Easier on older laptops and phones.">
-            <span className="lite-box" aria-hidden="true" />Lite
-          </button>
         </nav>
       </div>
     </header>
