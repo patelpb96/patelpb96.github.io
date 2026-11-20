@@ -268,3 +268,43 @@ Logs: CloudWatch `/aws/lambda/patelpb-model-scrape` (counts and statuses only, n
 
 `npx cdk destroy PatelpbModelTracker` removes the Lambda and the schedule; the state bucket is kept
 (RETAIN) and must be emptied and deleted by hand if it is really no longer wanted.
+
+# Model tracker auto-refresh (stack `PatelpbModelDataPublish` + workflow `.github/workflows/model-data-refresh.yml`)
+
+```
+GitHub Actions cron (:20 past 00/06/12/18 UTC) on main
+  -> tests, then the same refresh as scripts\refresh-data.ps1 (one GET of Artificial Analysis, build_snapshot.py, build_effort.py)
+  -> if the data changed: commit to main ("Model tracker: automatic Artificial Analysis refresh ...")
+  -> OIDC (no AWS keys in GitHub) -> role patelpb-model-data-publisher
+  -> s3://patelpb-com-site/projects/models/data/{latest,effort}.json + a CloudFront invalidation of those two paths
+```
+
+The role can be assumed only by this repository's `main` branch and can write only those two objects and invalidate
+that one distribution. The upload step compares each live file's ETag with the repository's and uploads whatever differs,
+so a run that committed but failed to upload is repaired by the next run. Only the two data files are published: page
+code still ships through `deploy-aws.sh`. The news scan stays gated as before: Exa candidates reach the page only through
+`scraper.review` and a deploy; this job publishes only Artificial Analysis's own numbers.
+
+The job is **switched off until the repository variable `MODELS_PUBLISH_ROLE_ARN` exists**, so merging the workflow does nothing by itself.
+
+## Deploy (needs Preet's go-ahead; AWS sign-in first: `! aws login --region us-east-1`)
+
+```sh
+# 1. does the account already have the GitHub OIDC provider? (one per URL per account)
+aws iam list-open-id-connect-providers --query "OpenIDConnectProviderList[?contains(Arn,'token.actions.githubusercontent.com')].Arn" --output text
+# 2. deploy: pass the ARN from step 1 if there is one, otherwise omit -c and the stack creates the provider
+cd infra && npx cdk diff PatelpbModelDataPublish -c githubOidcProviderArn=<arn-from-step-1>
+cd infra && npx cdk deploy PatelpbModelDataPublish -c githubOidcProviderArn=<arn-from-step-1>
+# 3. switch the workflow on with the role ARN printed as PublisherRoleArn
+gh variable set MODELS_PUBLISH_ROLE_ARN -R patelpb96/patelpb96.github.io --body "<PublisherRoleArn>"
+# 4. try it once by hand, then watch the run
+gh workflow run "Model data refresh" -R patelpb96/patelpb96.github.io && gh run watch -R patelpb96/patelpb96.github.io
+```
+
+Same-day values: the seed keeps one row per model, metric and day, so a model's numbers are recorded the first time they are seen
+each UTC day (new models and new effort settings appear on the next run, a changed score on the next day).
+
+## Teardown / pause
+
+Pause: `gh variable delete MODELS_PUBLISH_ROLE_ARN -R patelpb96/patelpb96.github.io` (the job skips itself). Remove: `npx cdk destroy PatelpbModelDataPublish`
+(it deletes the role; an OIDC provider that was created by the stack goes with it, one that was passed in does not).

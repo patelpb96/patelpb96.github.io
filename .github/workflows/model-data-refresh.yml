@@ -1,0 +1,96 @@
+# Keeps the model tracker (patelpb.com/projects/models/, including the Reasoning effort tab) current on its own.
+#
+# Every 6 hours: the same refresh you run by hand (one plain GET of Artificial Analysis's leaderboard, no search credits),
+# the unit tests, and, only if something changed, a commit to main and an upload of the two data files to the site bucket.
+# The page itself (code) is never redeployed from here, only latest.json and effort.json.
+#
+# Switched OFF until the repository variable MODELS_PUBLISH_ROLE_ARN exists (the output of the PatelpbModelDataPublish stack,
+# see infra/README.md). A job skipped by that condition does nothing: no commit, no upload.
+#
+# Self-healing: the upload step compares the live files with the repository's and uploads whatever differs, so a run that
+# committed but failed to upload is repaired by the next run even though that run finds nothing new in the data.
+name: Model data refresh
+
+on:
+  schedule:
+    - cron: "20 */6 * * *"      # :20 past 00, 06, 12 and 18 UTC, after the news scan (:00) has run
+  workflow_dispatch: {}
+
+concurrency:
+  group: model-data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write                # commit the refreshed seed and snapshot to main
+  id-token: write                # short-lived AWS credentials through OIDC; no AWS keys are stored in GitHub
+
+env:
+  SITE_BUCKET: patelpb-com-site
+  DISTRIBUTION_ID: EPJNH9PK97GV8
+  DATA_DIR: public/projects/models/data
+
+jobs:
+  refresh:
+    if: ${{ vars.MODELS_PUBLISH_ROLE_ARN != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Tests before touching anything
+        working-directory: projects/model-tracker
+        run: python -m unittest discover -s . -p "test_*.py"
+
+      - name: Refresh from Artificial Analysis
+        working-directory: projects/model-tracker
+        run: |
+          python -m scraper.aa_source refresh     # fails loudly if the leaderboard layout changed
+          python build_snapshot.py
+          python build_snapshot.py --check
+
+      - name: Anything new?
+        id: diff
+        run: |
+          git add -A projects/model-tracker/seed "$DATA_DIR"
+          if git diff --cached --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+          git diff --cached --stat | tail -n 8
+
+      - name: Tests on the refreshed data
+        if: steps.diff.outputs.changed == 'true'
+        working-directory: projects/model-tracker
+        run: python -m unittest discover -s . -p "test_*.py"
+
+      - name: Commit to main
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "model-tracker[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Model tracker: automatic Artificial Analysis refresh ($(date -u +'%Y-%m-%d %H:%M') UTC)"
+          git pull --rebase --autostash origin main      # a person may have pushed since the checkout
+          git push origin HEAD:main
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.MODELS_PUBLISH_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Publish whatever differs from the live files
+        run: |
+          paths=""
+          for f in latest effort; do
+            src="$DATA_DIR/$f.json"; key="projects/models/data/$f.json"
+            local_md5=$(md5sum "$src" | cut -d' ' -f1)
+            live_etag=$(aws s3api head-object --bucket "$SITE_BUCKET" --key "$key" --query ETag --output text 2>/dev/null | tr -d '"' || true)
+            if [ "$local_md5" = "$live_etag" ]; then echo "$f.json: live file already matches"; continue; fi
+            aws s3 cp "$src" "s3://$SITE_BUCKET/$key" --content-type 'application/json; charset=utf-8' --cache-control 'public, max-age=300'
+            paths="$paths /$key"
+          done
+          if [ -n "$paths" ]; then
+            aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths $paths --query 'Invalidation.[Id,Status]' --output text
+          fi
