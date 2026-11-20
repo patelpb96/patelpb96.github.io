@@ -314,7 +314,7 @@ function ResumeCv() {
         <ButtonLink href={doc.pdf} variant="ruled">Open {doc.label} PDF</ButtonLink>
       </div>
       <div className="resume-frame-shell" id="doc-panel" role="tabpanel" aria-labelledby={`doc-tab-${doc.key}`}>
-        <iframe key={doc.key} className="resume-frame" src={`${doc.pdf}#view=FitH`} title={`Preet Patel ${doc.label}`} />
+        <iframe key={doc.key} className="resume-frame" loading="lazy" src={`${doc.pdf}#view=FitH`} title={`Preet Patel ${doc.label}`} />
         {/* phone browsers mostly can't show a PDF inside a page, so they get an image of page 1 that opens the PDF */}
         <a className="resume-image-link" href={doc.pdf} target="_blank" rel="noreferrer">
           <img key={doc.key} src={doc.page} alt={`Preet Patel ${doc.label}, page 1 (opens the PDF)`} loading="lazy" width="1347" height={doc.h} />
@@ -412,23 +412,16 @@ function claimIntro() {
 // Each letter starts on a golden-angle spiral (137.5° apart, the sunflower-seed pattern) and falls
 // into place: the offsets come from the letter's index alone, so every visit plays the same way.
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-function IntroTitle({ as: Tag, className, text, play, spread, onView = false }) {
-  // off: plain text · wait: hidden until scrolled into view · run: animating
-  // (no IntersectionObserver: play at once rather than leave a heading hidden)
-  const [phase, setPhase] = useState(play ? (onView && typeof IntersectionObserver !== "undefined" ? "wait" : "run") : "off");
-  const ref = useRef(null);
-  useEffect(() => {
-    if (phase !== "wait" || !ref.current) return undefined;
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setPhase("run"); io.disconnect(); } }, { threshold: 0.6 });
-    io.observe(ref.current);
-    return () => io.disconnect();
-  }, [phase]);
-  if (phase === "off") return <Tag className={className}>{text}</Tag>;
+// Only the name at the top of Home plays it. Section titles are plain text: you reach them by
+// scrolling, and animating each one as it came into view made the scroll catch on phones.
+function IntroTitle({ as: Tag, className, text, play, spread }) {
+  const [running, setRunning] = useState(play);
+  if (!running) return <Tag className={className}>{text}</Tag>;
   const chars = [...text];
   return (
     // once the last letter lands, go back to plain text so the font's kerning returns
-    <Tag ref={ref} className={`${className} split ${phase}`} aria-label={text}
-      onAnimationEnd={(e) => { if (e.target.dataset.last) setPhase("off"); }}>
+    <Tag className={`${className} split run`} aria-label={text}
+      onAnimationEnd={(e) => { if (e.target.dataset.last) setRunning(false); }}>
       {chars.map((c, i) => {
         const a = i * GOLDEN_ANGLE + 0.6;
         const r = spread * (0.8 + 0.3 * Math.sqrt(i + 1));
@@ -445,7 +438,6 @@ function IntroTitle({ as: Tag, className, text, play, spread, onView = false }) 
 
 const introCss = `
   .split .ch { display: inline-block; }
-  .split.wait .ch { opacity: 0; }
   .split.run .ch { animation: introCapture 850ms cubic-bezier(.18,.9,.25,1.12) backwards; animation-delay: calc(var(--d0, 0ms) + var(--i) * 55ms); }
   .hero .split { --d0: 220ms; }
   @keyframes introCapture {
@@ -477,7 +469,6 @@ const introCss = `
 // colour shift, clip-path or streak, and no transform on the hero's children (Lite flattens them).
 const introLiteCss = `
   .split .ch { display: inline-block; }
-  .split.wait .ch { opacity: 0; }
   .split.run .ch { animation: introRiseLite 420ms ease-out backwards; animation-delay: calc(var(--d0, 0ms) + var(--i) * 40ms); }
   .hero .split { --d0: 100ms; }
   @keyframes introRiseLite { from { opacity: 0; transform: translateY(0.35em); } to { opacity: 1; transform: none; } }
@@ -487,10 +478,10 @@ const introLiteCss = `
   @keyframes introFadeLite { from { opacity: 0; } to { opacity: 1; } }
 `;
 
-function Section({ id, title, children, intro = false }) {
+function Section({ id, title, children }) {
   return (
     <section id={id} className="site-section">
-      <IntroTitle as="h2" className="section-title" text={title} play={intro} spread={0.9} onView />
+      <h2 className="section-title">{title}</h2>
       {children}
     </section>
   );
@@ -1236,7 +1227,7 @@ function HomePage({ lite }) {
       </section>
 
       <div className="content">
-        <Section id="intro" title="Intro" intro={intro}>
+        <Section id="intro" title="Intro">
           <div className="panel">
             <div className="panel-body prose">
               <p>Welcome to my site! I am a physicist by training with experience in computational astrophysics research (FIRE&#8209;2/3 simulations at UC Davis), AI Evaluation (Google's RMI team, Mercor, Turac, micro1), and Patent Examination in Optics and Photonics.</p>
@@ -1250,7 +1241,7 @@ function HomePage({ lite }) {
           </div>
         </Section>
 
-        <Section id="research" title="Research" intro={intro}>
+        <Section id="research" title="Research">
           <div className="research-stack">
           <div className="panel">
             <DtdCarousel />
@@ -1276,11 +1267,11 @@ function HomePage({ lite }) {
           </div>
         </Section>
 
-        <Section id="resume" title="Resume/CV" intro={intro}>
+        <Section id="resume" title="Resume/CV">
           <ResumeCv />
         </Section>
 
-        <Section id="contact" title="Contact" intro={intro}>
+        <Section id="contact" title="Contact">
           <div className="panel panel-body">
             <div className="contact-grid">
               {contactCards.map((card) => <ContactCard key={card.label} card={card} />)}
