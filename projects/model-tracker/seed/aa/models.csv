@@ -29,7 +29,7 @@ openai/gpt-6-astra,OpenAI,OpenAI,GPT-6 Astra,GPT-6 Astra,proprietary,false,,scra
 openai/gpt-6-luna,OpenAI,OpenAI,GPT-6 Luna,GPT-6 Luna,proprietary,false,,scraped
 spacexai/grok-4-7,SpaceXAI,SpaceXAI,Grok 4.7,Grok 4.7,proprietary,false,,scraped
 stepfun/step-5-preview,StepFun,StepFun,Step 5 Preview,Step 5 Preview,open_weights,true,,scraped
-tencent/tencent-hy4,Tencent,Tencent,Tencent Hy4,Tencent Hy4,proprietary,false,,scraped
+tencent/tencent-hy4,Tencent,Tencent,Tencent Hy4,Tencent Hy4,open_weights,true,,scraped
 thinking-machines/inkling-2-small,Thinking Machines,Thinking Machines,Inkling 2 Small,Inkling 2 Small,open_weights,true,,scraped
 xiaomi/mimo-v2-6-flash,Xiaomi,Xiaomi,MiMo-V2.6-Flash,MiMo-V2.6-Flash,open_weights,true,,scraped
 xiaomi/mimo-v2-6-pro,Xiaomi,Xiaomi,MiMo-V2.6-Pro,MiMo-V2.6-Pro,open_weights,true,,scraped
