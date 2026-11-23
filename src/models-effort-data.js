@@ -133,13 +133,13 @@ export function logTicks(lo, hi, max = 9) {
 // Places each label beside its point and keeps it off the other labels AND off every marker. Tries, in order, right, above-right
 // and below-right (left first when the label would run off the right edge), then the same on the other side; if every spot is
 // taken it nudges down from the first choice. `items`: {id, x, y, w}; `obstacles`: {id, x, y, r} marker boxes (a label ignores its
-// own marker). Returns Map id -> {x, y, anchor, moved}; `moved` is true when the label sits away from its point enough to want a leader.
-export function placeLabels(items, { gap, width, top, bottom, edge = 6, obstacles = [] }) {
+// own marker); `left` (optional) is the leftmost x a label may start at. Returns Map id -> {x, y, anchor, moved}; `moved` is true when the label sits away from its point enough to want a leader.
+export function placeLabels(items, { gap, width, top, bottom, edge = 6, obstacles = [], left = -Infinity }) {
   const placed = [];
   const out = new Map();
   const clampY = (y) => Math.min(Math.max(y, top), bottom);
   const hitsMarker = (id, x0, w, y) => obstacles.some((o) => o.id !== id && o.x > x0 - o.r && o.x < x0 + w + o.r && o.y > y - gap + 3 - o.r && o.y < y + 3 + o.r);
-  const clash = (id, x0, w, y) => placed.some((p) => Math.abs(p.y - y) < gap && p.x0 < x0 + w && x0 < p.x0 + p.w) || hitsMarker(id, x0, w, y);
+  const clash = (id, x0, w, y) => x0 < left || placed.some((p) => Math.abs(p.y - y) < gap && p.x0 < x0 + w && x0 < p.x0 + p.w) || hitsMarker(id, x0, w, y);
   for (const it of [...items].sort((a, b) => a.y - b.y || a.x - b.x)) {
     const right = { x: it.x + 10, anchor: "start", x0: it.x + 10 };
     const left = { x: it.x - 10, anchor: "end", x0: it.x - 10 - it.w };

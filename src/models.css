@@ -179,3 +179,46 @@ td.est { text-decoration: underline dotted; text-underline-offset: 3px; }
 .mt-view { display: grid; gap: 16px; min-width: 0; }
 .mt-view[hidden] { display: none; }
 .mt-views { margin-bottom: -4px; }
+
+/* ---- Phone layout previews (models-mobile.js). Everything below only shows when a variant is chosen. ---- */
+.mob-switch { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; border: 1px dashed var(--accent); padding: 6px 8px; background: var(--glass); }
+.mob-switch .seg button { padding: 4px 8px; font-size: 13px; }
+/* the readout under a phone chart: a finger would cover a floating tooltip */
+.chart-wrap > .tip-dock, .tip-dock { margin-top: 8px; border: 1px solid var(--line); background: var(--bg); padding: 6px 9px; font-size: 13px; line-height: 1.4; min-height: 3.2em; }
+.tip-dock .best-tags { margin: 2px 0 0; }
+/* A: lower-ranked models as small grey squares; hollow = a newer version exists */
+.chart .dot { fill: var(--muted); opacity: 0.6; }
+.chart .dot.old { fill: none; stroke: var(--muted); stroke-width: 1.25; opacity: 0.55; }
+.chart .pt:hover .dot, .chart .pt:focus-visible .dot { opacity: 1; }
+.chart .slab text.plabel { font-weight: 600; }
+/* B: the top-tier / all switch above the chart */
+.tier-bar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 6px; font-size: 13px; }
+/* C: ranked rows with a price (or speed) track */
+.rk { font-variant-numeric: tabular-nums; }
+.rk-head, .rk-row { display: grid; grid-template-columns: 20px minmax(0, 1.3fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; }
+.rk-head { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 0 0 4px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.rk-axis { position: relative; height: 1.3em; text-transform: none; letter-spacing: 0; }
+.rk-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.rk-list { list-style: none; margin: 0; padding: 0; }
+.rk-row { padding: 7px 0; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 14px; }
+.rk-row.sm { padding: 3px 0; font-size: 12px; color: var(--muted); }
+.rk-row.is-hl { background: var(--chip); box-shadow: inset 3px 0 0 var(--accent); }
+.rk-row.is-dim { opacity: 0.45; }
+.rk-row.is-champ { box-shadow: inset 3px 0 0 var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); }
+.rk-n { color: var(--muted); font-size: 11px; text-align: right; }
+.rk-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rk-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.rk-row.sm .rk-t { font-weight: 400; }
+.rk-track { position: relative; height: 14px; border-left: 1px solid var(--line); border-right: 1px solid var(--line); background: linear-gradient(var(--line), var(--line)) center / 100% 1px no-repeat; }
+.rk-tick { position: absolute; top: 2px; bottom: 2px; width: 1px; background: var(--line); }
+.rk-dot { position: absolute; top: 50%; width: 10px; height: 10px; transform: translate(-50%, -50%); border: 1.5px solid var(--ink); background: var(--bg); }
+.rk-dot.fr { background: var(--accent); border-color: var(--accent); }
+.rk-dot.est { border-style: dashed; }
+.rk-row.sm .rk-dot { width: 7px; height: 7px; border-color: var(--muted); }
+.rk-row.sm .rk-dot.fr { background: var(--muted); }
+.rk-v { text-align: right; font-weight: 600; }
+.rk-row.sm .rk-v { font-weight: 400; }
+.rk-more { grid-column: 2 / -1; font-size: 12px; color: var(--muted); }
+.rk-old { margin-top: 6px; }
+.rk-old > summary { cursor: pointer; font-size: 12px; color: var(--muted); padding: 6px 0; }
+.rk-key { margin-top: 8px; }

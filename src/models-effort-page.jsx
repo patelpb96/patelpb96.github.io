@@ -1,10 +1,11 @@
-import { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import "./models-effort.css";
 import { LOGOS } from "./models-logos.js";
 import {
   DATA_URL, EFFORT_SHORT, LADDER, LAB_SHAPE, X_OPTIONS, allEfforts, domainOf, effortHalf, effortLabel, fmtValue, fmtX, frontier,
   labColor, ladderGain, logTicks, markPath, modelLabel, niceTicks, placeLabels, segDist, stairPath, visiblePoints, yMetrics,
 } from "./models-effort-data.js";
+import { keepInside, useMobileVariant, useNarrow } from "./models-mobile.js";
 
 // The "Reasoning effort" view of the model tracker (the second tab, loaded on demand): every effort setting of the frontier
 // OpenAI, Anthropic and Google models on one chart, from Artificial Analysis's published rows. It shares the tracker's themes
@@ -46,7 +47,7 @@ function Swatch({ org, size = 12, hollow }) {
   );
 }
 
-function useChartSize(wide) {
+function useChartSize(wide, tall) {
   const [node, setNode] = useState(null);
   const [width, setWidth] = useState(() => Math.min(900, (typeof window !== "undefined" ? window.innerWidth : 900) - 62));
   useEffect(() => {
@@ -56,7 +57,7 @@ function useChartSize(wide) {
     return () => ro.disconnect();
   }, [node]);
   const W = Math.max(300, Math.min(width, 1600));
-  return [setNode, W, W < 560 ? 380 : Math.round(Math.min(wide ? 700 : 480, W * (wide ? 0.56 : 0.8)))];
+  return [setNode, W, W < 560 ? (tall ? Math.round(Math.min(600, W * 1.2)) : 380) : Math.round(Math.min(wide ? 700 : 480, W * (wide ? 0.56 : 0.8)))];
 }
 
 function Fold({ id, title, meta, defaultOpen = false, children }) {
@@ -109,15 +110,18 @@ function Tip({ ref, lookup, yMetric, W, H }) {
   return <div className={`tip${t.px > W * 0.62 ? " flip" : ""}`} role="status" style={{ left: `${(t.px / W) * 100}%`, top: `${(t.py / H) * 100}%` }}>{body}</div>;
 }
 
-const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetric, efforts, pinned, onPin, onClearPins, wide }) {
+// Phone layouts (models-mobile.js): `phone` keeps labels inside the plot; `spot` (variant A) is the set of models drawn in colour
+// and named, the rest stay grey and small until tapped.
+const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetric, efforts, pinned, onPin, onClearPins, wide, phone, spot }) {
   const yId = yMetric.id;
-  const [sizeRef, W, H] = useChartSize(wide);
+  const [sizeRef, W, H] = useChartSize(wide, !!spot);
   const narrow = W < 560;
   const FT = narrow ? 12 : 15, FL = narrow ? 13 : 17, FS = narrow ? 12 : 14;
   const M = useMemo(() => ({ l: Math.round(FT * 2.6 + FL + 12), r: narrow ? 14 : 30, t: 14, b: FT + FL + 24 }), [FT, FL, narrow]);
   const xName = X_OPTIONS.find(([id]) => id === xId)[1];
 
   const svgRef = useRef(null);
+  const clipId = `efclip${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const groups = useRef(new Map());          // model id -> its <g>, to toggle classes without React
   const raiseRef = useRef(null);             // <use> that draws the hot line on top
   const tipRef = useRef(null);
@@ -143,15 +147,21 @@ const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetri
       byId.set(s.m.model_id, s);
       s.line = s.pts.filter((p) => LADDER.has(p.effort));
       s.gid = `ef-${s.i}`;
-      for (const p of s.pts) hits.push({ id: s.m.model_id, effort: p.effort, px: fx(p.x), py: fy(p.y) });
+      for (const p of s.pts) {
+        const px = fx(p.x), py = fy(p.y);
+        if (spot && (px < M.l || px > W - M.r || py < M.t || py > H - M.b)) continue;     // zoomed (A): off-plot settings are clipped, not tappable
+        hits.push({ id: s.m.model_id, effort: p.effort, px, py });
+      }
       for (let k = 1; k < s.line.length; k++) segs.push({ id: s.m.model_id, x1: fx(s.line[k - 1].x), y1: fy(s.line[k - 1].y), x2: fx(s.line[k].x), y2: fy(s.line[k].y) });
     }
-    const labels = placeLabels(
-      series.map((s) => { const a = anchorOf(s.pts); return { id: s.m.model_id, x: fx(a.x), y: fy(a.y), w: textWidth(s.label, FS, s.m.live ? 0 : 1) }; }),
-      { gap: FS + 3, width: W, top: M.t + FS, bottom: H - M.b - 4, obstacles: hits.map((h) => ({ id: h.id, x: h.px, y: h.py, r: 9 })) },
+    const labItems = series.filter((s) => !spot || spot.has(s.m.model_id) || pinned.has(s.m.model_id))
+      .map((s) => { const a = anchorOf(s.pts); return { id: s.m.model_id, x: fx(a.x), y: fy(a.y), w: textWidth(s.label, FS, s.m.live ? 0 : 1) }; });
+    const labels = placeLabels(labItems,
+      { gap: FS + 3, width: W, top: M.t + FS, bottom: H - M.b - 4, obstacles: hits.map((h) => ({ id: h.id, x: h.px, y: h.py, r: 9 })), left: phone ? M.l + 2 : undefined },
     );
+    if (phone) keepInside(labels, labItems, W, 4, FS + 3);
     return { series, byId, ghostLines, yTicks, xTicks: logTicks(d.xlo, d.xhi, narrow ? 5 : 9), fx, fy, front, hits, segs, labels };
-  }, [models, ghosts, dom, xId, yId, efforts, W, H, M, FS, narrow]);
+  }, [models, ghosts, dom, xId, yId, efforts, W, H, M, FS, narrow, phone, spot, pinned]);
 
   const lookup = useCallback((id, effort) => {
     const s = geo && geo.byId.get(id);
@@ -272,22 +282,25 @@ const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetri
         </text>
         <text className="axlabel" x={FL} y={(M.t + H - M.b) / 2} textAnchor="middle" transform={`rotate(-90 ${FL} ${(M.t + H - M.b) / 2})`} style={{ fontSize: FL }}>{yMetric.name}</text>
 
+        {spot && <clipPath id={clipId}><rect x={M.l} y={M.t} width={W - M.l - M.r} height={H - M.t - M.b} /></clipPath>}
+        <g clipPath={spot ? `url(#${clipId})` : undefined}>
         {geo.front.length > 1 && <path className="ef-front" d={stairPath(geo.front, fx, fy)} />}
         {geo.ghostLines.map((l, i) => <polyline key={i} className="ef-ghost" points={l.map((p) => `${fx(p.x)},${fy(p.y)}`).join(" ")} />)}
 
         {series.map((s) => {
           const id = s.m.model_id;
-          const color = labColor(s.m.org);
+          const fade = !!spot && !spot.has(id) && !pinned.has(id);
+          const color = fade ? "var(--muted)" : labColor(s.m.org);
           const shape = LAB_SHAPE[s.m.org] || "square";
           const none = s.pts.find((p) => p.effort === "none");
           const first = s.line[0];
           return (
             <g key={id} id={s.gid} aria-label={aria(s)} ref={(el) => { if (el) groups.current.set(id, el); else groups.current.delete(id); }}
-              className={`ef${pinned.has(id) ? " is-pin" : ""}${s.m.live ? "" : " gone"}`}>
+              className={`ef${pinned.has(id) ? " is-pin" : ""}${s.m.live ? "" : " gone"}${fade ? " fade" : ""}`}>
               {none && first && <line className="ef-join" x1={fx(none.x)} y1={fy(none.y)} x2={fx(first.x)} y2={fy(first.y)} stroke={color} />}
               {s.line.length > 1 && <polyline className="ladder" stroke={color} points={s.line.map((p) => `${fx(p.x)},${fy(p.y)}`).join(" ")} />}
               {s.pts.map((p) => (
-                <path key={p.effort} className="ef-mk" transform={`translate(${fx(p.x)} ${fy(p.y)})`} d={markPath(shape, effortHalf(p.effort))}
+                <path key={p.effort} className="ef-mk" transform={`translate(${fx(p.x)} ${fy(p.y)})`} d={markPath(shape, effortHalf(p.effort) * (fade ? 0.55 : 1))}
                   fill={p.effort === "none" ? "var(--bg)" : color} stroke={color} />
               ))}
               {pinned.has(id) && s.pts.map((p) => (
@@ -296,6 +309,7 @@ const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetri
             </g>
           );
         })}
+        </g>
         <use ref={raiseRef} className="ef-raise" />
 
         {series.map((s) => {
@@ -317,6 +331,61 @@ const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetri
     </div>
   );
 });
+
+// Variant C on a phone: one small chart per model, all on the same axes, each with every other model's ladder in faint grey
+// behind it. Sorted by the best score a model reaches; tap one to highlight it in the table.
+function MiniGrid({ models, dom, xId, yMetric, efforts, pinned, onPin }) {
+  const [sizeRef, W] = useChartSize(false);
+  const gap = 10;
+  const w = Math.floor((W - gap) / 2);
+  const h = Math.round(w * 0.8);
+  const M = { l: 22, r: 6, t: 6, b: 15 };
+  const series = models
+    .map((m) => ({ m, label: modelLabel(m), pts: visiblePoints(m, { xId, yId: yMetric.id, efforts }) }))
+    .filter((s) => s.pts.length)
+    .map((s) => ({ ...s, top: Math.max(...s.pts.map((p) => p.y)), line: s.pts.filter((p) => LADDER.has(p.effort)) }))
+    .sort((a, b) => b.top - a.top);
+  if (!series.length || !dom) return <p className="empty" ref={sizeRef}>Nothing to draw here yet.</p>;
+  const yT = niceTicks(dom.lo, dom.hi, 4);
+  const ylo = yT[0], yhi = yT[yT.length - 1];
+  const xT = logTicks(dom.xlo, dom.xhi, 3);
+  const fx = (v) => M.l + ((Math.log(v) - Math.log(dom.xlo)) / (Math.log(dom.xhi) - Math.log(dom.xlo))) * (w - M.l - M.r);
+  const fy = (v) => h - M.b - ((v - ylo) / (yhi - ylo)) * (h - M.t - M.b);
+  const poly = (pts) => pts.map((p) => `${fx(p.x)},${fy(p.y)}`).join(" ");
+  return (
+    <div className="ef-multi" ref={sizeRef}>
+      {series.map((s) => {
+        const id = s.m.model_id;
+        const color = labColor(s.m.org);
+        const shape = LAB_SHAPE[s.m.org] || "square";
+        const xs = s.pts.map((p) => p.x);
+        return (
+          <button key={id} type="button" className={`ef-mini${pinned.has(id) ? " is-pin" : ""}`} aria-pressed={pinned.has(id)}
+            style={{ "--c": color }} onClick={() => onPin(id)}
+            aria-label={`${s.label.text}: best ${yMetric.name} ${fmtValue(yMetric, s.top)}, ${s.pts.length} settings`}>
+            <span className="ef-mini-h"><Swatch org={s.m.org} size={10} /><Name label={s.label} /><span className="ef-mini-v">{fmtValue(yMetric, s.top)}</span></span>
+            <svg className="chart" viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+              {yT.map((v, i) => (
+                <g key={`y${v}`}>
+                  <line className="grid" x1={M.l} x2={w - M.r} y1={fy(v)} y2={fy(v)} />
+                  {i % 2 === 0 && <text x={M.l - 3} y={fy(v) + 3} textAnchor="end" style={{ fontSize: 9 }}>{v}</text>}
+                </g>
+              ))}
+              {xT.map((v) => <text key={`x${v}`} x={fx(v)} y={h - 3} textAnchor="middle" style={{ fontSize: 9 }}>{xId === "aa_cost_per_task" ? `$${v}` : v}</text>)}
+              {series.filter((o) => o !== s && o.line.length > 1).map((o) => <polyline key={o.m.model_id} className="ef-ghost" points={poly(o.line)} />)}
+              {s.line.length > 1 && <polyline className="ladder" stroke={color} points={poly(s.line)} />}
+              {s.pts.map((p) => (
+                <path key={p.effort} className="ef-mk" transform={`translate(${fx(p.x)} ${fy(p.y)})`} d={markPath(shape, effortHalf(p.effort) * 0.7)}
+                  fill={p.effort === "none" ? "var(--bg)" : color} stroke={color} />
+              ))}
+            </svg>
+            <span className="ef-mini-f muted">{fmtX(xId, Math.min(...xs))} to {fmtX(xId, Math.max(...xs))}{s.m.live ? "" : " · †"}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function EffortView() {
   const [data, setData] = useState(null);
@@ -346,6 +415,11 @@ function Dashboard({ data }) {
   const [xId, setXId] = useState("aa_cost_per_task");
   const [layout, setLayout] = useState(() => (typeof window !== "undefined" && window.innerWidth < 560 ? "lab" : "one"));
   const [pinned, setPinned] = useState(() => new Set(byId.has(DEFAULT_FOCUS) ? [DEFAULT_FOCUS] : []));
+  const [variant] = useMobileVariant();
+  const narrow = useNarrow();
+  const mode = narrow ? variant : "off";
+  // A: one tall chart with each lab's flagship in colour; B: a panel per company, each zoomed to its own data; C: one small chart per model.
+  const shownLayout = mode === "a" ? "one" : mode === "b" ? "lab" : mode === "c" ? "multi" : layout;
 
   const yMetric = yList.find((m) => m.id === yPick) || yList[0];
   const models = useMemo(() => data.models.filter((m) => shownModels.has(m.model_id)), [data, shownModels]);
@@ -354,6 +428,24 @@ function Dashboard({ data }) {
     const pts = models.flatMap((m) => visiblePoints(m, { xId, yId: yMetric.id, efforts: shownEfforts }));
     return pts.length ? domainOf(pts) : null;
   }, [models, xId, yMetric, shownEfforts]);
+  // Variant A's flagships: the model with the best score at its top setting, per company.
+  const spot = useMemo(() => {
+    if (mode !== "a") return null;
+    const best = new Map();
+    for (const m of models) {
+      const pts = visiblePoints(m, { xId, yId: yMetric.id, efforts: shownEfforts });
+      if (!pts.length) continue;
+      const top = Math.max(...pts.map((p) => p.y));
+      if (!best.has(m.org) || top > best.get(m.org).top) best.set(m.org, { id: m.model_id, top });
+    }
+    return new Set([...best.values()].map((b) => b.id));
+  }, [mode, models, xId, yMetric, shownEfforts]);
+  // A zooms its axes to the models in colour (flagships and pins); the grey ladders are clipped at the plot's edge.
+  const domA = useMemo(() => {
+    if (!spot) return null;
+    const pts = models.filter((m) => spot.has(m.model_id) || pinned.has(m.model_id)).flatMap((m) => visiblePoints(m, { xId, yId: yMetric.id, efforts: shownEfforts }));
+    return pts.length ? domainOf(pts) : null;
+  }, [spot, pinned, models, xId, yMetric, shownEfforts]);
   const panels = useMemo(() => labs.map((org) => ({ org, models: models.filter((m) => m.org === org), ghosts: models.filter((m) => m.org !== org) })).filter((p) => p.models.length), [labs, models]);
 
   const flip = (set, v) => { const n = new Set(set); if (n.has(v)) n.delete(v); else n.add(v); return n; };
@@ -372,7 +464,7 @@ function Dashboard({ data }) {
 
   const unit = yMetric.unit === "%" ? " pts" : "";
   const rows = models.map((m) => ({ m, label: modelLabel(m), pts: visiblePoints(m, { xId, yId: yMetric.id, efforts: shownEfforts }) }));
-  const chartProps = { xId, yMetric, efforts: shownEfforts, pinned, onPin, onClearPins };
+  const chartProps = { xId, yMetric, efforts: shownEfforts, pinned, onPin, onClearPins, phone: mode !== "off" };
 
   return (
     <>
@@ -395,20 +487,22 @@ function Dashboard({ data }) {
             <button type="button" aria-pressed={isCurrent} onClick={() => setShownModels(new Set(liveIds))} title="The models Artificial Analysis lists now, each with its full set of effort levels">Current</button>
             <button type="button" aria-pressed={isAll} onClick={() => setShownModels(new Set(data.models.map((m) => m.model_id)))} title="Adds models AA no longer lists, each with a single setting">All ({data.models.length})</button>
           </div>
-          <div className="seg" role="group" aria-label="Layout">
+          {mode === "off" && <div className="seg" role="group" aria-label="Layout">
             <button type="button" aria-pressed={layout === "one"} onClick={() => setLayout("one")}>One chart</button>
             <button type="button" aria-pressed={layout === "lab"} onClick={() => setLayout("lab")}>By company</button>
-          </div>
+          </div>}
         </div>
 
-        {layout === "one" ? (
-          <EffortChart models={models} ghosts={[]} dom={dom} wide {...chartProps} />
+        {shownLayout === "one" ? (
+          <EffortChart models={models} ghosts={[]} dom={domA || dom} wide spot={spot} {...chartProps} />
+        ) : shownLayout === "multi" ? (
+          <MiniGrid models={models} dom={dom} xId={xId} yMetric={yMetric} efforts={shownEfforts} pinned={pinned} onPin={onPin} />
         ) : (
           <div className="ef-panels">
             {panels.map((p) => (
               <div key={p.org} className="ef-panel">
                 <div className="ef-panel-h"><OrgMark org={p.org} color="var(--ink)" />{p.org}</div>
-                <EffortChart models={p.models} ghosts={p.ghosts} dom={dom} {...chartProps} />
+                <EffortChart models={p.models} ghosts={mode === "b" ? [] : p.ghosts} dom={mode === "b" ? null : dom} {...chartProps} />
               </div>
             ))}
           </div>
