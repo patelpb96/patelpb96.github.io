@@ -99,6 +99,7 @@ function Tip({ ref, lookup, yMetric, W, H }) {
       <b>{s.m.display_name}</b><br />
       <Name label={s.label} /> · {effortLabel(p.effort)}<br />
       {yMetric.name}: {fmtValue(yMetric, p.y)}<br />
+      {yMetric.id === "superscore" && <>{p.values.aa_output_speed.toFixed(0)} tok/s · ${p.values.aa_price_blended} per 1M · non-halluc. {fmtValue({ unit: "%" }, p.values.aa_non_hallucination)}<br /></>}
       Cost per task: {fmtValue({ unit: "USD" }, p.values.aa_cost_per_task)}
       {p.values.aa_time_per_task != null && <> · {fmtValue({ unit: "minutes" }, p.values.aa_time_per_task)}</>}<br />
       <span className="muted">{s.m.live ? `Artificial Analysis, ${p.observed_at}` : `No longer listed by AA; last seen ${s.m.last_seen}`}</span>
@@ -486,7 +487,7 @@ function Dashboard({ data }) {
                         </td>
                       ) : <td key={e} className="dash">–</td>;
                     })}
-                    {g ? <td><span className="cell-v">{g.dy >= 0 ? "+" : "−"}{Math.abs(g.dy).toFixed(1)}{unit}</span><span className="cell-c muted">{g.mult.toFixed(1)}× the {xName.toLowerCase().replace(" per task", "")}</span></td> : <td className="dash">–</td>}
+                    {g ? <td><span className="cell-v">{g.dy >= 0 ? "+" : "−"}{Math.abs(g.dy).toFixed(yMetric.unit === "ln" ? 2 : 1)}{unit}</span><span className="cell-c muted">{g.mult.toFixed(1)}× the {xName.toLowerCase().replace(" per task", "")}</span></td> : <td className="dash">–</td>}
                   </tr>
                 );
               })}

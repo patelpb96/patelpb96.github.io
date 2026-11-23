@@ -48,7 +48,11 @@ FAMILIES = {
 # One column per number the page can plot. The Index, cost and time come first; the rest are AA's per-evaluation scores.
 METRICS = ["aa_intelligence_index", "aa_cost_per_task", "aa_time_per_task", "aa_omniscience"] + \
     list(dict.fromkeys(bid for bid, _ in aa.SCORES.values()))
-COLUMNS = ["obs_id", "model_id", "org", "class", "version", "display_name", "effort", "observed_at"] + METRICS
+# Each setting's own output speed (tok/s) and blended 3:1 price (USD per 1M tokens), as AA lists them on that row. They feed
+# the superscore only, so they are not benchmarks (no benchmarks.csv entry, never a menu choice of their own).
+EXTRAS = ["aa_output_speed", "aa_price_blended"]
+COLUMNS = ["obs_id", "model_id", "org", "class", "version", "display_name", "effort", "observed_at"] + METRICS + EXTRAS
+LEGACY_COLUMNS = COLUMNS[:-len(EXTRAS)]      # files written before EXTRAS existed; read as blank, rewritten on the next write
 
 
 def version_key(v: str) -> tuple:
@@ -89,7 +93,12 @@ def _num(v):
 
 def metrics_of(rec: dict) -> dict[str, str]:
     """The record's plottable numbers as CSV text (blank when AA does not publish one)."""
-    out = {m: "" for m in METRICS}
+    out = {m: "" for m in METRICS + EXTRAS}
+    sp, pin, pout = (_num(rec.get(k)) for k in ("outputSpeed", "price1mInputTokens", "price1mOutputTokens"))
+    if sp:
+        out["aa_output_speed"] = f"{round(sp, 1)}"
+    if pin is not None and pout is not None:
+        out["aa_price_blended"] = _sig((3 * pin + pout) / 4, 4)       # AA's 3:1 input:output blend, as on the main page
     idx, cost, t, omni = (_num(rec.get(k)) for k in ("intelligenceIndex", "intelligenceIndexCostPerTask",
                                                       "intelligenceIndexTimePerTask", "omniscience"))
     if idx is not None:
@@ -134,6 +143,8 @@ def read(seed: Path) -> list[dict]:
         return []
     with path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
+        if reader.fieldnames == LEGACY_COLUMNS:
+            return [{**r, **{k: "" for k in EXTRAS}} for r in reader]
         if reader.fieldnames != COLUMNS:
             raise ValueError(f"{SEED_FILE}: header is {reader.fieldnames}, expected {COLUMNS}")
         return list(reader)

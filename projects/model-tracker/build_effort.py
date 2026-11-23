@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -54,7 +55,7 @@ def load(seed: Path, errors: list[str]) -> tuple[list[dict], dict[str, dict]]:
             errors.append(f"{where}: observed_at={r['observed_at']!r} is not a date")
         if not r["aa_intelligence_index"]:
             errors.append(f"{where}: {r['model_id']} {r['effort']} has no Intelligence Index")
-        for m in ae.METRICS:
+        for m in ae.METRICS + ae.EXTRAS:
             if r[m] == "":
                 continue
             try:
@@ -67,12 +68,56 @@ def load(seed: Path, errors: list[str]) -> tuple[list[dict], dict[str, dict]]:
     return rows, bench
 
 
+def _csv(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
+def main_seed_extras(seed: Path) -> dict[tuple, dict]:
+    """(model_id, day, effort) -> {aa_output_speed, aa_price_blended} from the main page's seed (seed/aa/).
+
+    The main seed keeps one AA row per model per day, so its speed and price belong to that one effort setting only. They
+    fill a setting that has none of its own (rows written before the effort file had these columns, and backfilled models
+    AA has since dropped); every other setting stays blank rather than borrow another setting's numbers."""
+    aa = Path(seed) / "aa"
+    effort = {(r["model_id"], r["observed_at"]): ae.effort_key(r["effort"])
+              for r in _csv(aa / "score_obs.csv") if r["benchmark_id"] == "aa_intelligence_index" and r["status"] == "observed"}
+    out: dict[tuple, dict] = {}
+    for name, col, key in (("speed_obs.csv", "tok_per_s", "aa_output_speed"), ("price_obs.csv", "blended_3to1_per_1m", "aa_price_blended")):
+        for r in _csv(aa / name):
+            e = effort.get((r["model_id"], r["observed_at"]))
+            if e is not None and r[col] not in ("", None):
+                out.setdefault((r["model_id"], r["observed_at"], e), {})[key] = r[col]
+    return out
+
+
+# Superscore, the same formula as the main page (src/ModelsPage.jsx `superscore`), per setting:
+#   ln[ output tok/s x blended price per 1M x Intelligence Index x (non-hallucination % / 100) / (time per task in s x cost per task) ]
+SUPERSCORE = {"id": "superscore", "name": "Superscore", "category": "composite", "unit": "ln", "higher_is_better": True,
+              "blurb": ("The natural log of: output tok/s x price per 1M tokens x Intelligence Index x (non-hallucination rate / 100), "
+                        "divided by (time per task in seconds x cost per task), from each setting's own Artificial Analysis row. "
+                        "Each +1 is about 2.7 times the raw score. Cost and time are already inside it, so read it as a ranking "
+                        "with the horizontal axis for context.")}
+
+
+def superscore(v: dict) -> float | None:
+    need = ("aa_output_speed", "aa_price_blended", "aa_intelligence_index", "aa_non_hallucination", "aa_time_per_task", "aa_cost_per_task")
+    if any(not (v.get(k) or 0) > 0 for k in need):
+        return None
+    raw = (v["aa_output_speed"] * v["aa_price_blended"] * v["aa_intelligence_index"] * v["aa_non_hallucination"] / 100) \
+        / (v["aa_time_per_task"] * 60 * v["aa_cost_per_task"])
+    return round(math.log(raw), 4)
+
+
 def build(seed: Path = DEFAULT_SEED, out: Path | None = DEFAULT_OUT) -> dict:
     errors: list[str] = []
     rows, bench = load(Path(seed), errors)
     if errors:
         raise ValueError("; ".join(errors[:8]) + (f" (+{len(errors) - 8} more)" if len(errors) > 8 else ""))
     as_of = max((r["observed_at"] for r in rows), default="")
+    fill = main_seed_extras(Path(seed))
 
     newest: dict[tuple, dict] = {}
     for r in rows:
@@ -93,7 +138,11 @@ def build(seed: Path = DEFAULT_SEED, out: Path | None = DEFAULT_OUT) -> dict:
         head = pts[0]
         points = []
         for p in pts:
-            values = {m: float(p[m]) for m in ae.METRICS if p[m] != ""}
+            own = fill.get((mid, p["observed_at"], p["effort"]), {})
+            values = {m: float(p[m] or own.get(m, "")) for m in ae.METRICS + ae.EXTRAS if (p[m] or own.get(m, "")) != ""}
+            ss = superscore(values)
+            if ss is not None:
+                values["superscore"] = ss
             used.update(values)
             points.append({"effort": p["effort"], "observed_at": p["observed_at"], "values": values})
         models.append({"model_id": mid, "org": head["org"], "class": head["class"], "version": head["version"],
@@ -103,6 +152,8 @@ def build(seed: Path = DEFAULT_SEED, out: Path | None = DEFAULT_OUT) -> dict:
     metrics = [{"id": b["benchmark_id"], "name": b["name"], "category": b["category"], "unit": b["unit"],
                 "higher_is_better": _bool(b["higher_is_better"]), "blurb": b["blurb"]}
                for m in ae.METRICS if m in used for b in [bench[m]]]
+    if "superscore" in used:                     # second in the Score menu, right after the Index it is built on
+        metrics.insert(1 if metrics and metrics[0]["id"] == "aa_intelligence_index" else 0, SUPERSCORE)
     data = {"title": "Frontier effort comparison", "as_of": as_of, "source": SOURCE, "note": NOTE,
             "effort_order": ae.EFFORT_ORDER, "metrics": metrics, "models": models,
             "counts": {"models": len(models), "live": sum(1 for m in models if m["live"]),

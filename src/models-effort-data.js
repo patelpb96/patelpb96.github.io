@@ -67,6 +67,7 @@ export function fmtValue(metric, v) {
   if (u === "minutes") return `${v.toFixed(1)} min`;
   if (u === "%") return `${v.toFixed(1)}%`;
   if (u === "Elo") return `${Math.round(v)}`;
+  if (u === "ln") return v.toFixed(2);              // the superscore is a log: two decimals, as on the main page
   return v.toFixed(1);
 }
 export const fmtX = (xId, v) => fmtValue({ unit: xId === "aa_cost_per_task" ? "USD" : "minutes" }, v);

@@ -1,6 +1,6 @@
 {
  "title": "Frontier effort comparison",
- "as_of": "2026-11-21",
+ "as_of": "2026-11-23",
  "source": {
   "name": "Artificial Analysis",
   "url": "https://artificialanalysis.ai/"
@@ -23,6 +23,14 @@
    "unit": "index points",
    "higher_is_better": true,
    "blurb": "One number over a fixed suite of benchmarks run by Artificial Analysis rather than the model vendors; higher is better."
+  },
+  {
+   "id": "superscore",
+   "name": "Superscore",
+   "category": "composite",
+   "unit": "ln",
+   "higher_is_better": true,
+   "blurb": "The natural log of: output tok/s x price per 1M tokens x Intelligence Index x (non-hallucination rate / 100), divided by (time per task in seconds x cost per task), from each setting's own Artificial Analysis row. Each +1 is about 2.7 times the raw score. Cost and time are already inside it, so read it as a ranking with the horizontal axis for context."
   },
   {
    "id": "aa_cost_per_task",
@@ -182,7 +190,10 @@
       "aa_terminalbench_science": 40.5,
       "aa_hle": 58.7,
       "aa_scicode": 60.9,
-      "aa_lcr": 83.0
+      "aa_lcr": 83.0,
+      "aa_output_speed": 88.2,
+      "aa_price_blended": 20.0,
+      "superscore": 0.8145
      }
     }
    ]
@@ -194,15 +205,15 @@
    "version": "5.2",
    "display_name": "Claude Fable 5.2",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 53.9,
       "aa_cost_per_task": 3.097,
-      "aa_time_per_task": 5.54,
+      "aa_time_per_task": 5.55,
       "aa_omniscience": 62.9,
       "aa_terminalbench_4": 54.5,
       "aa_frontiercode_2": 38.4,
@@ -215,16 +226,19 @@
       "aa_terminalbench_science": 53.8,
       "aa_hle": 59.7,
       "aa_scicode": 57.8,
-      "aa_lcr": 80.0
+      "aa_lcr": 80.0,
+      "aa_output_speed": 107.7,
+      "aa_price_blended": 16.0,
+      "superscore": 3.6704
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 56.4,
       "aa_cost_per_task": 3.803,
-      "aa_time_per_task": 6.54,
+      "aa_time_per_task": 6.58,
       "aa_omniscience": 63.5,
       "aa_terminalbench_4": 55.1,
       "aa_frontiercode_2": 41.3,
@@ -237,16 +251,19 @@
       "aa_terminalbench_science": 60.5,
       "aa_hle": 61.9,
       "aa_scicode": 59.7,
-      "aa_lcr": 80.0
+      "aa_lcr": 80.0,
+      "aa_output_speed": 109.2,
+      "aa_price_blended": 16.0,
+      "superscore": 3.3046
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 61.8,
       "aa_cost_per_task": 9.078,
-      "aa_time_per_task": 15.1,
+      "aa_time_per_task": 14.8,
       "aa_omniscience": 64.0,
       "aa_terminalbench_4": 59.6,
       "aa_frontiercode_2": 49.1,
@@ -259,16 +276,19 @@
       "aa_terminalbench_science": 70.0,
       "aa_hle": 66.2,
       "aa_scicode": 59.5,
-      "aa_lcr": 83.3
+      "aa_lcr": 83.3,
+      "aa_output_speed": 110.3,
+      "aa_price_blended": 16.0,
+      "superscore": 1.7374
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 62.2,
       "aa_cost_per_task": 14.83,
-      "aa_time_per_task": 24.5,
+      "aa_time_per_task": 24.3,
       "aa_omniscience": 64.8,
       "aa_terminalbench_4": 61.6,
       "aa_frontiercode_2": 47.6,
@@ -281,16 +301,19 @@
       "aa_terminalbench_science": 67.6,
       "aa_hle": 68.9,
       "aa_scicode": 65.6,
-      "aa_lcr": 82.7
+      "aa_lcr": 82.7,
+      "aa_output_speed": 110.9,
+      "aa_price_blended": 16.0,
+      "superscore": 0.7038
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 64.6,
       "aa_cost_per_task": 26.54,
-      "aa_time_per_task": 42.2,
+      "aa_time_per_task": 41.4,
       "aa_omniscience": 66.8,
       "aa_terminalbench_4": 59.6,
       "aa_frontiercode_2": 48.8,
@@ -303,7 +326,10 @@
       "aa_terminalbench_science": 73.3,
       "aa_hle": 74.3,
       "aa_scicode": 67.7,
-      "aa_lcr": 83.3
+      "aa_lcr": 83.3,
+      "aa_output_speed": 110.2,
+      "aa_price_blended": 16.0,
+      "superscore": -0.3521
      }
     }
    ]
@@ -315,15 +341,15 @@
    "version": "5.5",
    "display_name": "Claude Haiku 5.5",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 18.6,
       "aa_cost_per_task": 0.04376,
-      "aa_time_per_task": 2.16,
+      "aa_time_per_task": 2.15,
       "aa_omniscience": 2.2,
       "aa_terminalbench_4": 12.6,
       "aa_frontiercode_2": 8.0,
@@ -336,16 +362,19 @@
       "aa_terminalbench_science": 1.9,
       "aa_hle": 27.0,
       "aa_scicode": 49.2,
-      "aa_lcr": 72.0
+      "aa_lcr": 72.0,
+      "aa_output_speed": 218.4,
+      "aa_price_blended": 0.2,
+      "superscore": 4.4501
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 24.6,
       "aa_cost_per_task": 0.09176,
-      "aa_time_per_task": 3.97,
+      "aa_time_per_task": 4.05,
       "aa_omniscience": 4.2,
       "aa_terminalbench_4": 15.2,
       "aa_frontiercode_2": 16.1,
@@ -358,16 +387,19 @@
       "aa_terminalbench_science": 7.1,
       "aa_hle": 33.8,
       "aa_scicode": 49.0,
-      "aa_lcr": 77.3
+      "aa_lcr": 77.3,
+      "aa_output_speed": 219.5,
+      "aa_price_blended": 0.2,
+      "superscore": 3.3627
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 29.9,
       "aa_cost_per_task": 0.1586,
-      "aa_time_per_task": 6.42,
+      "aa_time_per_task": 6.47,
       "aa_omniscience": 5.3,
       "aa_terminalbench_4": 21.7,
       "aa_frontiercode_2": 23.2,
@@ -380,16 +412,19 @@
       "aa_terminalbench_science": 10.0,
       "aa_hle": 37.3,
       "aa_scicode": 48.7,
-      "aa_lcr": 77.3
+      "aa_lcr": 77.3,
+      "aa_output_speed": 227.0,
+      "aa_price_blended": 0.2,
+      "superscore": 2.6006
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 34.6,
       "aa_cost_per_task": 0.2484,
-      "aa_time_per_task": 9.46,
+      "aa_time_per_task": 9.52,
       "aa_omniscience": 7.8,
       "aa_terminalbench_4": 29.3,
       "aa_frontiercode_2": 29.9,
@@ -402,16 +437,19 @@
       "aa_terminalbench_science": 18.1,
       "aa_hle": 42.7,
       "aa_scicode": 51.7,
-      "aa_lcr": 78.3
+      "aa_lcr": 78.3,
+      "aa_output_speed": 238.3,
+      "aa_price_blended": 0.2,
+      "superscore": 1.9553
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 36.5,
       "aa_cost_per_task": 0.411,
-      "aa_time_per_task": 14.8,
+      "aa_time_per_task": 14.7,
       "aa_omniscience": 12.3,
       "aa_terminalbench_4": 32.8,
       "aa_frontiercode_2": 34.9,
@@ -424,7 +462,10 @@
       "aa_terminalbench_science": 20.0,
       "aa_hle": 44.4,
       "aa_scicode": 55.0,
-      "aa_lcr": 82.7
+      "aa_lcr": 82.7,
+      "aa_output_speed": 257.1,
+      "aa_price_blended": 0.2,
+      "superscore": 1.2258
      }
     }
    ]
@@ -436,15 +477,15 @@
    "version": "5.5",
    "display_name": "Claude Opus 5.5",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 34.8,
       "aa_cost_per_task": 0.9755,
-      "aa_time_per_task": 3.01,
+      "aa_time_per_task": 3.05,
       "aa_omniscience": 39.0,
       "aa_terminalbench_4": 31.3,
       "aa_frontiercode_2": 15.8,
@@ -458,16 +499,19 @@
       "aa_mmmu_pro": 84.7,
       "aa_hle": 48.3,
       "aa_scicode": 58.6,
-      "aa_lcr": 80.7
+      "aa_lcr": 80.7,
+      "aa_output_speed": 104.1,
+      "aa_price_blended": 8.0,
+      "superscore": 4.0021
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 48.2,
       "aa_cost_per_task": 2.451,
-      "aa_time_per_task": 6.73,
+      "aa_time_per_task": 6.79,
       "aa_omniscience": 39.8,
       "aa_terminalbench_4": 52.5,
       "aa_frontiercode_2": 33.1,
@@ -481,16 +525,19 @@
       "aa_mmmu_pro": 85.7,
       "aa_hle": 54.7,
       "aa_scicode": 59.3,
-      "aa_lcr": 84.3
+      "aa_lcr": 84.3,
+      "aa_output_speed": 107.6,
+      "aa_price_blended": 8.0,
+      "superscore": 2.6213
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 51.8,
       "aa_cost_per_task": 3.465,
-      "aa_time_per_task": 9.18,
+      "aa_time_per_task": 9.3,
       "aa_omniscience": 42.4,
       "aa_terminalbench_4": 56.6,
       "aa_frontiercode_2": 35.9,
@@ -504,16 +551,19 @@
       "aa_mmmu_pro": 85.8,
       "aa_hle": 55.6,
       "aa_scicode": 60.4,
-      "aa_lcr": 82.7
+      "aa_lcr": 82.7,
+      "aa_output_speed": 107.7,
+      "aa_price_blended": 8.0,
+      "superscore": 2.1202
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 57.4,
       "aa_cost_per_task": 6.047,
-      "aa_time_per_task": 15.8,
+      "aa_time_per_task": 15.6,
       "aa_omniscience": 43.1,
       "aa_terminalbench_4": 59.6,
       "aa_frontiercode_2": 43.8,
@@ -527,16 +577,19 @@
       "aa_mmmu_pro": 86.6,
       "aa_hle": 57.5,
       "aa_scicode": 65.0,
-      "aa_lcr": 84.7
+      "aa_lcr": 84.7,
+      "aa_output_speed": 110.5,
+      "aa_price_blended": 8.0,
+      "superscore": 1.1435
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 59.1,
       "aa_cost_per_task": 10.04,
-      "aa_time_per_task": 25.6,
+      "aa_time_per_task": 25.2,
       "aa_omniscience": 48.1,
       "aa_terminalbench_4": 59.6,
       "aa_frontiercode_2": 46.4,
@@ -550,7 +603,10 @@
       "aa_mmmu_pro": 87.7,
       "aa_hle": 61.4,
       "aa_scicode": 66.9,
-      "aa_lcr": 84.7
+      "aa_lcr": 84.7,
+      "aa_output_speed": 114.5,
+      "aa_price_blended": 8.0,
+      "superscore": 0.5723
      }
     }
    ]
@@ -562,15 +618,15 @@
    "version": "5.5",
    "display_name": "Claude Sonnet 5.5",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 25.6,
       "aa_cost_per_task": 0.5113,
-      "aa_time_per_task": 2.56,
+      "aa_time_per_task": 2.59,
       "aa_omniscience": 20.3,
       "aa_terminalbench_4": 20.7,
       "aa_frontiercode_2": 7.1,
@@ -583,16 +639,19 @@
       "aa_terminalbench_science": 10.5,
       "aa_hle": 36.2,
       "aa_scicode": 49.1,
-      "aa_lcr": 76.0
+      "aa_lcr": 76.0,
+      "aa_output_speed": 134.2,
+      "aa_price_blended": 4.0,
+      "superscore": 4.5048
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 30.8,
       "aa_cost_per_task": 0.7807,
-      "aa_time_per_task": 3.7,
+      "aa_time_per_task": 3.67,
       "aa_omniscience": 18.6,
       "aa_terminalbench_4": 29.8,
       "aa_frontiercode_2": 11.0,
@@ -605,16 +664,19 @@
       "aa_terminalbench_science": 16.2,
       "aa_hle": 39.8,
       "aa_scicode": 52.9,
-      "aa_lcr": 76.3
+      "aa_lcr": 76.3,
+      "aa_output_speed": 139.4,
+      "aa_price_blended": 4.0,
+      "superscore": 3.911
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 41.5,
       "aa_cost_per_task": 1.636,
-      "aa_time_per_task": 7.17,
+      "aa_time_per_task": 6.93,
       "aa_omniscience": 18.7,
       "aa_terminalbench_4": 43.9,
       "aa_frontiercode_2": 25.7,
@@ -627,16 +689,19 @@
       "aa_terminalbench_science": 34.3,
       "aa_hle": 45.8,
       "aa_scicode": 53.7,
-      "aa_lcr": 78.0
+      "aa_lcr": 78.0,
+      "aa_output_speed": 140.5,
+      "aa_price_blended": 4.0,
+      "superscore": 2.5241
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 49.9,
       "aa_cost_per_task": 4.092,
-      "aa_time_per_task": 14.4,
+      "aa_time_per_task": 14.0,
       "aa_omniscience": 20.6,
       "aa_terminalbench_4": 57.1,
       "aa_frontiercode_2": 35.6,
@@ -649,16 +714,19 @@
       "aa_terminalbench_science": 52.4,
       "aa_hle": 50.0,
       "aa_scicode": 57.3,
-      "aa_lcr": 79.7
+      "aa_lcr": 79.7,
+      "aa_output_speed": 145.6,
+      "aa_price_blended": 4.0,
+      "superscore": 1.175
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 54.5,
       "aa_cost_per_task": 10.02,
-      "aa_time_per_task": 32.4,
+      "aa_time_per_task": 31.4,
       "aa_omniscience": 30.5,
       "aa_terminalbench_4": 63.6,
       "aa_frontiercode_2": 41.7,
@@ -671,7 +739,10 @@
       "aa_terminalbench_science": 53.3,
       "aa_hle": 55.0,
       "aa_scicode": 61.0,
-      "aa_lcr": 82.7
+      "aa_lcr": 82.7,
+      "aa_output_speed": 151.5,
+      "aa_price_blended": 4.0,
+      "superscore": -0.0081
      }
     }
    ]
@@ -683,15 +754,15 @@
    "version": "4",
    "display_name": "Gemini 4 Argon",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 47.6,
       "aa_cost_per_task": 8.629,
-      "aa_time_per_task": 27.1,
+      "aa_time_per_task": 23.9,
       "aa_omniscience": 41.1,
       "aa_terminalbench_4": 55.1,
       "aa_frontiercode_2": 25.0,
@@ -705,16 +776,19 @@
       "aa_mmmu_pro": 88.3,
       "aa_hle": 49.9,
       "aa_scicode": 58.9,
-      "aa_lcr": 78.3
+      "aa_lcr": 78.3,
+      "aa_output_speed": 70.0,
+      "aa_price_blended": 8.0,
+      "superscore": 0.6002
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 50.4,
       "aa_cost_per_task": 9.947,
-      "aa_time_per_task": 26.4,
+      "aa_time_per_task": 24.0,
       "aa_omniscience": 46.1,
       "aa_terminalbench_4": 57.1,
       "aa_frontiercode_2": 25.7,
@@ -727,7 +801,10 @@
       "aa_terminalbench_science": 52.9,
       "aa_hle": 57.1,
       "aa_scicode": 61.8,
-      "aa_lcr": 79.7
+      "aa_lcr": 79.7,
+      "aa_output_speed": 80.7,
+      "aa_price_blended": 8.0,
+      "superscore": 0.7766
      }
     }
    ]
@@ -739,15 +816,15 @@
    "version": "4",
    "display_name": "Gemini 4 Carbon",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 54.2,
       "aa_cost_per_task": 7.187,
-      "aa_time_per_task": 27.0,
+      "aa_time_per_task": 26.2,
       "aa_omniscience": 39.2,
       "aa_terminalbench_4": 62.6,
       "aa_frontiercode_2": 29.6,
@@ -757,16 +834,19 @@
       "aa_automationbench": 63.5,
       "aa_briefcase_elo": 1567.1,
       "aa_non_hallucination": 80.2,
-      "aa_terminalbench_science": 61.9
+      "aa_terminalbench_science": 61.9,
+      "aa_output_speed": 54.8,
+      "aa_price_blended": 8.0,
+      "superscore": 0.5228
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 58.3,
       "aa_cost_per_task": 6.586,
-      "aa_time_per_task": 25.5,
+      "aa_time_per_task": 23.7,
       "aa_omniscience": 46.8,
       "aa_terminalbench_4": 60.6,
       "aa_frontiercode_2": 39.5,
@@ -777,16 +857,19 @@
       "aa_briefcase_elo": 1601.7,
       "aa_non_hallucination": 95.8,
       "aa_terminalbench_science": 62.4,
-      "aa_mmmu_pro": 89.2
+      "aa_mmmu_pro": 89.2,
+      "aa_output_speed": 72.4,
+      "aa_price_blended": 8.0,
+      "superscore": 1.2396
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 60.0,
       "aa_cost_per_task": 7.756,
-      "aa_time_per_task": 36.6,
+      "aa_time_per_task": 32.4,
       "aa_omniscience": 53.5,
       "aa_terminalbench_4": 65.2,
       "aa_frontiercode_2": 40.6,
@@ -797,7 +880,10 @@
       "aa_briefcase_elo": 1610.6,
       "aa_non_hallucination": 88.6,
       "aa_terminalbench_science": 64.8,
-      "aa_lcr": 79.3
+      "aa_lcr": 79.3,
+      "aa_output_speed": 63.2,
+      "aa_price_blended": 8.0,
+      "superscore": 0.5781
      }
     }
    ]
@@ -831,7 +917,10 @@
       "aa_mmmu_pro": 85.6,
       "aa_hle": 47.8,
       "aa_scicode": 56.6,
-      "aa_lcr": 81.3
+      "aa_lcr": 81.3,
+      "aa_output_speed": 113.8,
+      "aa_price_blended": 1.5,
+      "superscore": -1.0521
      }
     }
    ]
@@ -843,15 +932,15 @@
    "version": "4",
    "display_name": "Gemini 4 Hydrogen",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 26.9,
       "aa_cost_per_task": 0.2922,
-      "aa_time_per_task": 1.47,
+      "aa_time_per_task": 1.41,
       "aa_omniscience": 36.1,
       "aa_terminalbench_4": 6.6,
       "aa_frontiercode_2": 9.3,
@@ -861,16 +950,19 @@
       "aa_automationbench": 60.5,
       "aa_briefcase_elo": 948.0,
       "aa_non_hallucination": 81.2,
-      "aa_terminalbench_science": 2.4
+      "aa_terminalbench_science": 2.4,
+      "aa_output_speed": 166.1,
+      "aa_price_blended": 3.0,
+      "superscore": 6.0875
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 41.2,
       "aa_cost_per_task": 0.798,
-      "aa_time_per_task": 4.08,
+      "aa_time_per_task": 3.81,
       "aa_omniscience": 41.9,
       "aa_terminalbench_4": 29.3,
       "aa_frontiercode_2": 31.5,
@@ -880,16 +972,19 @@
       "aa_automationbench": 72.0,
       "aa_briefcase_elo": 1296.1,
       "aa_non_hallucination": 87.5,
-      "aa_terminalbench_science": 15.2
+      "aa_terminalbench_science": 15.2,
+      "aa_output_speed": 171.9,
+      "aa_price_blended": 3.0,
+      "superscore": 4.6241
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 50.8,
       "aa_cost_per_task": 1.873,
-      "aa_time_per_task": 9.16,
+      "aa_time_per_task": 8.49,
       "aa_omniscience": 43.7,
       "aa_terminalbench_4": 54.0,
       "aa_frontiercode_2": 36.3,
@@ -899,16 +994,19 @@
       "aa_automationbench": 74.4,
       "aa_briefcase_elo": 1496.3,
       "aa_non_hallucination": 91.3,
-      "aa_terminalbench_science": 41.4
+      "aa_terminalbench_science": 41.4,
+      "aa_output_speed": 166.7,
+      "aa_price_blended": 3.0,
+      "superscore": 3.1909
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 53.9,
       "aa_cost_per_task": 3.16,
-      "aa_time_per_task": 15.9,
+      "aa_time_per_task": 16.4,
       "aa_omniscience": 46.3,
       "aa_terminalbench_4": 53.5,
       "aa_frontiercode_2": 39.0,
@@ -918,7 +1016,10 @@
       "aa_automationbench": 76.1,
       "aa_briefcase_elo": 1568.5,
       "aa_non_hallucination": 91.5,
-      "aa_terminalbench_science": 49.5
+      "aa_terminalbench_science": 49.5,
+      "aa_output_speed": 157.3,
+      "aa_price_blended": 3.0,
+      "superscore": 2.0129
      }
     }
    ]
@@ -930,15 +1031,15 @@
    "version": "4",
    "display_name": "Gemini 4 Neon",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 44.1,
       "aa_cost_per_task": 0.7452,
-      "aa_time_per_task": 3.68,
+      "aa_time_per_task": 3.81,
       "aa_omniscience": 48.5,
       "aa_terminalbench_4": 32.8,
       "aa_frontiercode_2": 26.9,
@@ -948,16 +1049,19 @@
       "aa_automationbench": 76.0,
       "aa_briefcase_elo": 1296.1,
       "aa_non_hallucination": 81.2,
-      "aa_terminalbench_science": 27.1
+      "aa_terminalbench_science": 27.1,
+      "aa_output_speed": 94.9,
+      "aa_price_blended": 6.0,
+      "superscore": 4.7849
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 54.9,
       "aa_cost_per_task": 1.905,
-      "aa_time_per_task": 8.4,
+      "aa_time_per_task": 8.94,
       "aa_omniscience": 51.1,
       "aa_terminalbench_4": 54.5,
       "aa_frontiercode_2": 36.9,
@@ -967,16 +1071,19 @@
       "aa_automationbench": 77.8,
       "aa_briefcase_elo": 1517.3,
       "aa_non_hallucination": 83.8,
-      "aa_terminalbench_science": 54.8
+      "aa_terminalbench_science": 54.8,
+      "aa_output_speed": 93.3,
+      "aa_price_blended": 6.0,
+      "superscore": 3.227
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 59.6,
       "aa_cost_per_task": 3.743,
-      "aa_time_per_task": 14.3,
+      "aa_time_per_task": 15.1,
       "aa_omniscience": 53.8,
       "aa_terminalbench_4": 61.6,
       "aa_frontiercode_2": 43.3,
@@ -986,16 +1093,19 @@
       "aa_automationbench": 79.2,
       "aa_briefcase_elo": 1631.5,
       "aa_non_hallucination": 86.1,
-      "aa_terminalbench_science": 65.7
+      "aa_terminalbench_science": 65.7,
+      "aa_output_speed": 99.6,
+      "aa_price_blended": 6.0,
+      "superscore": 2.202
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 61.4,
       "aa_cost_per_task": 6.445,
-      "aa_time_per_task": 22.3,
+      "aa_time_per_task": 23.8,
       "aa_omniscience": 54.8,
       "aa_terminalbench_4": 63.6,
       "aa_frontiercode_2": 44.4,
@@ -1005,7 +1115,10 @@
       "aa_automationbench": 79.3,
       "aa_briefcase_elo": 1698.7,
       "aa_non_hallucination": 85.6,
-      "aa_terminalbench_science": 70.0
+      "aa_terminalbench_science": 70.0,
+      "aa_output_speed": 99.1,
+      "aa_price_blended": 6.0,
+      "superscore": 1.2225
      }
     }
    ]
@@ -1039,7 +1152,10 @@
       "aa_mmmu_pro": 86.9,
       "aa_hle": 54.7,
       "aa_scicode": 56.5,
-      "aa_lcr": 80.7
+      "aa_lcr": 80.7,
+      "aa_output_speed": 41.3,
+      "aa_price_blended": 20.0,
+      "superscore": 1.0989
      }
     }
    ]
@@ -1051,15 +1167,15 @@
    "version": "6.2",
    "display_name": "GPT-6.2 Astra",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 45.7,
       "aa_cost_per_task": 0.6617,
-      "aa_time_per_task": 2.02,
+      "aa_time_per_task": 2.1,
       "aa_omniscience": 38.7,
       "aa_terminalbench_4": 51.0,
       "aa_frontiercode_2": 32.7,
@@ -1070,16 +1186,19 @@
       "aa_briefcase_elo": 1038.9,
       "aa_non_hallucination": 44.2,
       "aa_terminalbench_science": 51.0,
-      "aa_mmmu_pro": 85.1
+      "aa_mmmu_pro": 85.1,
+      "aa_output_speed": 41.3,
+      "aa_price_blended": 16.0,
+      "superscore": 5.0758
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 57.0,
       "aa_cost_per_task": 1.618,
-      "aa_time_per_task": 4.84,
+      "aa_time_per_task": 4.81,
       "aa_omniscience": 44.8,
       "aa_terminalbench_4": 58.6,
       "aa_frontiercode_2": 46.6,
@@ -1090,16 +1209,19 @@
       "aa_briefcase_elo": 1407.5,
       "aa_non_hallucination": 45.9,
       "aa_terminalbench_science": 74.8,
-      "aa_mmmu_pro": 86.1
+      "aa_mmmu_pro": 86.1,
+      "aa_output_speed": 45.6,
+      "aa_price_blended": 16.0,
+      "superscore": 3.7106
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 60.1,
       "aa_cost_per_task": 2.074,
-      "aa_time_per_task": 6.35,
+      "aa_time_per_task": 6.45,
       "aa_omniscience": 46.8,
       "aa_terminalbench_4": 60.1,
       "aa_frontiercode_2": 47.1,
@@ -1110,16 +1232,19 @@
       "aa_briefcase_elo": 1569.9,
       "aa_non_hallucination": 41.9,
       "aa_terminalbench_science": 75.2,
-      "aa_mmmu_pro": 87.7
+      "aa_mmmu_pro": 87.7,
+      "aa_output_speed": 46.1,
+      "aa_price_blended": 16.0,
+      "superscore": 3.1416
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 61.6,
       "aa_cost_per_task": 2.521,
-      "aa_time_per_task": 7.87,
+      "aa_time_per_task": 7.83,
       "aa_omniscience": 48.3,
       "aa_terminalbench_4": 64.1,
       "aa_frontiercode_2": 49.0,
@@ -1130,16 +1255,19 @@
       "aa_briefcase_elo": 1594.1,
       "aa_non_hallucination": 42.3,
       "aa_terminalbench_science": 78.6,
-      "aa_mmmu_pro": 87.9
+      "aa_mmmu_pro": 87.9,
+      "aa_output_speed": 47.3,
+      "aa_price_blended": 16.0,
+      "superscore": 2.8124
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 62.1,
       "aa_cost_per_task": 3.998,
-      "aa_time_per_task": 14.2,
+      "aa_time_per_task": 14.0,
       "aa_omniscience": 50.0,
       "aa_terminalbench_4": 64.1,
       "aa_frontiercode_2": 45.4,
@@ -1150,7 +1278,10 @@
       "aa_briefcase_elo": 1643.1,
       "aa_non_hallucination": 40.9,
       "aa_terminalbench_science": 78.1,
-      "aa_mmmu_pro": 89.5
+      "aa_mmmu_pro": 89.5,
+      "aa_output_speed": 48.8,
+      "aa_price_blended": 16.0,
+      "superscore": 1.7758
      }
     }
    ]
@@ -1162,15 +1293,15 @@
    "version": "6",
    "display_name": "GPT-6 Luna",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "none",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 9.4,
       "aa_cost_per_task": 0.07142,
-      "aa_time_per_task": 1.86,
+      "aa_time_per_task": 1.79,
       "aa_omniscience": -25.8,
       "aa_terminalbench_4": 1.5,
       "aa_frontiercode_2": 1.6,
@@ -1184,16 +1315,19 @@
       "aa_mmmu_pro": 62.1,
       "aa_hle": 8.6,
       "aa_scicode": 43.1,
-      "aa_lcr": 39.7
+      "aa_lcr": 39.7,
+      "aa_output_speed": 93.6,
+      "aa_price_blended": 0.2,
+      "superscore": 1.5235
      }
     },
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 9.7,
       "aa_cost_per_task": 0.005115,
-      "aa_time_per_task": 0.626,
+      "aa_time_per_task": 0.588,
       "aa_omniscience": -18.1,
       "aa_terminalbench_4": 0.0,
       "aa_frontiercode_2": 2.2,
@@ -1207,16 +1341,19 @@
       "aa_mmmu_pro": 76.0,
       "aa_hle": 20.3,
       "aa_scicode": 46.9,
-      "aa_lcr": 74.0
+      "aa_lcr": 74.0,
+      "aa_output_speed": 93.4,
+      "aa_price_blended": 0.2,
+      "superscore": 5.028
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 18.5,
       "aa_cost_per_task": 0.0422,
-      "aa_time_per_task": 3.54,
+      "aa_time_per_task": 3.4,
       "aa_omniscience": -13.6,
       "aa_terminalbench_4": 2.5,
       "aa_frontiercode_2": 12.8,
@@ -1230,16 +1367,19 @@
       "aa_mmmu_pro": 77.9,
       "aa_hle": 28.3,
       "aa_scicode": 50.9,
-      "aa_lcr": 78.3
+      "aa_lcr": 78.3,
+      "aa_output_speed": 97.2,
+      "aa_price_blended": 0.2,
+      "superscore": 1.815
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 21.4,
       "aa_cost_per_task": 0.07295,
-      "aa_time_per_task": 5.71,
+      "aa_time_per_task": 5.46,
       "aa_omniscience": -12.8,
       "aa_terminalbench_4": 4.5,
       "aa_frontiercode_2": 18.6,
@@ -1253,16 +1393,19 @@
       "aa_mmmu_pro": 77.5,
       "aa_hle": 32.9,
       "aa_scicode": 50.3,
-      "aa_lcr": 79.3
+      "aa_lcr": 79.3,
+      "aa_output_speed": 100.3,
+      "aa_price_blended": 0.2,
+      "superscore": 0.9978
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 23.5,
       "aa_cost_per_task": 0.1041,
-      "aa_time_per_task": 7.29,
+      "aa_time_per_task": 6.95,
       "aa_omniscience": -13.0,
       "aa_terminalbench_4": 8.1,
       "aa_frontiercode_2": 18.4,
@@ -1276,16 +1419,19 @@
       "aa_mmmu_pro": 79.7,
       "aa_hle": 34.3,
       "aa_scicode": 51.7,
-      "aa_lcr": 80.0
+      "aa_lcr": 80.0,
+      "aa_output_speed": 105.3,
+      "aa_price_blended": 0.2,
+      "superscore": 0.6011
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 27.9,
       "aa_cost_per_task": 0.152,
-      "aa_time_per_task": 12.0,
+      "aa_time_per_task": 11.4,
       "aa_omniscience": -8.3,
       "aa_terminalbench_4": 12.6,
       "aa_frontiercode_2": 25.2,
@@ -1299,7 +1445,10 @@
       "aa_mmmu_pro": 79.7,
       "aa_hle": 38.5,
       "aa_scicode": 54.6,
-      "aa_lcr": 83.3
+      "aa_lcr": 83.3,
+      "aa_output_speed": 109.7,
+      "aa_price_blended": 0.2,
+      "superscore": 0.1978
      }
     }
    ]
@@ -1333,7 +1482,10 @@
       "aa_mmmu_pro": 86.0,
       "aa_hle": 52.9,
       "aa_scicode": 54.2,
-      "aa_lcr": 83.0
+      "aa_lcr": 83.0,
+      "aa_output_speed": 49.8,
+      "aa_price_blended": 4.0,
+      "superscore": 1.1067
      }
     }
    ]
@@ -1345,15 +1497,15 @@
    "version": "6.2",
    "display_name": "GPT-6.2 Sol",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 40.6,
       "aa_cost_per_task": 0.1836,
-      "aa_time_per_task": 1.64,
+      "aa_time_per_task": 1.61,
       "aa_omniscience": 24.8,
       "aa_terminalbench_4": 37.9,
       "aa_frontiercode_2": 31.4,
@@ -1363,12 +1515,15 @@
       "aa_automationbench": 63.2,
       "aa_briefcase_elo": 1229.0,
       "aa_non_hallucination": 34.2,
-      "aa_terminalbench_science": 37.1
+      "aa_terminalbench_science": 37.1,
+      "aa_output_speed": 62.0,
+      "aa_price_blended": 4.0,
+      "superscore": 5.2687
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 52.7,
       "aa_cost_per_task": 0.4061,
@@ -1382,16 +1537,19 @@
       "aa_automationbench": 70.3,
       "aa_briefcase_elo": 1494.0,
       "aa_non_hallucination": 38.9,
-      "aa_terminalbench_science": 60.5
+      "aa_terminalbench_science": 60.5,
+      "aa_output_speed": 64.0,
+      "aa_price_blended": 4.0,
+      "superscore": 4.1027
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 54.9,
       "aa_cost_per_task": 0.5636,
-      "aa_time_per_task": 5.16,
+      "aa_time_per_task": 5.13,
       "aa_omniscience": 38.3,
       "aa_terminalbench_4": 58.6,
       "aa_frontiercode_2": 40.2,
@@ -1401,16 +1559,19 @@
       "aa_automationbench": 69.9,
       "aa_briefcase_elo": 1540.8,
       "aa_non_hallucination": 40.0,
-      "aa_terminalbench_science": 67.6
+      "aa_terminalbench_science": 67.6,
+      "aa_output_speed": 65.5,
+      "aa_price_blended": 4.0,
+      "superscore": 3.5015
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 55.7,
       "aa_cost_per_task": 0.648,
-      "aa_time_per_task": 6.08,
+      "aa_time_per_task": 6.17,
       "aa_omniscience": 38.6,
       "aa_terminalbench_4": 56.1,
       "aa_frontiercode_2": 42.8,
@@ -1420,16 +1581,19 @@
       "aa_automationbench": 70.6,
       "aa_briefcase_elo": 1579.4,
       "aa_non_hallucination": 43.8,
-      "aa_terminalbench_science": 66.7
+      "aa_terminalbench_science": 66.7,
+      "aa_output_speed": 65.7,
+      "aa_price_blended": 4.0,
+      "superscore": 3.2857
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 57.3,
       "aa_cost_per_task": 1.014,
-      "aa_time_per_task": 9.71,
+      "aa_time_per_task": 9.93,
       "aa_omniscience": 40.4,
       "aa_terminalbench_4": 60.1,
       "aa_frontiercode_2": 44.4,
@@ -1439,7 +1603,10 @@
       "aa_automationbench": 71.3,
       "aa_briefcase_elo": 1611.8,
       "aa_non_hallucination": 44.6,
-      "aa_terminalbench_science": 67.6
+      "aa_terminalbench_science": 67.6,
+      "aa_output_speed": 67.8,
+      "aa_price_blended": 4.0,
+      "superscore": 2.4399
      }
     }
    ]
@@ -1451,15 +1618,15 @@
    "version": "6.1",
    "display_name": "GPT-6.1 Terra",
    "live": true,
-   "last_seen": "2026-11-21",
+   "last_seen": "2026-11-23",
    "points": [
     {
      "effort": "none",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 30.5,
       "aa_cost_per_task": 0.2259,
-      "aa_time_per_task": 2.68,
+      "aa_time_per_task": 2.41,
       "aa_omniscience": -5.0,
       "aa_terminalbench_4": 26.8,
       "aa_frontiercode_2": 33.4,
@@ -1473,16 +1640,19 @@
       "aa_mmmu_pro": 76.0,
       "aa_hle": 21.1,
       "aa_scicode": 47.8,
-      "aa_lcr": 67.7
+      "aa_lcr": 67.7,
+      "aa_output_speed": 65.6,
+      "aa_price_blended": 2.0,
+      "superscore": 3.3341
      }
     },
     {
      "effort": "low",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 29.4,
       "aa_cost_per_task": 0.07134,
-      "aa_time_per_task": 1.33,
+      "aa_time_per_task": 1.14,
       "aa_omniscience": 22.9,
       "aa_terminalbench_4": 15.2,
       "aa_frontiercode_2": 24.5,
@@ -1496,16 +1666,19 @@
       "aa_mmmu_pro": 82.5,
       "aa_hle": 35.8,
       "aa_scicode": 52.4,
-      "aa_lcr": 81.0
+      "aa_lcr": 81.0,
+      "aa_output_speed": 64.6,
+      "aa_price_blended": 2.0,
+      "superscore": 6.1194
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 38.2,
       "aa_cost_per_task": 0.1688,
-      "aa_time_per_task": 3.09,
+      "aa_time_per_task": 2.7,
       "aa_omniscience": 26.6,
       "aa_terminalbench_4": 32.3,
       "aa_frontiercode_2": 34.5,
@@ -1519,16 +1692,19 @@
       "aa_mmmu_pro": 82.8,
       "aa_hle": 40.2,
       "aa_scicode": 51.6,
-      "aa_lcr": 80.7
+      "aa_lcr": 80.7,
+      "aa_output_speed": 67.1,
+      "aa_price_blended": 2.0,
+      "superscore": 4.7294
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 42.4,
       "aa_cost_per_task": 0.2593,
-      "aa_time_per_task": 4.62,
+      "aa_time_per_task": 4.12,
       "aa_omniscience": 27.8,
       "aa_terminalbench_4": 41.9,
       "aa_frontiercode_2": 37.5,
@@ -1542,16 +1718,19 @@
       "aa_mmmu_pro": 83.8,
       "aa_hle": 43.3,
       "aa_scicode": 51.6,
-      "aa_lcr": 82.3
+      "aa_lcr": 82.3,
+      "aa_output_speed": 67.8,
+      "aa_price_blended": 2.0,
+      "superscore": 4.0344
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 45.3,
       "aa_cost_per_task": 0.4007,
-      "aa_time_per_task": 7.25,
+      "aa_time_per_task": 6.32,
       "aa_omniscience": 28.9,
       "aa_terminalbench_4": 46.5,
       "aa_frontiercode_2": 36.9,
@@ -1565,16 +1744,19 @@
       "aa_mmmu_pro": 83.8,
       "aa_hle": 43.7,
       "aa_scicode": 53.4,
-      "aa_lcr": 81.7
+      "aa_lcr": 81.7,
+      "aa_output_speed": 69.1,
+      "aa_price_blended": 2.0,
+      "superscore": 3.2596
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-21",
+     "observed_at": "2026-11-23",
      "values": {
       "aa_intelligence_index": 51.3,
       "aa_cost_per_task": 0.9611,
-      "aa_time_per_task": 15.9,
+      "aa_time_per_task": 14.1,
       "aa_omniscience": 29.6,
       "aa_terminalbench_4": 55.6,
       "aa_frontiercode_2": 42.3,
@@ -1588,7 +1770,10 @@
       "aa_mmmu_pro": 84.7,
       "aa_hle": 46.2,
       "aa_scicode": 55.1,
-      "aa_lcr": 82.7
+      "aa_lcr": 82.7,
+      "aa_output_speed": 70.9,
+      "aa_price_blended": 2.0,
+      "superscore": 1.7681
      }
     }
    ]

@@ -1,6 +1,7 @@
 """python -m unittest discover projects/model-tracker -p "test_*.py" -v"""
 import csv
 import json
+import math
 import shutil
 import tempfile
 import unittest
@@ -178,6 +179,65 @@ class BuildTests(unittest.TestCase):
             w.writerows(rows)
         with self.assertRaises(ValueError):
             be.build(self.tmp, None)
+
+
+class SuperscoreTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        shutil.copy(bs.DEFAULT_SEED / "benchmarks.csv", self.tmp / "benchmarks.csv")
+
+    def priced(self, name, index, cost, secs, speed):
+        r = rec("Anthropic", name, index, cost, secs, outputSpeed=speed, price1mInputTokens=4, price1mOutputTokens=20)
+        r["scores"] = {**r["scores"], "omniscience-non-hallucination": 0.4}
+        return r
+
+    def test_each_setting_keeps_its_own_speed_and_price(self):
+        rows = ae.ladders([self.priced("Claude Opus 5.5 (Low, Default Fallback)", 34.75, 0.9755, 300, 104.07),
+                           self.priced("Claude Opus 5.5 (Max, Default Fallback)", 59.1, 10.04, 1542.9, 114.52)], "2026-11-22")
+        self.assertEqual([(r["aa_output_speed"], r["aa_price_blended"]) for r in rows], [("104.1", "8"), ("114.5", "8")])
+
+    def test_superscore_matches_the_main_page_formula(self):
+        ae.refresh([self.priced("Claude Opus 5.5 (Max, Default Fallback)", 59.1, 10.04, 1542.9, 114.52)], "2026-11-22", self.tmp)
+        data = be.build(self.tmp, None)
+        v = data["models"][0]["points"][0]["values"]
+        raw = 114.5 * 8 * 59.1 * 0.4 / (25.7 * 60 * 10.04)             # stored numbers: tok/s, $/1M, Index, NH/100, s, $
+        self.assertAlmostEqual(v["superscore"], math.log(raw), places=3)
+        self.assertEqual([m["id"] for m in data["metrics"]][:2], ["aa_intelligence_index", "superscore"])
+
+    def test_no_superscore_without_every_input(self):
+        ae.refresh([rec("Anthropic", "Claude Opus 5.5 (Max, Default Fallback)", 59.1, 10.04)], "2026-11-22", self.tmp)   # no speed/price
+        data = be.build(self.tmp, None)
+        self.assertNotIn("superscore", data["models"][0]["points"][0]["values"])
+        self.assertNotIn("superscore", [m["id"] for m in data["metrics"]])
+
+    def test_an_old_header_still_reads_and_the_main_seed_fills_only_its_own_setting(self):
+        (self.tmp / "effort").mkdir()
+        legacy = self.tmp / "effort" / "effort_obs.csv"
+        with legacy.open("w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=ae.LEGACY_COLUMNS, lineterminator="\n")
+            w.writeheader()
+            for eff, idx in (("low", "34.8"), ("max", "59.1")):
+                w.writerow({**{k: "" for k in ae.LEGACY_COLUMNS}, "obs_id": f"o-{eff}", "model_id": "anthropic/claude-opus-5-5", "org": "Anthropic",
+                            "class": "Opus", "version": "5.5", "display_name": "Claude Opus 5.5", "effort": eff, "observed_at": "2026-11-16",
+                            "aa_intelligence_index": idx, "aa_cost_per_task": "10.04", "aa_time_per_task": "25.7", "aa_non_hallucination": "40"})
+        self.assertEqual({r["aa_output_speed"] for r in ae.read(self.tmp)}, {""})
+        (self.tmp / "aa").mkdir()
+        mid, day = "anthropic/claude-opus-5-5", "2026-11-16"
+        for name, extra in (("score_obs", {"benchmark_id": "aa_intelligence_index", "value": "59.1", "status": "observed", "effort": "Max"}),
+                            ("speed_obs", {"tok_per_s": "114.5"}),
+                            ("price_obs", {"blended_3to1_per_1m": "8.0"})):
+            cols = bs.TABLES[name]
+            with open(self.tmp / "aa" / f"{name}.csv", "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=cols, lineterminator="\n")
+                w.writeheader()
+                w.writerow({**{k: "" for k in cols}, "obs_id": f"{name}-1", "model_id": mid, "observed_at": day, **extra})
+        pts = {p["effort"]: p["values"] for p in be.build(self.tmp, None)["models"][0]["points"]}
+        self.assertEqual((pts["max"]["aa_output_speed"], pts["max"]["aa_price_blended"]), (114.5, 8.0))
+        self.assertIn("superscore", pts["max"])
+        self.assertNotIn("aa_output_speed", pts["low"])                  # the main seed's numbers are the Max row's, not Low's
+        ae.write(self.tmp, [])                                           # the next write migrates the header
+        self.assertEqual(legacy.read_text(encoding="utf-8").splitlines()[0].split(","), ae.COLUMNS)
 
 
 class CommittedDataTests(unittest.TestCase):
