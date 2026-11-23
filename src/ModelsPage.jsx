@@ -509,17 +509,8 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
           {tipBody}
         </div>
       )}
-      {phone && (
-        <div className="tip-dock" role="status">
-          {hp ? tipBody : (
-            <span className="muted">
-              Tap a {mode === "a" ? "logo or dot" : "logo"} for its numbers; tap again to unpin.
-              {mode === "a" ? " Grey squares are lower-ranked models; hollow ones have a newer version." : ""}
-              {mode === "b" && all.length > pts.length ? ` ${all.length - pts.length} lower-scoring or older models are hidden; choose All to show them.` : ""}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Phone layouts: a tapped model's numbers dock under the chart (a finger would cover a floating tooltip); nothing shows at rest. */}
+      {phone && hp && <div className="tip-dock" role="status">{tipBody}</div>}
     </div>
   );
 }

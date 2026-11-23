@@ -184,7 +184,7 @@ td.est { text-decoration: underline dotted; text-underline-offset: 3px; }
 .mob-switch { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; border: 1px dashed var(--accent); padding: 6px 8px; background: var(--glass); }
 .mob-switch .seg button { padding: 4px 8px; font-size: 13px; }
 /* the readout under a phone chart: a finger would cover a floating tooltip */
-.chart-wrap > .tip-dock, .tip-dock { margin-top: 8px; border: 1px solid var(--line); background: var(--bg); padding: 6px 9px; font-size: 13px; line-height: 1.4; min-height: 3.2em; }
+.chart-wrap > .tip-dock, .tip-dock { margin-top: 8px; border: 1px solid var(--line); background: var(--bg); padding: 6px 9px; font-size: 13px; line-height: 1.4; }
 .tip-dock .best-tags { margin: 2px 0 0; }
 /* A: lower-ranked models as small grey squares; hollow = a newer version exists */
 .chart .dot { fill: var(--muted); opacity: 0.6; }
