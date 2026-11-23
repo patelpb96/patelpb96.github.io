@@ -117,7 +117,10 @@ const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetri
   const [sizeRef, W, H] = useChartSize(wide, !!spot);
   const narrow = W < 560;
   const FT = narrow ? 12 : 15, FL = narrow ? 13 : 17, FS = narrow ? 12 : 14;
-  const M = useMemo(() => ({ l: Math.round(FT * 2.6 + FL + 12), r: narrow ? 14 : 30, t: 14, b: FT + FL + 24 }), [FT, FL, narrow]);
+  // Phone layouts put the vertical axis title above the plot, so the left margin only holds the tick numbers.
+  const M = useMemo(() => (phone && narrow
+    ? { l: Math.round(FT * 2.4 + 10), r: 8, t: FL + 12, b: FT + FL + 20 }
+    : { l: Math.round(FT * 2.6 + FL + 12), r: narrow ? 14 : 30, t: 14, b: FT + FL + 24 }), [FT, FL, narrow, phone]);
   const xName = X_OPTIONS.find(([id]) => id === xId)[1];
 
   const svgRef = useRef(null);
@@ -280,7 +283,9 @@ const EffortChart = memo(function EffortChart({ models, ghosts, dom, xId, yMetri
         <text className="axlabel" x={(M.l + W - M.r) / 2} y={H - 5} textAnchor="middle" style={{ fontSize: FL }}>
           {xId === "aa_cost_per_task" ? "Cost per task, USD (log scale)" : "Time per task, minutes (log scale)"}
         </text>
-        <text className="axlabel" x={FL} y={(M.t + H - M.b) / 2} textAnchor="middle" transform={`rotate(-90 ${FL} ${(M.t + H - M.b) / 2})`} style={{ fontSize: FL }}>{yMetric.name}</text>
+        {phone && narrow
+          ? <text className="axlabel" x={2} y={FL} textAnchor="start" style={{ fontSize: FL }}>↑ {yMetric.name}</text>
+          : <text className="axlabel" x={FL} y={(M.t + H - M.b) / 2} textAnchor="middle" transform={`rotate(-90 ${FL} ${(M.t + H - M.b) / 2})`} style={{ fontSize: FL }}>{yMetric.name}</text>}
 
         {spot && <clipPath id={clipId}><rect x={M.l} y={M.t} width={W - M.l - M.r} height={H - M.t - M.b} /></clipPath>}
         <g clipPath={spot ? `url(#${clipId})` : undefined}>

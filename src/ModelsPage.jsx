@@ -3,7 +3,7 @@ import "./models-themes.css";
 import "./models.css";
 import { LOGOS } from "./models-logos.js";
 import { placeLabels } from "./models-effort-data.js";
-import { MOBILE_VARIANTS, NARROW, keepInside, labelWidth, shortName, supersededIds, useMobileVariant } from "./models-mobile.js";
+import { MOBILE_VARIANTS, NARROW, keepInside, labelWidth, shortName, supersededIds, useMobileVariant, useNarrow } from "./models-mobile.js";
 
 // The "Reasoning effort" tab is its own chunk, fetched when the tab is touched or opened, so the tracker itself stays as light as before.
 const loadEffort = () => import("./models-effort-page.jsx");
@@ -264,7 +264,7 @@ const TOP_TIER = 12;      // variant B: how many models the zoomed chart keeps
 const TOP_LOGOS = 6;      // variant A: models that keep their logo besides winners, frontier and pins
 const TOP_ROWS = 10;      // variant C: full-size rows before the list turns compact
 
-function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned, togglePin, setBrushed, variant, old }) {
+function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned, togglePin, setBrushed, variant, old, tier }) {
   const svgRef = useRef(null);
   const maskId = `cut${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const [sizeRef, W, H0] = useChartSize();
@@ -277,12 +277,11 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
   // the plot); the margins grow with it so tick numbers and axis titles never overlap the data.
   const FT = narrow ? (phone ? 13 : 15) : 22;
   const FL = narrow ? (phone ? 14 : 16) : 24;
-  const M = { l: Math.round(FT * 2.4 + FL + 18), r: phone ? 14 : 28, t: 16, b: Math.round(FT + FL + 30) };
+  let M = { l: Math.round(FT * 2.4 + FL + 18), r: 28, t: 16, b: Math.round(FT + FL + 30) };
   const fmtY = bench === "superscore" ? fmtSuper : fmtScore;
   const [hover, setHover] = useState(null);
   const [drag, setDrag] = useState(null);
   const [inspect, setInspect] = useState(null);      // phone layouts: the last tapped model, described under the chart
-  const [tier, setTier] = useState("top");           // variant B: "top" (zoomed) or "all"
 
   const all = useMemo(
     () => rows
@@ -312,6 +311,12 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
   const yTicks = niceTicks(lo, hi, 6);
   const ylo = yTicks[0];
   const yhi = yTicks[yTicks.length - 1];
+  // On a phone every pixel of width goes to the plot: the vertical axis title moves above it, so the left margin only has to
+  // fit the widest tick number, and the right margin only a small gap (labels are kept inside by keepInside).
+  if (phone) {
+    const tickW = Math.max(...yTicks.map((v) => String(v).length)) * FT * 0.62;
+    M = { l: Math.round(tickW + 14), r: 8, t: FL + 14, b: Math.round(FT + FL + 26) };
+  }
   const fx = (v) => {
     const t = xMetric === "price" ? (Math.log(v) - Math.log(xlo)) / (Math.log(xhi) - Math.log(xlo)) : (v - xlo) / (xhi - xlo);
     return M.l + t * (W - M.l - M.r);
@@ -414,17 +419,6 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
 
   return (
     <div className="chart-wrap" ref={sizeRef}>
-      {mode === "b" && (
-        <div className="tier-bar">
-          <div className="seg" role="group" aria-label="Models on the chart">
-            <button type="button" aria-pressed={tier === "top"} onClick={() => setTier("top")}>Top {TOP_TIER}</button>
-            <button type="button" aria-pressed={tier === "all"} onClick={() => setTier("all")}>All {all.length}</button>
-          </div>
-          {tier === "top" && all.length > pts.length && (
-            <span className="muted">{all.length - pts.length} lower-scoring or older models hidden</span>
-          )}
-        </div>
-      )}
       <svg ref={svgRef} className="chart" viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`${benchName} against ${xMetric}`}>
         {yTicks.map((v) => (
           <g key={`y${v}`}>
@@ -443,7 +437,9 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
         <text className="axlabel" x={(M.l + W - M.r) / 2} y={H - 8} textAnchor="middle" style={{ fontSize: FL }}>
           {xMetric === "price" ? (narrow ? "Price, USD / 1M tokens (log)" : "Price, USD per 1M tokens (3:1 blend, log scale)") : "Output speed, tokens per second"}
         </text>
-        <text className="axlabel" x={FL} y={(M.t + H - M.b) / 2} textAnchor="middle" transform={`rotate(-90 ${FL} ${(M.t + H - M.b) / 2})`} style={{ fontSize: FL }}>{benchName}</text>
+        {phone
+          ? <text className="axlabel" x={2} y={FL} textAnchor="start" style={{ fontSize: FL }}>↑ {benchName}</text>
+          : <text className="axlabel" x={FL} y={(M.t + H - M.b) / 2} textAnchor="middle" transform={`rotate(-90 ${FL} ${(M.t + H - M.b) / 2})`} style={{ fontSize: FL }}>{benchName}</text>}
 
         <rect x={M.l} y={M.t} width={W - M.l - M.r} height={H - M.t - M.b} fill="transparent" style={{ cursor: "crosshair" }}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)} />
@@ -515,7 +511,13 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
       )}
       {phone && (
         <div className="tip-dock" role="status">
-          {hp ? tipBody : <span className="muted">Tap a {mode === "a" ? "logo or dot" : "logo"} for its numbers; tap again to unpin.{mode === "a" ? " Grey squares are lower-ranked models; hollow ones have a newer version." : ""}</span>}
+          {hp ? tipBody : (
+            <span className="muted">
+              Tap a {mode === "a" ? "logo or dot" : "logo"} for its numbers; tap again to unpin.
+              {mode === "a" ? " Grey squares are lower-ranked models; hollow ones have a newer version." : ""}
+              {mode === "b" && all.length > pts.length ? ` ${all.length - pts.length} lower-scoring or older models are hidden; choose All to show them.` : ""}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -777,6 +779,8 @@ function Dashboard({ data, intro }) {
   const modelsById = useMemo(() => new Map(data.models.map((m) => [m.model_id, m])), [data]);
   const old = useMemo(() => supersededIds(data.models), [data]);
   const [variant] = useMobileVariant();
+  const narrow = useNarrow();
+  const [tier, setTier] = useState("top");           // phone layout B: the zoomed top tier, or every model
 
   const [hiddenOrgs, setHiddenOrgs] = useState(() => new Set());
   const [tab, setTab] = useState("board");
@@ -889,9 +893,17 @@ function Dashboard({ data, intro }) {
             <button type="button" aria-pressed={xMetric === "price"} onClick={() => { setXMetric("price"); setBrushed(new Set()); }}>Price</button>
             <button type="button" aria-pressed={xMetric === "speed"} onClick={() => { setXMetric("speed"); setBrushed(new Set()); }}>Speed</button>
           </div>
+          {narrow && variant === "b" && (
+            <div className="seg" role="group" aria-label="Models on the chart">
+              <button type="button" aria-pressed={tier === "top"} onClick={() => setTier("top")}>Top {TOP_TIER}</button>
+              <button type="button" aria-pressed={tier === "all"} onClick={() => setTier("all")}>
+                All {rows.filter((r) => r.scores[bench] && (xMetric === "price" ? r.price : r.speed)).length}
+              </button>
+            </div>
+          )}
         </div>
         <Scatter rows={rows} bench={bench} benchName={benchName} xMetric={xMetric} colorOf={colorOf} champs={champs}
-          hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} variant={variant} old={old} />
+          hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} variant={variant} old={old} tier={tier} />
         {selected.length > 0 && (
           <p className="sel-list">
             <span>Highlighted: {selected.join(", ")}</span>
@@ -1115,6 +1127,8 @@ export default function ModelsPage() {
     document.documentElement.dataset.theme = theme;
     writePref(THEME_KEY, theme);
   }, [theme]);
+  const [mobileVariant] = useMobileVariant();
+  useEffect(() => { document.documentElement.dataset.mobile = mobileVariant; }, [mobileVariant]);
   useEffect(() => {
     document.documentElement.dataset.type = type;
     writePref(TYPE_KEY, type);

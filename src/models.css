@@ -191,8 +191,11 @@ td.est { text-decoration: underline dotted; text-underline-offset: 3px; }
 .chart .dot.old { fill: none; stroke: var(--muted); stroke-width: 1.25; opacity: 0.55; }
 .chart .pt:hover .dot, .chart .pt:focus-visible .dot { opacity: 1; }
 .chart .slab text.plabel { font-weight: 600; }
-/* B: the top-tier / all switch above the chart */
-.tier-bar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 6px; font-size: 13px; }
+/* Phone layouts take back side space: a narrower page gutter and panel padding (the charts drop their sideways axis title too). */
+@media (max-width: 559px) {
+  :root[data-mobile]:not([data-mobile="off"]) .mt { padding-inline: 8px; }
+  :root[data-mobile]:not([data-mobile="off"]) .mt-panel { padding-inline: 8px; }
+}
 /* C: ranked rows with a price (or speed) track */
 .rk { font-variant-numeric: tabular-nums; }
 .rk-head, .rk-row { display: grid; grid-template-columns: 20px minmax(0, 1.3fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; }
