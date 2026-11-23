@@ -1,48 +1,9 @@
-// Phone layouts for the model tracker's charts, as switchable previews. Each variant only changes charts drawn narrower
-// than NARROW px; the desktop page is untouched. Pick one with ?m=a|b|c (remembered per viewer) or the switch the
-// dev server shows above the page; "off" is the layout the live site has today.
+// Phone layout helpers for the model tracker's charts. Below NARROW px the charts switch to their phone layout: the scatter
+// zooms to the top tier with every logo named, the effort view shows a panel per company zoomed to its own data, and both put
+// the vertical axis title above the plot. The desktop page is untouched.
 import { useEffect, useState } from "react";
 
 export const NARROW = 560;
-export const MOBILE_VARIANTS = [
-  ["off", "Today"],
-  ["a", "A · Spotlight"],
-  ["b", "B · Top tier"],
-  ["c", "C · Rows"],
-];
-const KEY = "models-mobile";
-const EVT = "models-mobile-change";
-const valid = (v) => MOBILE_VARIANTS.some(([id]) => id === v);
-
-function readVariant() {
-  try {
-    const q = new URLSearchParams(window.location.search).get("m");
-    if (valid(q)) { localStorage.setItem(KEY, q); return q; }
-    const s = localStorage.getItem(KEY);
-    if (valid(s)) return s;
-  } catch { /* storage blocked: fall through to the default */ }
-  return "off";
-}
-
-// One variant shared by both views (the models tab and the lazy effort tab), kept in step through a window event.
-export function useMobileVariant() {
-  const [v, setV] = useState(readVariant);
-  useEffect(() => {
-    const on = (e) => setV(e.detail);
-    window.addEventListener(EVT, on);
-    return () => window.removeEventListener(EVT, on);
-  }, []);
-  const set = (next) => {
-    try { localStorage.setItem(KEY, next); } catch { /* keep the in-memory choice */ }
-    try {
-      const u = new URL(window.location.href);
-      u.searchParams.set("m", next);
-      window.history.replaceState(null, "", u);
-    } catch { /* the URL is a convenience */ }
-    window.dispatchEvent(new CustomEvent(EVT, { detail: next }));
-  };
-  return [v, set];
-}
 
 // True while the viewport is phone-sized; drives choices made before a chart has measured itself (layout defaults).
 export function useNarrow() {

@@ -3,7 +3,7 @@ import "./models-themes.css";
 import "./models.css";
 import { LOGOS } from "./models-logos.js";
 import { placeLabels } from "./models-effort-data.js";
-import { MOBILE_VARIANTS, NARROW, keepInside, labelWidth, shortName, supersededIds, useMobileVariant, useNarrow } from "./models-mobile.js";
+import { NARROW, keepInside, labelWidth, shortName, supersededIds, useNarrow } from "./models-mobile.js";
 
 // The "Reasoning effort" tab is its own chunk, fetched when the tab is touched or opened, so the tracker itself stays as light as before.
 const loadEffort = () => import("./models-effort-page.jsx");
@@ -260,28 +260,24 @@ function Legend() {
 
 const M = { l: 52, r: 24, t: 14, b: 44 };   // the over-time chart's margins; the scatter sizes its own
 
-const TOP_TIER = 12;      // variant B: how many models the zoomed chart keeps
-const TOP_LOGOS = 6;      // variant A: models that keep their logo besides winners, frontier and pins
-const TOP_ROWS = 10;      // variant C: full-size rows before the list turns compact
+const TOP_TIER = 12;      // on a phone the chart starts zoomed to this many current models; "All" shows the rest
 
-function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned, togglePin, setBrushed, variant, old, tier }) {
+function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned, togglePin, setBrushed, old, tier }) {
   const svgRef = useRef(null);
   const maskId = `cut${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const [sizeRef, W, H0] = useChartSize();
-  const narrow = W < NARROW;
-  // The phone layouts (models-mobile.js) apply only below NARROW; "off" is today's chart at every width.
-  const mode = narrow ? variant : "off";
-  const phone = mode !== "off";
-  const H = mode === "a" || mode === "b" ? Math.round(Math.min(600, W * 1.2)) : H0;
+  // Below NARROW the chart takes its phone layout: taller, zoomed to the top tier, every logo named, the readout docked under it.
+  const phone = W < NARROW;
+  const H = phone ? Math.round(Math.min(600, W * 1.2)) : H0;
   // Axis text at twice the page's chart size on a wide screen (a bit less on a phone, where 22px would crowd
   // the plot); the margins grow with it so tick numbers and axis titles never overlap the data.
-  const FT = narrow ? (phone ? 13 : 15) : 22;
-  const FL = narrow ? (phone ? 14 : 16) : 24;
+  const FT = phone ? 13 : 22;
+  const FL = phone ? 14 : 24;
   let M = { l: Math.round(FT * 2.4 + FL + 18), r: 28, t: 16, b: Math.round(FT + FL + 30) };
   const fmtY = bench === "superscore" ? fmtSuper : fmtScore;
   const [hover, setHover] = useState(null);
   const [drag, setDrag] = useState(null);
-  const [inspect, setInspect] = useState(null);      // phone layouts: the last tapped model, described under the chart
+  const [inspect, setInspect] = useState(null);      // phone: the last tapped model, described under the chart
 
   const all = useMemo(
     () => rows
@@ -289,13 +285,15 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
       .map((r) => ({ r, x: (xMetric === "price" ? r.price : r.speed).value, y: r.scores[bench].value })),
     [rows, bench, xMetric],
   );
-  // Variant B zooms to the top tier: the best TOP_TIER current models, plus anything pinned. Older versions wait behind "All".
-  const pts = useMemo(() => {
-    if (mode !== "b" || tier === "all") return all;
-    const keep = new Set([...all].filter((p) => !old.has(p.r.model_id)).sort((a, b) => b.y - a.y).slice(0, TOP_TIER).map((p) => p.r.model_id));
-    for (const p of all) if (hl.has(p.r.model_id)) keep.add(p.r.model_id);
-    return all.filter((p) => keep.has(p.r.model_id));
-  }, [all, mode, tier, old, hl]);
+  // A phone zooms to the top tier: the best TOP_TIER current models, plus anything pinned. Older versions wait behind "All".
+  const topIds = useMemo(
+    () => new Set([...all].filter((p) => !old.has(p.r.model_id)).sort((a, b) => b.y - a.y).slice(0, TOP_TIER).map((p) => p.r.model_id)),
+    [all, old],
+  );
+  const pts = useMemo(
+    () => (!phone || tier === "all" ? all : all.filter((p) => topIds.has(p.r.model_id) || hl.has(p.r.model_id))),
+    [all, phone, tier, topIds, hl],
+  );
   if (!pts.length) return <p className="empty">No models have both this benchmark and a {xMetric} observation yet.</p>;
 
   const xs = pts.map((p) => p.x);
@@ -325,7 +323,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
 
   const xTicks = xMetric === "price"
     ? (phone ? [0.1, 0.3, 1, 3, 10, 30, 100] : [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100]).filter((t) => t >= xlo && t <= xhi)
-    : niceTicks(0, xhi, phone ? 5 : narrow ? 4 : 7).filter((t) => t <= xhi);
+    : niceTicks(0, xhi, phone ? 5 : 7).filter((t) => t <= xhi);
 
   // A point is on the frontier when no other point is at least as cheap (or fast) and at least as good.
   const betterX = (a, b) => (xMetric === "price" ? a.x <= b.x : a.x >= b.x);
@@ -341,27 +339,10 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
     if (phone) setInspect(pinned.has(id) ? null : id);
   };
 
-  // Variant C: no scatter on a phone; the same two numbers as ranked rows, each with a small price (or speed) track.
-  if (mode === "c") {
-    return (
-      <div className="chart-wrap" ref={sizeRef}>
-        <RankedRows pts={pts} front={front} old={old} xMetric={xMetric} xlo={xlo} xhi={xhi} benchName={benchName} fmtY={fmtY}
-          colorOf={colorOf} champs={champs} hl={hl} pinned={pinned} tapPin={tapPin} isPlaceholder={isPlaceholder} />
-      </div>
-    );
-  }
-
-  // Variant A: winners, frontier models, pins and the top few keep their logo; everything else is a small grey square
-  // (hollow when a newer version of the same model exists).
-  const featured = mode === "a"
-    ? new Set([...champs.keys(), ...hl, ...front.map((p) => p.r.model_id),
-      ...[...pts].filter((p) => !old.has(p.r.model_id)).sort((a, b) => b.y - a.y).slice(0, TOP_LOGOS).map((p) => p.r.model_id)])
-    : null;
-  const isDot = (id) => !!featured && !featured.has(id);
-
-  // Phone layouts A and B name their logos on the chart, placed so labels miss each other and every mark.
+  // On a phone the top tier, pins and best-in-area winners are named on the chart, placed so labels miss each other and every
+  // mark. Under "All" the extra models stay unnamed (a tap names them): 35 labels do not fit at this width.
   const LFS = 12;
-  const named = mode === "a" ? pts.filter((p) => featured.has(p.r.model_id)) : mode === "b" ? pts : [];
+  const named = phone ? pts.filter((p) => topIds.has(p.r.model_id) || hl.has(p.r.model_id) || champs.has(p.r.model_id)) : [];
   const items = named.map((p) => {
     const t = shortName(p.r.display_name);
     return { id: p.r.model_id, x: fx(p.x), y: fy(p.y) + 4, w: labelWidth(t, LFS), t };
@@ -369,7 +350,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
   const placed = items.length
     ? keepInside(placeLabels(items, {
       gap: LFS + 3, width: W - M.r, top: M.t + LFS, bottom: H - M.b - 4, left: M.l + 2,
-      obstacles: pts.map((p) => ({ id: p.r.model_id, x: fx(p.x), y: fy(p.y), r: isDot(p.r.model_id) ? 4 : 10 })),
+      obstacles: pts.map((p) => ({ id: p.r.model_id, x: fx(p.x), y: fy(p.y), r: 10 })),
     }), items, W, 4, LFS + 3)
     : new Map();
 
@@ -401,7 +382,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
   const hs = hp && hp.r.scores[bench];
   // Highlighted points are drawn last so a pinned model is never hidden under a neighbour.
   // Winners of a "best in each area" card are drawn above the rest, and highlighted models above everything.
-  const rank = (p) => (hl.has(p.r.model_id) ? 2 : champs.has(p.r.model_id) ? 1 : isDot(p.r.model_id) ? -1 : 0);
+  const rank = (p) => (hl.has(p.r.model_id) ? 2 : champs.has(p.r.model_id) ? 1 : 0);
   const drawn = [...pts].sort((a, b) => rank(a) - rank(b));
   // On a phone a finger has no hover: a tap pins and describes the model, so touch never sets the hover state.
   const hoverOn = (id) => (e) => { if (!(phone && e.pointerType === "touch")) setHover(id); };
@@ -435,7 +416,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
         <line className="axis" x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} />
         <line className="axis" x1={M.l} x2={M.l} y1={M.t} y2={H - M.b} />
         <text className="axlabel" x={(M.l + W - M.r) / 2} y={H - 8} textAnchor="middle" style={{ fontSize: FL }}>
-          {xMetric === "price" ? (narrow ? "Price, USD / 1M tokens (log)" : "Price, USD per 1M tokens (3:1 blend, log scale)") : "Output speed, tokens per second"}
+          {xMetric === "price" ? (phone ? "Price, USD / 1M tokens (log)" : "Price, USD per 1M tokens (3:1 blend, log scale)") : "Output speed, tokens per second"}
         </text>
         {phone
           ? <text className="axlabel" x={2} y={FL} textAnchor="start" style={{ fontSize: FL }}>↑ {benchName}</text>
@@ -449,7 +430,7 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
                 so nothing shows through the gaps in a mark, whatever the theme's background is. */}
             <mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={W} height={H}>
               <rect width={W} height={H} fill="#fff" />
-              {pts.map((p) => { const h = isDot(p.r.model_id) ? 6 : 12; return <rect key={p.r.model_id} x={fx(p.x) - h} y={fy(p.y) - h} width={2 * h} height={2 * h} fill="#000" />; })}
+              {pts.map((p) => <rect key={p.r.model_id} x={fx(p.x) - 12} y={fy(p.y) - 12} width={24} height={24} fill="#000" />)}
             </mask>
             <polyline className="frontier" mask={`url(#${maskId})`} pointerEvents="none" points={front.map((p) => `${fx(p.x)},${fy(p.y)}`).join(" ")} />
           </>
@@ -473,19 +454,10 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapPin(id); } }}
               onPointerEnter={hoverOn(id)} onPointerLeave={() => setHover(null)}
               onFocus={() => setHover(id)} onBlur={() => setHover(null)}>
-              {isDot(id) ? (
-                <>
-                  <rect x={-10} y={-10} width={20} height={20} fill="transparent" />
-                  <rect className={`dot${old.has(id) ? " old" : ""}`} x={-3.5} y={-3.5} width={7} height={7} />
-                </>
-              ) : (
-                <>
-                  <rect x={-15} y={-15} width={30} height={30} fill="transparent" />
-                  <rect className={`ring${on ? " on" : ""}${third ? "" : " unverified"}`} x={-13} y={-13} width={26} height={26} />
-                  {champs.has(id) && <rect className="champ" x={-12} y={-12} width={24} height={24} style={{ "--c": colorOf(p.r.org) }} />}
-                  <g className="mark"><Mark org={p.r.org} color={champs.has(id) ? colorOf(p.r.org) : "var(--ink)"} half={champs.has(id) ? 9.5 : 9} /></g>
-                </>
-              )}
+              <rect x={-15} y={-15} width={30} height={30} fill="transparent" />
+              <rect className={`ring${on ? " on" : ""}${third ? "" : " unverified"}`} x={-13} y={-13} width={26} height={26} />
+              {champs.has(id) && <rect className="champ" x={-12} y={-12} width={24} height={24} style={{ "--c": colorOf(p.r.org) }} />}
+              <g className="mark"><Mark org={p.r.org} color={champs.has(id) ? colorOf(p.r.org) : "var(--ink)"} half={champs.has(id) ? 9.5 : 9} /></g>
               {(on || hover === id) && !placed.has(id) && (
                 <text className="plabel" x={flip ? -15 : 15} y={-12} textAnchor={flip ? "end" : "start"}>{p.r.display_name}</text>
               )}
@@ -509,67 +481,8 @@ function Scatter({ rows, bench, benchName, xMetric, colorOf, champs, hl, pinned,
           {tipBody}
         </div>
       )}
-      {/* Phone layouts: a tapped model's numbers dock under the chart (a finger would cover a floating tooltip); nothing shows at rest. */}
+      {/* Phone: a tapped model's numbers dock under the chart (a finger would cover a floating tooltip); nothing shows at rest. */}
       {phone && hp && <div className="tip-dock" role="status">{tipBody}</div>}
-    </div>
-  );
-}
-
-// Variant C: the scatter turned into ranked rows. The order is the score; each row's track places the model on the price
-// (log) or speed axis shared by every row, so reading down the tracks still shows which models buy their score cheaply.
-function RankedRows({ pts, front, old, xMetric, xlo, xhi, benchName, fmtY, colorOf, champs, hl, pinned, tapPin, isPlaceholder }) {
-  const frontIds = new Set(front.map((p) => p.r.model_id));
-  const cur = pts.filter((p) => !old.has(p.r.model_id)).sort((a, b) => b.y - a.y);
-  const older = pts.filter((p) => old.has(p.r.model_id)).sort((a, b) => b.y - a.y);
-  const pos = (v) => 100 * (xMetric === "price" ? (Math.log(v) - Math.log(xlo)) / (Math.log(xhi) - Math.log(xlo)) : (v - xlo) / (xhi - xlo));
-  const ticks = xMetric === "price" ? [0.1, 0.3, 1, 3, 10, 30, 100].filter((t) => t >= xlo && t <= xhi) : niceTicks(0, xhi, 4).filter((t) => t > 0 && t <= xhi);
-  const tickText = (t) => (xMetric === "price" ? `$${t}` : `${t}`);
-
-  const row = (p, i, compact) => {
-    const id = p.r.model_id;
-    const on = hl.has(id);
-    const champ = champs.has(id);
-    const c = colorOf(p.r.org);
-    return (
-      <li key={id} className={`rk-row${compact ? " sm" : ""}${on ? " is-hl" : hl.size ? " is-dim" : ""}${champ ? " is-champ" : ""}`}
-        style={champ ? { "--c": c } : undefined} onClick={() => tapPin(id)} aria-pressed={pinned.has(id)} role="button" tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapPin(id); } }}>
-        <span className="rk-n">{i + 1}</span>
-        <span className="rk-name">{compact ? null : <OrgMark org={p.r.org} color={champ ? c : "var(--ink)"} />}<span className="rk-t">{p.r.display_name}</span></span>
-        <span className="rk-track" aria-hidden="true">
-          {ticks.map((t) => <span key={t} className="rk-tick" style={{ left: `${pos(t)}%` }} />)}
-          <span className={`rk-dot${frontIds.has(id) ? " fr" : ""}${isPlaceholder(p) ? " est" : ""}`} style={{ left: `${pos(p.x)}%`, ...(champ ? { background: c, borderColor: c } : {}) }} />
-        </span>
-        <span className="rk-v">{fmtY(p.y)}</span>
-        {on && (
-          <span className="rk-more">
-            {p.r.org} · {xMetric === "price" ? `${isPlaceholder(p) ? "≈" : ""}${fmtPrice(p.x)} per 1M tokens` : `${fmtSpeed(p.x)} tok/s`}
-            {frontIds.has(id) ? " · on the efficient frontier" : ""}<BestTags list={champs.get(id)} />
-          </span>
-        )}
-      </li>
-    );
-  };
-
-  return (
-    <div className="rk">
-      <div className="rk-head" aria-hidden="true">
-        <span className="rk-n">#</span>
-        <span className="rk-name">Model</span>
-        <span className="rk-axis">{ticks.map((t) => <span key={t} style={{ left: `${pos(t)}%` }}>{tickText(t)}</span>)}</span>
-        <span className="rk-v">Score</span>
-      </div>
-      <ol className="rk-list" aria-label={`Models ranked by ${benchName}`}>{cur.map((p, i) => row(p, i, i >= TOP_ROWS))}</ol>
-      {older.length > 0 && (
-        <details className="rk-old">
-          <summary>{older.length} older version{older.length === 1 ? "" : "s"} (a newer one is listed above)</summary>
-          <ol className="rk-list">{older.map((p, i) => row(p, i, true))}</ol>
-        </details>
-      )}
-      <p className="fold-p rk-key">
-        Ranked by {benchName}. The square on each row is its {xMetric === "price" ? "price per 1M tokens (log scale, cheaper to the left)" : "output speed (faster to the right)"};
-        filled = on the efficient frontier, where nothing is both {xMetric === "price" ? "cheaper" : "faster"} and better. Tap a row to pin it.
-      </p>
     </div>
   );
 }
@@ -769,9 +682,8 @@ function Dashboard({ data, intro }) {
   const colorOf = (org) => `var(--s${(orgs.indexOf(org) % 17) + 1})`;
   const modelsById = useMemo(() => new Map(data.models.map((m) => [m.model_id, m])), [data]);
   const old = useMemo(() => supersededIds(data.models), [data]);
-  const [variant] = useMobileVariant();
   const narrow = useNarrow();
-  const [tier, setTier] = useState("top");           // phone layout B: the zoomed top tier, or every model
+  const [tier, setTier] = useState("top");           // phone: the zoomed top tier, or every model
 
   const [hiddenOrgs, setHiddenOrgs] = useState(() => new Set());
   const [tab, setTab] = useState("board");
@@ -884,7 +796,7 @@ function Dashboard({ data, intro }) {
             <button type="button" aria-pressed={xMetric === "price"} onClick={() => { setXMetric("price"); setBrushed(new Set()); }}>Price</button>
             <button type="button" aria-pressed={xMetric === "speed"} onClick={() => { setXMetric("speed"); setBrushed(new Set()); }}>Speed</button>
           </div>
-          {narrow && variant === "b" && (
+          {narrow && (
             <div className="seg" role="group" aria-label="Models on the chart">
               <button type="button" aria-pressed={tier === "top"} onClick={() => setTier("top")}>Top {TOP_TIER}</button>
               <button type="button" aria-pressed={tier === "all"} onClick={() => setTier("all")}>
@@ -894,7 +806,7 @@ function Dashboard({ data, intro }) {
           )}
         </div>
         <Scatter rows={rows} bench={bench} benchName={benchName} xMetric={xMetric} colorOf={colorOf} champs={champs}
-          hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} variant={variant} old={old} tier={tier} />
+          hl={hl} pinned={pinned} togglePin={togglePin} setBrushed={setBrushed} old={old} tier={tier} />
         {selected.length > 0 && (
           <p className="sel-list">
             <span>Highlighted: {selected.join(", ")}</span>
@@ -1035,23 +947,6 @@ function Dashboard({ data, intro }) {
   );
 }
 
-// The phone-layout preview switch: shown on the dev server, or once a ?m= link has chosen a layout.
-function MobileSwitch() {
-  const [variant, setVariant] = useMobileVariant();
-  const [show] = useState(() => import.meta.env.DEV || /[?&]m=/.test(window.location.search));
-  if (!show) return null;
-  return (
-    <div className="mob-switch" role="group" aria-label="Phone layout preview">
-      <span className="lbl">Phone layout</span>
-      <div className="seg">
-        {MOBILE_VARIANTS.map(([id, label]) => (
-          <button key={id} type="button" aria-pressed={variant === id} onClick={() => setVariant(id)}>{label}</button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------------------------------
 // Local Run panel: only rendered by the dev server (`npm run dev`), talking to scripts/models-dev-runner.mjs.
 
@@ -1118,8 +1013,6 @@ export default function ModelsPage() {
     document.documentElement.dataset.theme = theme;
     writePref(THEME_KEY, theme);
   }, [theme]);
-  const [mobileVariant] = useMobileVariant();
-  useEffect(() => { document.documentElement.dataset.mobile = mobileVariant; }, [mobileVariant]);
   useEffect(() => {
     document.documentElement.dataset.type = type;
     writePref(TYPE_KEY, type);
@@ -1176,7 +1069,6 @@ export default function ModelsPage() {
     <main className="mt">
       {/* import.meta.env.DEV is false in `vite build`, so the panel and its code are dropped from the live site. */}
       {import.meta.env.DEV && <RunPanel onRefreshed={() => setReloads((n) => n + 1)} />}
-      <MobileSwitch />
       <div className="tabs mt-views" role="tablist" aria-label="Page views">
         <button type="button" role="tab" aria-selected={view === "models"} onClick={() => go("models")}>Models</button>
         <button type="button" role="tab" aria-selected={view === "effort"} onClick={() => go("effort")} onPointerEnter={loadEffort} onFocus={loadEffort}>Reasoning effort</button>
