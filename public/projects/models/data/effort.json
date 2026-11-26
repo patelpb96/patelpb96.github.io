@@ -1,6 +1,6 @@
 {
  "title": "Frontier effort comparison",
- "as_of": "2026-11-25",
+ "as_of": "2026-11-26",
  "source": {
   "name": "Artificial Analysis",
   "url": "https://artificialanalysis.ai/"
@@ -205,15 +205,15 @@
    "version": "5.2",
    "display_name": "Claude Fable 5.2",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 53.9,
       "aa_cost_per_task": 3.097,
-      "aa_time_per_task": 5.44,
+      "aa_time_per_task": 5.4,
       "aa_omniscience": 62.9,
       "aa_terminalbench_4": 54.5,
       "aa_frontiercode_2": 38.4,
@@ -227,18 +227,18 @@
       "aa_hle": 59.7,
       "aa_scicode": 57.8,
       "aa_lcr": 80.0,
-      "aa_output_speed": 109.9,
+      "aa_output_speed": 110.6,
       "aa_price_blended": 16.0,
-      "superscore": 3.7106
+      "superscore": 3.7243
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 56.3,
       "aa_cost_per_task": 3.803,
-      "aa_time_per_task": 6.55,
+      "aa_time_per_task": 6.57,
       "aa_omniscience": 63.5,
       "aa_terminalbench_4": 55.1,
       "aa_frontiercode_2": 41.3,
@@ -252,14 +252,14 @@
       "aa_hle": 61.9,
       "aa_scicode": 59.7,
       "aa_lcr": 80.0,
-      "aa_output_speed": 109.7,
+      "aa_output_speed": 109.4,
       "aa_price_blended": 16.0,
-      "superscore": 3.312
+      "superscore": 3.3062
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 61.9,
       "aa_cost_per_task": 9.078,
@@ -277,14 +277,14 @@
       "aa_hle": 66.2,
       "aa_scicode": 59.5,
       "aa_lcr": 83.3,
-      "aa_output_speed": 111.1,
+      "aa_output_speed": 110.6,
       "aa_price_blended": 16.0,
-      "superscore": 1.753
+      "superscore": 1.7485
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 62.2,
       "aa_cost_per_task": 14.83,
@@ -302,14 +302,14 @@
       "aa_hle": 68.9,
       "aa_scicode": 65.6,
       "aa_lcr": 82.7,
-      "aa_output_speed": 111.5,
+      "aa_output_speed": 111.7,
       "aa_price_blended": 16.0,
-      "superscore": 0.7133
+      "superscore": 0.7151
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 64.8,
       "aa_cost_per_task": 26.54,
@@ -321,15 +321,15 @@
       "aa_critpt_v2_hard": 76.5,
       "aa_gdp_pdf": 24.2,
       "aa_automationbench": 76.4,
-      "aa_briefcase_elo": 1782.8,
+      "aa_briefcase_elo": 1782.7,
       "aa_non_hallucination": 40.7,
       "aa_terminalbench_science": 73.3,
       "aa_hle": 74.3,
       "aa_scicode": 67.7,
       "aa_lcr": 83.3,
-      "aa_output_speed": 112.5,
+      "aa_output_speed": 112.8,
       "aa_price_blended": 16.0,
-      "superscore": -0.3064
+      "superscore": -0.3037
      }
     }
    ]
@@ -341,15 +341,15 @@
    "version": "5.5",
    "display_name": "Claude Haiku 5.5",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 18.6,
       "aa_cost_per_task": 0.04376,
-      "aa_time_per_task": 2.14,
+      "aa_time_per_task": 2.12,
       "aa_omniscience": 2.2,
       "aa_terminalbench_4": 12.6,
       "aa_frontiercode_2": 8.0,
@@ -363,18 +363,18 @@
       "aa_hle": 27.0,
       "aa_scicode": 49.2,
       "aa_lcr": 72.0,
-      "aa_output_speed": 219.1,
+      "aa_output_speed": 221.3,
       "aa_price_blended": 0.2,
-      "superscore": 4.4579
+      "superscore": 4.4773
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 24.6,
       "aa_cost_per_task": 0.09176,
-      "aa_time_per_task": 4.09,
+      "aa_time_per_task": 4.03,
       "aa_omniscience": 4.2,
       "aa_terminalbench_4": 15.2,
       "aa_frontiercode_2": 16.1,
@@ -388,18 +388,18 @@
       "aa_hle": 33.8,
       "aa_scicode": 49.0,
       "aa_lcr": 77.3,
-      "aa_output_speed": 217.4,
+      "aa_output_speed": 220.6,
       "aa_price_blended": 0.2,
-      "superscore": 3.3432
+      "superscore": 3.3726
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 30.0,
       "aa_cost_per_task": 0.1586,
-      "aa_time_per_task": 6.44,
+      "aa_time_per_task": 6.39,
       "aa_omniscience": 5.3,
       "aa_terminalbench_4": 21.7,
       "aa_frontiercode_2": 23.2,
@@ -413,18 +413,18 @@
       "aa_hle": 37.3,
       "aa_scicode": 48.7,
       "aa_lcr": 77.3,
-      "aa_output_speed": 228.1,
+      "aa_output_speed": 229.5,
       "aa_price_blended": 0.2,
-      "superscore": 2.6134
+      "superscore": 2.6273
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 34.6,
       "aa_cost_per_task": 0.2484,
-      "aa_time_per_task": 9.65,
+      "aa_time_per_task": 9.57,
       "aa_omniscience": 7.8,
       "aa_terminalbench_4": 29.3,
       "aa_frontiercode_2": 29.9,
@@ -438,18 +438,18 @@
       "aa_hle": 42.7,
       "aa_scicode": 51.7,
       "aa_lcr": 78.3,
-      "aa_output_speed": 235.2,
+      "aa_output_speed": 237.2,
       "aa_price_blended": 0.2,
-      "superscore": 1.9287
+      "superscore": 1.9455
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 36.5,
       "aa_cost_per_task": 0.411,
-      "aa_time_per_task": 14.5,
+      "aa_time_per_task": 14.7,
       "aa_omniscience": 12.3,
       "aa_terminalbench_4": 32.8,
       "aa_frontiercode_2": 34.9,
@@ -457,15 +457,15 @@
       "aa_critpt_v2_hard": 43.5,
       "aa_gdp_pdf": 20.8,
       "aa_automationbench": 35.4,
-      "aa_briefcase_elo": 1571.1,
+      "aa_briefcase_elo": 1570.9,
       "aa_non_hallucination": 65.8,
       "aa_terminalbench_science": 20.0,
       "aa_hle": 44.4,
       "aa_scicode": 55.0,
       "aa_lcr": 82.7,
-      "aa_output_speed": 258.8,
+      "aa_output_speed": 256.4,
       "aa_price_blended": 0.2,
-      "superscore": 1.246
+      "superscore": 1.223
      }
     }
    ]
@@ -477,15 +477,15 @@
    "version": "5.5",
    "display_name": "Claude Opus 5.5",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 34.8,
       "aa_cost_per_task": 0.9755,
-      "aa_time_per_task": 3.03,
+      "aa_time_per_task": 2.96,
       "aa_omniscience": 39.0,
       "aa_terminalbench_4": 31.3,
       "aa_frontiercode_2": 15.8,
@@ -500,18 +500,18 @@
       "aa_hle": 48.3,
       "aa_scicode": 58.6,
       "aa_lcr": 80.7,
-      "aa_output_speed": 104.9,
+      "aa_output_speed": 107.2,
       "aa_price_blended": 8.0,
-      "superscore": 4.0163
+      "superscore": 4.0614
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 48.3,
       "aa_cost_per_task": 2.451,
-      "aa_time_per_task": 6.82,
+      "aa_time_per_task": 6.95,
       "aa_omniscience": 39.8,
       "aa_terminalbench_4": 52.5,
       "aa_frontiercode_2": 33.1,
@@ -526,18 +526,18 @@
       "aa_hle": 54.7,
       "aa_scicode": 59.3,
       "aa_lcr": 84.3,
-      "aa_output_speed": 107.1,
+      "aa_output_speed": 105.0,
       "aa_price_blended": 8.0,
-      "superscore": 2.6143
+      "superscore": 2.5756
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 51.8,
       "aa_cost_per_task": 3.465,
-      "aa_time_per_task": 9.2,
+      "aa_time_per_task": 9.17,
       "aa_omniscience": 42.4,
       "aa_terminalbench_4": 56.6,
       "aa_frontiercode_2": 35.9,
@@ -552,18 +552,18 @@
       "aa_hle": 55.6,
       "aa_scicode": 60.4,
       "aa_lcr": 82.7,
-      "aa_output_speed": 108.8,
+      "aa_output_speed": 109.1,
       "aa_price_blended": 8.0,
-      "superscore": 2.1412
+      "superscore": 2.1472
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 57.5,
       "aa_cost_per_task": 6.047,
-      "aa_time_per_task": 15.7,
+      "aa_time_per_task": 15.6,
       "aa_omniscience": 43.1,
       "aa_terminalbench_4": 59.6,
       "aa_frontiercode_2": 44.2,
@@ -578,18 +578,18 @@
       "aa_hle": 57.5,
       "aa_scicode": 65.0,
       "aa_lcr": 84.7,
-      "aa_output_speed": 110.1,
+      "aa_output_speed": 110.5,
       "aa_price_blended": 8.0,
-      "superscore": 1.1352
+      "superscore": 1.1452
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 59.1,
       "aa_cost_per_task": 10.04,
-      "aa_time_per_task": 24.7,
+      "aa_time_per_task": 24.8,
       "aa_omniscience": 48.1,
       "aa_terminalbench_4": 59.6,
       "aa_frontiercode_2": 46.9,
@@ -597,16 +597,16 @@
       "aa_critpt_v2_hard": 68.0,
       "aa_gdp_pdf": 26.2,
       "aa_automationbench": 69.5,
-      "aa_briefcase_elo": 1797.2,
+      "aa_briefcase_elo": 1797.0,
       "aa_non_hallucination": 49.7,
       "aa_terminalbench_science": 59.0,
       "aa_mmmu_pro": 87.7,
       "aa_hle": 61.4,
       "aa_scicode": 66.9,
       "aa_lcr": 84.7,
-      "aa_output_speed": 116.9,
+      "aa_output_speed": 116.4,
       "aa_price_blended": 8.0,
-      "superscore": 0.6131
+      "superscore": 0.6048
      }
     }
    ]
@@ -618,15 +618,15 @@
    "version": "5.5",
    "display_name": "Claude Sonnet 5.5",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 25.6,
       "aa_cost_per_task": 0.5113,
-      "aa_time_per_task": 2.63,
+      "aa_time_per_task": 2.6,
       "aa_omniscience": 20.3,
       "aa_terminalbench_4": 20.7,
       "aa_frontiercode_2": 7.1,
@@ -640,18 +640,18 @@
       "aa_hle": 36.2,
       "aa_scicode": 49.1,
       "aa_lcr": 76.0,
-      "aa_output_speed": 132.1,
+      "aa_output_speed": 133.9,
       "aa_price_blended": 4.0,
-      "superscore": 4.4737
+      "superscore": 4.4987
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 30.9,
       "aa_cost_per_task": 0.7807,
-      "aa_time_per_task": 3.66,
+      "aa_time_per_task": 3.58,
       "aa_omniscience": 18.6,
       "aa_terminalbench_4": 29.8,
       "aa_frontiercode_2": 11.0,
@@ -659,24 +659,24 @@
       "aa_critpt_v2_hard": 33.5,
       "aa_gdp_pdf": 20.2,
       "aa_automationbench": 54.9,
-      "aa_briefcase_elo": 1436.1,
+      "aa_briefcase_elo": 1435.9,
       "aa_non_hallucination": 50.0,
       "aa_terminalbench_science": 16.2,
       "aa_hle": 39.8,
       "aa_scicode": 52.9,
       "aa_lcr": 76.3,
-      "aa_output_speed": 140.1,
+      "aa_output_speed": 143.1,
       "aa_price_blended": 4.0,
-      "superscore": 3.922
+      "superscore": 3.9653
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 41.5,
       "aa_cost_per_task": 1.636,
-      "aa_time_per_task": 6.98,
+      "aa_time_per_task": 6.9,
       "aa_omniscience": 18.7,
       "aa_terminalbench_4": 43.9,
       "aa_frontiercode_2": 25.5,
@@ -690,18 +690,18 @@
       "aa_hle": 45.8,
       "aa_scicode": 53.7,
       "aa_lcr": 78.0,
-      "aa_output_speed": 139.4,
+      "aa_output_speed": 141.2,
       "aa_price_blended": 4.0,
-      "superscore": 2.5091
+      "superscore": 2.5334
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 49.9,
       "aa_cost_per_task": 4.092,
-      "aa_time_per_task": 13.7,
+      "aa_time_per_task": 13.8,
       "aa_omniscience": 20.6,
       "aa_terminalbench_4": 57.1,
       "aa_frontiercode_2": 35.6,
@@ -715,18 +715,18 @@
       "aa_hle": 50.0,
       "aa_scicode": 57.3,
       "aa_lcr": 79.7,
-      "aa_output_speed": 148.7,
+      "aa_output_speed": 148.0,
       "aa_price_blended": 4.0,
-      "superscore": 1.2178
+      "superscore": 1.2058
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 54.7,
       "aa_cost_per_task": 10.02,
-      "aa_time_per_task": 30.7,
+      "aa_time_per_task": 31.1,
       "aa_omniscience": 30.5,
       "aa_terminalbench_4": 63.6,
       "aa_frontiercode_2": 41.9,
@@ -734,15 +734,15 @@
       "aa_critpt_v2_hard": 59.0,
       "aa_gdp_pdf": 25.8,
       "aa_automationbench": 71.8,
-      "aa_briefcase_elo": 1812.6,
+      "aa_briefcase_elo": 1812.5,
       "aa_non_hallucination": 56.7,
       "aa_terminalbench_science": 53.3,
       "aa_hle": 55.0,
       "aa_scicode": 61.0,
       "aa_lcr": 82.7,
-      "aa_output_speed": 154.7,
+      "aa_output_speed": 152.8,
       "aa_price_blended": 4.0,
-      "superscore": 0.0391
+      "superscore": 0.0138
      }
     }
    ]
@@ -754,15 +754,15 @@
    "version": "4",
    "display_name": "Gemini 4 Argon",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 47.7,
       "aa_cost_per_task": 8.629,
-      "aa_time_per_task": 23.6,
+      "aa_time_per_task": 24.4,
       "aa_omniscience": 41.1,
       "aa_terminalbench_4": 55.1,
       "aa_frontiercode_2": 25.0,
@@ -777,18 +777,18 @@
       "aa_hle": 49.9,
       "aa_scicode": 58.9,
       "aa_lcr": 78.3,
-      "aa_output_speed": 71.0,
+      "aa_output_speed": 68.7,
       "aa_price_blended": 8.0,
-      "superscore": 0.6291
+      "superscore": 0.5628
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 50.5,
       "aa_cost_per_task": 9.947,
-      "aa_time_per_task": 23.8,
+      "aa_time_per_task": 24.2,
       "aa_omniscience": 46.1,
       "aa_terminalbench_4": 57.1,
       "aa_frontiercode_2": 25.7,
@@ -796,15 +796,15 @@
       "aa_critpt_v2_hard": 52.5,
       "aa_gdp_pdf": 21.8,
       "aa_automationbench": 77.5,
-      "aa_briefcase_elo": 1483.7,
+      "aa_briefcase_elo": 1483.5,
       "aa_non_hallucination": 95.7,
       "aa_terminalbench_science": 52.9,
       "aa_hle": 57.1,
       "aa_scicode": 61.8,
       "aa_lcr": 79.7,
-      "aa_output_speed": 81.5,
+      "aa_output_speed": 80.2,
       "aa_price_blended": 8.0,
-      "superscore": 0.7968
+      "superscore": 0.764
      }
     }
    ]
@@ -816,15 +816,15 @@
    "version": "4",
    "display_name": "Gemini 4 Carbon",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 54.2,
       "aa_cost_per_task": 7.187,
-      "aa_time_per_task": 29.0,
+      "aa_time_per_task": 29.9,
       "aa_omniscience": 39.2,
       "aa_terminalbench_4": 62.6,
       "aa_frontiercode_2": 29.6,
@@ -835,18 +835,18 @@
       "aa_briefcase_elo": 1567.1,
       "aa_non_hallucination": 80.2,
       "aa_terminalbench_science": 61.9,
-      "aa_output_speed": 49.5,
+      "aa_output_speed": 48.0,
       "aa_price_blended": 8.0,
-      "superscore": 0.3195
+      "superscore": 0.2582
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 58.4,
       "aa_cost_per_task": 6.586,
-      "aa_time_per_task": 26.2,
+      "aa_time_per_task": 28.1,
       "aa_omniscience": 46.8,
       "aa_terminalbench_4": 60.6,
       "aa_frontiercode_2": 39.5,
@@ -858,18 +858,18 @@
       "aa_non_hallucination": 95.8,
       "aa_terminalbench_science": 62.4,
       "aa_mmmu_pro": 89.2,
-      "aa_output_speed": 65.6,
+      "aa_output_speed": 61.1,
       "aa_price_blended": 8.0,
-      "superscore": 1.0424
+      "superscore": 0.9013
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 60.1,
       "aa_cost_per_task": 7.756,
-      "aa_time_per_task": 38.1,
+      "aa_time_per_task": 42.2,
       "aa_omniscience": 53.5,
       "aa_terminalbench_4": 65.2,
       "aa_frontiercode_2": 40.6,
@@ -880,9 +880,9 @@
       "aa_briefcase_elo": 1610.6,
       "aa_non_hallucination": 88.6,
       "aa_terminalbench_science": 64.8,
-      "aa_output_speed": 53.7,
+      "aa_output_speed": 48.5,
       "aa_price_blended": 8.0,
-      "superscore": 0.2548
+      "superscore": 0.0507
      }
     }
    ]
@@ -931,15 +931,15 @@
    "version": "4",
    "display_name": "Gemini 4 Hydrogen",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 26.9,
       "aa_cost_per_task": 0.2922,
-      "aa_time_per_task": 1.51,
+      "aa_time_per_task": 1.58,
       "aa_omniscience": 36.1,
       "aa_terminalbench_4": 6.6,
       "aa_frontiercode_2": 9.3,
@@ -950,14 +950,14 @@
       "aa_briefcase_elo": 947.5,
       "aa_non_hallucination": 81.2,
       "aa_terminalbench_science": 2.4,
-      "aa_output_speed": 155.5,
+      "aa_output_speed": 148.9,
       "aa_price_blended": 3.0,
-      "superscore": 5.953
+      "superscore": 5.8643
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 41.1,
       "aa_cost_per_task": 0.798,
@@ -979,11 +979,11 @@
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 51.0,
       "aa_cost_per_task": 1.873,
-      "aa_time_per_task": 8.0,
+      "aa_time_per_task": 8.04,
       "aa_omniscience": 43.7,
       "aa_terminalbench_4": 54.0,
       "aa_frontiercode_2": 36.3,
@@ -994,18 +994,18 @@
       "aa_briefcase_elo": 1494.9,
       "aa_non_hallucination": 91.3,
       "aa_terminalbench_science": 41.4,
-      "aa_output_speed": 177.0,
+      "aa_output_speed": 176.3,
       "aa_price_blended": 3.0,
-      "superscore": 3.3142
+      "superscore": 3.3053
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 54.1,
       "aa_cost_per_task": 3.16,
-      "aa_time_per_task": 15.9,
+      "aa_time_per_task": 14.9,
       "aa_omniscience": 46.3,
       "aa_terminalbench_4": 53.5,
       "aa_frontiercode_2": 39.0,
@@ -1013,12 +1013,12 @@
       "aa_critpt_v2_hard": 66.0,
       "aa_gdp_pdf": 27.6,
       "aa_automationbench": 76.1,
-      "aa_briefcase_elo": 1568.0,
+      "aa_briefcase_elo": 1567.8,
       "aa_non_hallucination": 91.5,
       "aa_terminalbench_science": 49.5,
-      "aa_output_speed": 162.2,
+      "aa_output_speed": 173.2,
       "aa_price_blended": 3.0,
-      "superscore": 2.0782
+      "superscore": 2.2088
      }
     }
    ]
@@ -1030,15 +1030,15 @@
    "version": "4",
    "display_name": "Gemini 4 Neon",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 44.1,
       "aa_cost_per_task": 0.7452,
-      "aa_time_per_task": 3.79,
+      "aa_time_per_task": 3.82,
       "aa_omniscience": 48.5,
       "aa_terminalbench_4": 32.8,
       "aa_frontiercode_2": 26.9,
@@ -1049,18 +1049,18 @@
       "aa_briefcase_elo": 1295.6,
       "aa_non_hallucination": 81.2,
       "aa_terminalbench_science": 27.1,
-      "aa_output_speed": 95.6,
+      "aa_output_speed": 94.8,
       "aa_price_blended": 6.0,
-      "superscore": 4.7975
+      "superscore": 4.7812
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 54.9,
       "aa_cost_per_task": 1.905,
-      "aa_time_per_task": 8.56,
+      "aa_time_per_task": 8.76,
       "aa_omniscience": 51.1,
       "aa_terminalbench_4": 54.5,
       "aa_frontiercode_2": 36.9,
@@ -1071,18 +1071,18 @@
       "aa_briefcase_elo": 1517.1,
       "aa_non_hallucination": 83.8,
       "aa_terminalbench_science": 54.8,
-      "aa_output_speed": 97.3,
+      "aa_output_speed": 95.1,
       "aa_price_blended": 6.0,
-      "superscore": 3.3124
+      "superscore": 3.2664
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 59.8,
       "aa_cost_per_task": 3.743,
-      "aa_time_per_task": 14.7,
+      "aa_time_per_task": 14.8,
       "aa_omniscience": 53.8,
       "aa_terminalbench_4": 61.6,
       "aa_frontiercode_2": 43.3,
@@ -1093,18 +1093,18 @@
       "aa_briefcase_elo": 1631.3,
       "aa_non_hallucination": 86.1,
       "aa_terminalbench_science": 65.7,
-      "aa_output_speed": 102.0,
+      "aa_output_speed": 101.7,
       "aa_price_blended": 6.0,
-      "superscore": 2.256
+      "superscore": 2.2463
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 61.5,
       "aa_cost_per_task": 6.445,
-      "aa_time_per_task": 25.6,
+      "aa_time_per_task": 28.0,
       "aa_omniscience": 54.8,
       "aa_terminalbench_4": 63.6,
       "aa_frontiercode_2": 44.4,
@@ -1112,12 +1112,12 @@
       "aa_critpt_v2_hard": 60.5,
       "aa_gdp_pdf": 28.0,
       "aa_automationbench": 79.3,
-      "aa_briefcase_elo": 1698.6,
+      "aa_briefcase_elo": 1698.4,
       "aa_non_hallucination": 85.6,
       "aa_terminalbench_science": 70.0,
-      "aa_output_speed": 92.4,
+      "aa_output_speed": 84.3,
       "aa_price_blended": 6.0,
-      "superscore": 1.0812
+      "superscore": 0.8998
      }
     }
    ]
@@ -1166,15 +1166,15 @@
    "version": "6.2",
    "display_name": "GPT-6.2 Astra",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 45.7,
       "aa_cost_per_task": 0.6617,
-      "aa_time_per_task": 2.01,
+      "aa_time_per_task": 2.15,
       "aa_omniscience": 38.7,
       "aa_terminalbench_4": 51.0,
       "aa_frontiercode_2": 32.7,
@@ -1182,22 +1182,22 @@
       "aa_critpt_v2_hard": 61.0,
       "aa_gdp_pdf": 28.0,
       "aa_automationbench": 68.6,
-      "aa_briefcase_elo": 1038.9,
+      "aa_briefcase_elo": 1039.1,
       "aa_non_hallucination": 44.2,
       "aa_terminalbench_science": 51.0,
       "aa_mmmu_pro": 85.1,
-      "aa_output_speed": 43.3,
+      "aa_output_speed": 40.5,
       "aa_price_blended": 16.0,
-      "superscore": 5.1669
+      "superscore": 5.0327
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 57.0,
       "aa_cost_per_task": 1.618,
-      "aa_time_per_task": 4.61,
+      "aa_time_per_task": 4.9,
       "aa_omniscience": 44.8,
       "aa_terminalbench_4": 58.6,
       "aa_frontiercode_2": 46.6,
@@ -1205,22 +1205,22 @@
       "aa_critpt_v2_hard": 67.5,
       "aa_gdp_pdf": 28.4,
       "aa_automationbench": 72.8,
-      "aa_briefcase_elo": 1406.6,
+      "aa_briefcase_elo": 1406.5,
       "aa_non_hallucination": 45.9,
       "aa_terminalbench_science": 74.8,
       "aa_mmmu_pro": 86.1,
-      "aa_output_speed": 47.6,
+      "aa_output_speed": 44.8,
       "aa_price_blended": 16.0,
-      "superscore": 3.796
+      "superscore": 3.6744
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 60.3,
       "aa_cost_per_task": 2.074,
-      "aa_time_per_task": 6.21,
+      "aa_time_per_task": 6.7,
       "aa_omniscience": 46.8,
       "aa_terminalbench_4": 60.1,
       "aa_frontiercode_2": 47.1,
@@ -1228,22 +1228,22 @@
       "aa_critpt_v2_hard": 71.5,
       "aa_gdp_pdf": 28.6,
       "aa_automationbench": 76.0,
-      "aa_briefcase_elo": 1569.6,
+      "aa_briefcase_elo": 1569.4,
       "aa_non_hallucination": 41.9,
       "aa_terminalbench_science": 75.2,
       "aa_mmmu_pro": 87.7,
-      "aa_output_speed": 47.8,
+      "aa_output_speed": 44.3,
       "aa_price_blended": 16.0,
-      "superscore": 3.2191
+      "superscore": 3.0671
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 61.8,
       "aa_cost_per_task": 2.521,
-      "aa_time_per_task": 8.07,
+      "aa_time_per_task": 8.52,
       "aa_omniscience": 48.3,
       "aa_terminalbench_4": 64.1,
       "aa_frontiercode_2": 49.0,
@@ -1251,22 +1251,22 @@
       "aa_critpt_v2_hard": 70.5,
       "aa_gdp_pdf": 28.0,
       "aa_automationbench": 76.1,
-      "aa_briefcase_elo": 1593.5,
+      "aa_briefcase_elo": 1593.3,
       "aa_non_hallucination": 42.3,
       "aa_terminalbench_science": 78.6,
       "aa_mmmu_pro": 87.9,
-      "aa_output_speed": 46.0,
+      "aa_output_speed": 43.5,
       "aa_price_blended": 16.0,
-      "superscore": 2.7576
+      "superscore": 2.6475
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 62.2,
       "aa_cost_per_task": 3.998,
-      "aa_time_per_task": 14.2,
+      "aa_time_per_task": 15.3,
       "aa_omniscience": 50.0,
       "aa_terminalbench_4": 64.1,
       "aa_frontiercode_2": 45.4,
@@ -1274,13 +1274,13 @@
       "aa_critpt_v2_hard": 71.5,
       "aa_gdp_pdf": 29.8,
       "aa_automationbench": 77.2,
-      "aa_briefcase_elo": 1642.5,
+      "aa_briefcase_elo": 1642.3,
       "aa_non_hallucination": 40.9,
       "aa_terminalbench_science": 78.1,
       "aa_mmmu_pro": 89.5,
-      "aa_output_speed": 48.0,
+      "aa_output_speed": 44.6,
       "aa_price_blended": 16.0,
-      "superscore": 1.7467
+      "superscore": 1.5986
      }
     }
    ]
@@ -1292,15 +1292,15 @@
    "version": "6",
    "display_name": "GPT-6 Luna",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "none",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 9.4,
       "aa_cost_per_task": 0.07142,
-      "aa_time_per_task": 1.7,
+      "aa_time_per_task": 1.71,
       "aa_omniscience": -25.8,
       "aa_terminalbench_4": 1.5,
       "aa_frontiercode_2": 1.6,
@@ -1315,18 +1315,18 @@
       "aa_hle": 8.6,
       "aa_scicode": 43.1,
       "aa_lcr": 39.7,
-      "aa_output_speed": 98.6,
+      "aa_output_speed": 98.0,
       "aa_price_blended": 0.2,
-      "superscore": 1.6271
+      "superscore": 1.6151
      }
     },
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 9.7,
       "aa_cost_per_task": 0.005115,
-      "aa_time_per_task": 0.56,
+      "aa_time_per_task": 0.55,
       "aa_omniscience": -18.1,
       "aa_terminalbench_4": 0.0,
       "aa_frontiercode_2": 2.2,
@@ -1341,18 +1341,18 @@
       "aa_hle": 20.3,
       "aa_scicode": 46.9,
       "aa_lcr": 74.0,
-      "aa_output_speed": 98.1,
+      "aa_output_speed": 99.9,
       "aa_price_blended": 0.2,
-      "superscore": 5.1259
+      "superscore": 5.1621
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 18.5,
       "aa_cost_per_task": 0.0422,
-      "aa_time_per_task": 3.09,
+      "aa_time_per_task": 3.04,
       "aa_omniscience": -13.6,
       "aa_terminalbench_4": 2.5,
       "aa_frontiercode_2": 12.8,
@@ -1367,18 +1367,18 @@
       "aa_hle": 28.3,
       "aa_scicode": 50.9,
       "aa_lcr": 78.3,
-      "aa_output_speed": 106.8,
+      "aa_output_speed": 108.6,
       "aa_price_blended": 0.2,
-      "superscore": 2.0048
+      "superscore": 2.0378
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 21.5,
       "aa_cost_per_task": 0.07295,
-      "aa_time_per_task": 4.87,
+      "aa_time_per_task": 4.62,
       "aa_omniscience": -12.8,
       "aa_terminalbench_4": 4.5,
       "aa_frontiercode_2": 18.6,
@@ -1393,18 +1393,18 @@
       "aa_hle": 32.9,
       "aa_scicode": 50.3,
       "aa_lcr": 79.3,
-      "aa_output_speed": 112.3,
+      "aa_output_speed": 118.5,
       "aa_price_blended": 0.2,
-      "superscore": 1.2299
+      "superscore": 1.3363
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 23.5,
       "aa_cost_per_task": 0.1041,
-      "aa_time_per_task": 6.45,
+      "aa_time_per_task": 6.24,
       "aa_omniscience": -13.0,
       "aa_terminalbench_4": 8.1,
       "aa_frontiercode_2": 18.4,
@@ -1419,18 +1419,18 @@
       "aa_hle": 34.3,
       "aa_scicode": 51.7,
       "aa_lcr": 80.0,
-      "aa_output_speed": 113.5,
+      "aa_output_speed": 117.3,
       "aa_price_blended": 0.2,
-      "superscore": 0.7508
+      "superscore": 0.8168
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 27.9,
       "aa_cost_per_task": 0.152,
-      "aa_time_per_task": 10.6,
+      "aa_time_per_task": 10.2,
       "aa_omniscience": -8.3,
       "aa_terminalbench_4": 12.6,
       "aa_frontiercode_2": 25.2,
@@ -1438,16 +1438,16 @@
       "aa_critpt_v2_hard": 42.5,
       "aa_gdp_pdf": 22.8,
       "aa_automationbench": 53.2,
-      "aa_briefcase_elo": 1335.4,
+      "aa_briefcase_elo": 1335.2,
       "aa_non_hallucination": 20.7,
       "aa_terminalbench_science": 8.6,
       "aa_mmmu_pro": 79.7,
       "aa_hle": 38.5,
       "aa_scicode": 54.6,
       "aa_lcr": 83.3,
-      "aa_output_speed": 118.3,
+      "aa_output_speed": 122.9,
       "aa_price_blended": 0.2,
-      "superscore": 0.3461
+      "superscore": 0.4227
      }
     }
    ]
@@ -1496,15 +1496,15 @@
    "version": "6.2",
    "display_name": "GPT-6.2 Sol",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 40.6,
       "aa_cost_per_task": 0.1836,
-      "aa_time_per_task": 1.62,
+      "aa_time_per_task": 1.69,
       "aa_omniscience": 24.8,
       "aa_terminalbench_4": 37.9,
       "aa_frontiercode_2": 31.4,
@@ -1512,21 +1512,21 @@
       "aa_critpt_v2_hard": 58.0,
       "aa_gdp_pdf": 28.6,
       "aa_automationbench": 63.2,
-      "aa_briefcase_elo": 1228.8,
+      "aa_briefcase_elo": 1228.5,
       "aa_non_hallucination": 34.2,
       "aa_terminalbench_science": 37.1,
-      "aa_output_speed": 61.6,
+      "aa_output_speed": 58.8,
       "aa_price_blended": 4.0,
-      "superscore": 5.256
+      "superscore": 5.1672
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 52.4,
       "aa_cost_per_task": 0.4061,
-      "aa_time_per_task": 3.5,
+      "aa_time_per_task": 3.65,
       "aa_omniscience": 34.2,
       "aa_terminalbench_4": 56.1,
       "aa_frontiercode_2": 41.4,
@@ -1534,21 +1534,21 @@
       "aa_critpt_v2_hard": 64.0,
       "aa_gdp_pdf": 29.2,
       "aa_automationbench": 70.3,
-      "aa_briefcase_elo": 1494.1,
+      "aa_briefcase_elo": 1494.0,
       "aa_non_hallucination": 38.9,
       "aa_terminalbench_science": 60.5,
-      "aa_output_speed": 65.1,
+      "aa_output_speed": 62.4,
       "aa_price_blended": 4.0,
-      "superscore": 4.131
+      "superscore": 4.0467
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 54.8,
       "aa_cost_per_task": 0.5636,
-      "aa_time_per_task": 5.18,
+      "aa_time_per_task": 5.51,
       "aa_omniscience": 38.3,
       "aa_terminalbench_4": 58.6,
       "aa_frontiercode_2": 40.2,
@@ -1556,21 +1556,21 @@
       "aa_critpt_v2_hard": 61.5,
       "aa_gdp_pdf": 28.8,
       "aa_automationbench": 69.9,
-      "aa_briefcase_elo": 1541.0,
+      "aa_briefcase_elo": 1540.8,
       "aa_non_hallucination": 40.0,
       "aa_terminalbench_science": 67.6,
-      "aa_output_speed": 64.9,
+      "aa_output_speed": 61.0,
       "aa_price_blended": 4.0,
-      "superscore": 3.4808
+      "superscore": 3.3571
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 55.6,
       "aa_cost_per_task": 0.648,
-      "aa_time_per_task": 6.2,
+      "aa_time_per_task": 6.53,
       "aa_omniscience": 38.6,
       "aa_terminalbench_4": 56.1,
       "aa_frontiercode_2": 42.8,
@@ -1578,21 +1578,21 @@
       "aa_critpt_v2_hard": 62.5,
       "aa_gdp_pdf": 28.4,
       "aa_automationbench": 70.6,
-      "aa_briefcase_elo": 1578.7,
+      "aa_briefcase_elo": 1578.5,
       "aa_non_hallucination": 43.8,
       "aa_terminalbench_science": 66.7,
-      "aa_output_speed": 65.3,
+      "aa_output_speed": 62.1,
       "aa_price_blended": 4.0,
-      "superscore": 3.2729
+      "superscore": 3.1708
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 57.3,
       "aa_cost_per_task": 1.014,
-      "aa_time_per_task": 10.0,
+      "aa_time_per_task": 10.4,
       "aa_omniscience": 40.4,
       "aa_terminalbench_4": 60.1,
       "aa_frontiercode_2": 44.4,
@@ -1600,12 +1600,12 @@
       "aa_critpt_v2_hard": 62.5,
       "aa_gdp_pdf": 30.0,
       "aa_automationbench": 71.3,
-      "aa_briefcase_elo": 1611.8,
+      "aa_briefcase_elo": 1611.6,
       "aa_non_hallucination": 44.6,
       "aa_terminalbench_science": 67.6,
-      "aa_output_speed": 67.2,
+      "aa_output_speed": 64.4,
       "aa_price_blended": 4.0,
-      "superscore": 2.424
+      "superscore": 2.3422
      }
     }
    ]
@@ -1617,15 +1617,15 @@
    "version": "6.1",
    "display_name": "GPT-6.1 Terra",
    "live": true,
-   "last_seen": "2026-11-25",
+   "last_seen": "2026-11-26",
    "points": [
     {
      "effort": "none",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 30.5,
       "aa_cost_per_task": 0.2259,
-      "aa_time_per_task": 2.39,
+      "aa_time_per_task": 2.56,
       "aa_omniscience": -5.0,
       "aa_terminalbench_4": 26.8,
       "aa_frontiercode_2": 33.4,
@@ -1640,18 +1640,18 @@
       "aa_hle": 21.1,
       "aa_scicode": 47.8,
       "aa_lcr": 67.7,
-      "aa_output_speed": 66.3,
+      "aa_output_speed": 61.9,
       "aa_price_blended": 2.0,
-      "superscore": 3.3531
+      "superscore": 3.2157
      }
     },
     {
      "effort": "low",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 29.4,
       "aa_cost_per_task": 0.07134,
-      "aa_time_per_task": 1.13,
+      "aa_time_per_task": 1.2,
       "aa_omniscience": 22.9,
       "aa_terminalbench_4": 15.2,
       "aa_frontiercode_2": 24.5,
@@ -1666,18 +1666,18 @@
       "aa_hle": 35.8,
       "aa_scicode": 52.4,
       "aa_lcr": 81.0,
-      "aa_output_speed": 65.4,
+      "aa_output_speed": 61.3,
       "aa_price_blended": 2.0,
-      "superscore": 6.1405
+      "superscore": 6.0157
      }
     },
     {
      "effort": "medium",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 38.1,
       "aa_cost_per_task": 0.1688,
-      "aa_time_per_task": 2.7,
+      "aa_time_per_task": 2.9,
       "aa_omniscience": 26.6,
       "aa_terminalbench_4": 32.3,
       "aa_frontiercode_2": 34.5,
@@ -1692,18 +1692,18 @@
       "aa_hle": 40.2,
       "aa_scicode": 51.6,
       "aa_lcr": 80.7,
-      "aa_output_speed": 67.0,
+      "aa_output_speed": 62.5,
       "aa_price_blended": 2.0,
-      "superscore": 4.7253
+      "superscore": 4.5843
      }
     },
     {
      "effort": "high",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 42.5,
       "aa_cost_per_task": 0.2593,
-      "aa_time_per_task": 4.16,
+      "aa_time_per_task": 4.45,
       "aa_omniscience": 27.8,
       "aa_terminalbench_4": 41.9,
       "aa_frontiercode_2": 37.5,
@@ -1718,18 +1718,18 @@
       "aa_hle": 43.3,
       "aa_scicode": 51.6,
       "aa_lcr": 82.3,
-      "aa_output_speed": 67.1,
+      "aa_output_speed": 62.7,
       "aa_price_blended": 2.0,
-      "superscore": 4.0167
+      "superscore": 3.8815
      }
     },
     {
      "effort": "xhigh",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 45.3,
       "aa_cost_per_task": 0.4007,
-      "aa_time_per_task": 6.41,
+      "aa_time_per_task": 6.85,
       "aa_omniscience": 28.9,
       "aa_terminalbench_4": 46.5,
       "aa_frontiercode_2": 36.9,
@@ -1744,18 +1744,18 @@
       "aa_hle": 43.7,
       "aa_scicode": 53.4,
       "aa_lcr": 81.7,
-      "aa_output_speed": 68.1,
+      "aa_output_speed": 63.8,
       "aa_price_blended": 2.0,
-      "superscore": 3.2309
+      "superscore": 3.0993
      }
     },
     {
      "effort": "max",
-     "observed_at": "2026-11-25",
+     "observed_at": "2026-11-26",
      "values": {
       "aa_intelligence_index": 51.4,
       "aa_cost_per_task": 0.9611,
-      "aa_time_per_task": 14.0,
+      "aa_time_per_task": 15.0,
       "aa_omniscience": 29.6,
       "aa_terminalbench_4": 55.6,
       "aa_frontiercode_2": 42.1,
@@ -1763,16 +1763,16 @@
       "aa_critpt_v2_hard": 68.0,
       "aa_gdp_pdf": 28.6,
       "aa_automationbench": 60.2,
-      "aa_briefcase_elo": 1399.3,
+      "aa_briefcase_elo": 1399.0,
       "aa_non_hallucination": 65.5,
       "aa_terminalbench_science": 57.6,
       "aa_mmmu_pro": 84.7,
       "aa_hle": 46.2,
       "aa_scicode": 55.1,
       "aa_lcr": 82.7,
-      "aa_output_speed": 71.4,
+      "aa_output_speed": 66.4,
       "aa_price_blended": 2.0,
-      "superscore": 1.7842
+      "superscore": 1.6426
      }
     }
    ]
